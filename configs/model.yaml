@@ -1,0 +1,16 @@
+model:
+  name_or_path: Qwen/Qwen3-4B
+  revision: main
+  trust_remote_code: false
+  torch_dtype: auto
+  device_map: auto
+
+tokenization:
+  add_special_tokens: true
+  truncation: false
+  max_length: null
+
+extraction:
+  # Índices na tupla outputs.hidden_states: 0 = embeddings, -1 = último bloco.
+  hidden_state_indices: [0, -1]
+
