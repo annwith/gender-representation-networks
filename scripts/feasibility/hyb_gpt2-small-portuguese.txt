@@ -1,0 +1,13 @@
+
+######## pierreguillou/gpt2-small-portuguese: desenho híbrido (f_max=50)
+vértices: 15099  por estrato: {'alvo': 754, 'controle': 300, 'conteúdo multitema': 3000, 'núcleo': 11045}
+núcleo denso: 107 parágrafos inteiros; parágrafos tocados no total: 3017; tokens a processar no modelo (até o último vértice de cada parágrafo): 248579
+tipos: 4856; tipos com f 1–2: 3808 (30% dos vértices); f≥3: 1048; f≥10: 286
+palavras de conteúdo elegíveis para o estrato multitema no pool: 2007
+conteúdo f≥10 com ≥3 ocorrências em ≥2 temas: 181
+conteúdo f≥10 com ≥3 ocorrências em ≥3 temas: 173
+alvo: ≥10 oc. em ≥2 temas: 7/16 ['banco', 'órgão', 'capital', 'planta', 'corrente', 'onda', 'núcleo']
+alvo: ≥5 oc. em ≥3 temas:  14 ['banco', 'campo', 'órgão', 'estado', 'carga', 'rede', 'nota', 'capital', 'família', 'massa', 'matriz', 'corrente', 'onda', 'núcleo']
+controle: ≥10 oc. em ≥2 temas: 1/6 ['água']
+controle: ≥5 oc. em ≥3 temas:  6 ['ano', 'século', 'grande', 'primeiro', 'importante', 'água']
+núcleo: 11045 vértices, média 103 vértices por parágrafo

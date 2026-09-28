@@ -1,0 +1,13 @@
+
+######## TucanoBR/Tucano-2b4: desenho híbrido (f_max=50)
+vértices: 15002  por estrato: {'alvo': 748, 'controle': 300, 'conteúdo multitema': 3000, 'núcleo': 10954}
+núcleo denso: 93 parágrafos inteiros; parágrafos tocados no total: 2943; tokens a processar no modelo (até o último vértice de cada parágrafo): 243959
+tipos: 4904; tipos com f 1–2: 3811 (32% dos vértices); f≥3: 1093; f≥10: 274
+palavras de conteúdo elegíveis para o estrato multitema no pool: 1730
+conteúdo f≥10 com ≥3 ocorrências em ≥2 temas: 179
+conteúdo f≥10 com ≥3 ocorrências em ≥3 temas: 172
+alvo: ≥10 oc. em ≥2 temas: 7/16 ['banco', 'órgão', 'capital', 'massa', 'corrente', 'onda', 'núcleo']
+alvo: ≥5 oc. em ≥3 temas:  14 ['banco', 'campo', 'órgão', 'estado', 'carga', 'rede', 'nota', 'capital', 'família', 'massa', 'matriz', 'corrente', 'onda', 'núcleo']
+controle: ≥10 oc. em ≥2 temas: 1/6 ['água']
+controle: ≥5 oc. em ≥3 temas:  6 ['ano', 'século', 'grande', 'primeiro', 'importante', 'água']
+núcleo: 10954 vértices, média 118 vértices por parágrafo

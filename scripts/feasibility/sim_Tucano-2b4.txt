@@ -1,0 +1,204 @@
+
+######## TucanoBR/Tucano-2b4  (sentencepiece=True)
+pool: 7876 parágrafos, 953290 tokens, 1.33 tokens/palavra; parágrafos por tema: {'biologia': 965, 'computacao': 1034, 'economia': 1147, 'esporte': 836, 'fisica': 948, 'geografia': 785, 'musica': 1032, 'politica': 1129}
+palavras-alvo que NÃO são um token só: []
+f_max=20 natural: 10k vértices ← 93 parágrafos / 12947 tokens
+
+=== f_max=20, amostragem natural: 15k vértices ← 148 parágrafos / 19845 tokens
+  vértices: 15006
+  tipos: 6508
+  tipos 1–2: 5019
+  %vért 1–2: 42
+  tipos 3–9: 1284
+  %vért 3–9: 38
+  tipos 10–49: 205
+  %vért 10–49: 20
+  tipos ≥50: 0
+  %vért ≥50: 0
+  %vért palavra inteira: 51
+  tipos f≥3: 1489
+  tipos f≥10: 205
+  tipos f≥10 palavra inteira: 114
+  conteúdo f≥10: 39
+  conteúdo f≥10, ≥3 oc. em ≥2 temas: 19
+  conteúdo f≥10, ≥3 oc. em ≥3 temas: 5
+  exemplos de conteúdo em ≥3 temas: não, desenvolvimento, tempo, forma, sistema
+  palavras-alvo com ≥10 ocorrências em ≥2 temas: 0 → []
+    banco       total=  1  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=1 poli=0
+    campo       total=  3  biol=0 comp=0 econ=1 espo=1 fisi=0 geog=1 musi=0 poli=0
+    órgão       total=  2  biol=1 comp=0 econ=0 espo=1 fisi=0 geog=0 musi=0 poli=0
+    estado      total=  2  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=1 poli=1
+    carga       total=  1  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=1
+    rede        total=  5  biol=0 comp=3 econ=1 espo=0 fisi=0 geog=0 musi=0 poli=1
+    nota        total=  2  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=2 poli=0
+    capital     total=  3  biol=0 comp=0 econ=1 espo=2 fisi=0 geog=0 musi=0 poli=0
+    família     total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    massa       total=  1  biol=0 comp=0 econ=0 espo=1 fisi=0 geog=0 musi=0 poli=0
+    matriz      total=  1  biol=1 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    planta      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    corrente    total= 10  biol=0 comp=0 econ=1 espo=0 fisi=8 geog=0 musi=1 poli=0
+    onda        total=  4  biol=0 comp=0 econ=0 espo=0 fisi=4 geog=0 musi=0 poli=0
+    célula      total=  5  biol=5 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    núcleo      total=  1  biol=1 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    ano         total=  4  biol=0 comp=0 econ=0 espo=1 fisi=1 geog=1 musi=1 poli=0
+    século      total=  2  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=1 musi=1 poli=0
+    grande      total=  4  biol=1 comp=0 econ=0 espo=2 fisi=1 geog=0 musi=0 poli=0
+    primeiro    total= 14  biol=1 comp=2 econ=1 espo=5 fisi=1 geog=1 musi=3 poli=0
+    importante  total=  6  biol=2 comp=0 econ=1 espo=1 fisi=0 geog=0 musi=1 poli=1
+    água        total=  5  biol=1 comp=0 econ=0 espo=0 fisi=3 geog=1 musi=0 poli=0
+f_max=20 direcionada: 10k vértices ← 99 parágrafos / 13414 tokens
+
+=== f_max=20, amostragem direcionada: 15k vértices ← 153 parágrafos / 20592 tokens
+  vértices: 15093
+  tipos: 6184
+  tipos 1–2: 4654
+  %vért 1–2: 38
+  tipos 3–9: 1300
+  %vért 3–9: 39
+  tipos 10–49: 230
+  %vért 10–49: 23
+  tipos ≥50: 0
+  %vért ≥50: 0
+  %vért palavra inteira: 52
+  tipos f≥3: 1530
+  tipos f≥10: 230
+  tipos f≥10 palavra inteira: 134
+  conteúdo f≥10: 62
+  conteúdo f≥10, ≥3 oc. em ≥2 temas: 36
+  conteúdo f≥10, ≥3 oc. em ≥3 temas: 8
+  exemplos de conteúdo em ≥3 temas: dados, banco, forma, estudo, campo, ciência, qualquer, sistemas
+  palavras-alvo com ≥10 ocorrências em ≥2 temas: 0 → []
+    banco       total= 20  biol=3 comp=5 econ=7 espo=1 fisi=0 geog=1 musi=2 poli=1
+    campo       total= 20  biol=2 comp=4 econ=0 espo=7 fisi=0 geog=3 musi=1 poli=3
+    órgão       total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    estado      total=  1  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=1 musi=0 poli=0
+    carga       total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    rede        total=  2  biol=0 comp=0 econ=1 espo=0 fisi=1 geog=0 musi=0 poli=0
+    nota        total=  1  biol=0 comp=0 econ=0 espo=0 fisi=1 geog=0 musi=0 poli=0
+    capital     total= 20  biol=0 comp=0 econ=15 espo=5 fisi=0 geog=0 musi=0 poli=0
+    família     total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    massa       total=  2  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=2 musi=0 poli=0
+    matriz      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    planta      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    corrente    total=  8  biol=1 comp=0 econ=3 espo=0 fisi=0 geog=0 musi=3 poli=1
+    onda        total=  1  biol=0 comp=0 econ=0 espo=0 fisi=1 geog=0 musi=0 poli=0
+    célula      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    núcleo      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    ano         total=  3  biol=0 comp=0 econ=0 espo=2 fisi=0 geog=0 musi=1 poli=0
+    século      total= 12  biol=6 comp=0 econ=3 espo=1 fisi=0 geog=1 musi=1 poli=0
+    grande      total=  9  biol=2 comp=0 econ=2 espo=3 fisi=0 geog=1 musi=1 poli=0
+    primeiro    total=  8  biol=0 comp=1 econ=0 espo=4 fisi=1 geog=1 musi=1 poli=0
+    importante  total=  1  biol=0 comp=0 econ=0 espo=0 fisi=1 geog=0 musi=0 poli=0
+    água        total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+f_max=50 natural: 10k vértices ← 90 parágrafos / 11665 tokens
+
+=== f_max=50, amostragem natural: 15k vértices ← 134 parágrafos / 18274 tokens
+  vértices: 15036
+  tipos: 6144
+  tipos 1–2: 4787
+  %vért 1–2: 40
+  tipos 3–9: 1174
+  %vért 3–9: 34
+  tipos 10–49: 154
+  %vért 10–49: 16
+  tipos ≥50: 29
+  %vért ≥50: 10
+  %vért palavra inteira: 54
+  tipos f≥3: 1357
+  tipos f≥10: 183
+  tipos f≥10 palavra inteira: 107
+  conteúdo f≥10: 34
+  conteúdo f≥10, ≥3 oc. em ≥2 temas: 17
+  conteúdo f≥10, ≥3 oc. em ≥3 temas: 5
+  exemplos de conteúdo em ≥3 temas: não, desenvolvimento, forma, tempo, sistema
+  palavras-alvo com ≥10 ocorrências em ≥2 temas: 0 → []
+    banco       total=  1  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=1 poli=0
+    campo       total=  3  biol=0 comp=0 econ=1 espo=1 fisi=0 geog=1 musi=0 poli=0
+    órgão       total=  1  biol=0 comp=0 econ=0 espo=1 fisi=0 geog=0 musi=0 poli=0
+    estado      total=  2  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=1 poli=1
+    carga       total=  1  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=1
+    rede        total=  5  biol=0 comp=3 econ=1 espo=0 fisi=0 geog=0 musi=0 poli=1
+    nota        total=  1  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=1 poli=0
+    capital     total=  3  biol=0 comp=0 econ=1 espo=2 fisi=0 geog=0 musi=0 poli=0
+    família     total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    massa       total=  1  biol=0 comp=0 econ=0 espo=1 fisi=0 geog=0 musi=0 poli=0
+    matriz      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    planta      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    corrente    total= 10  biol=0 comp=0 econ=1 espo=0 fisi=8 geog=0 musi=1 poli=0
+    onda        total=  4  biol=0 comp=0 econ=0 espo=0 fisi=4 geog=0 musi=0 poli=0
+    célula      total=  5  biol=5 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    núcleo      total=  1  biol=1 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    ano         total=  3  biol=0 comp=0 econ=0 espo=1 fisi=0 geog=1 musi=1 poli=0
+    século      total=  2  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=1 musi=1 poli=0
+    grande      total=  3  biol=1 comp=0 econ=0 espo=1 fisi=1 geog=0 musi=0 poli=0
+    primeiro    total= 14  biol=1 comp=2 econ=1 espo=5 fisi=1 geog=1 musi=3 poli=0
+    importante  total=  5  biol=1 comp=0 econ=1 espo=1 fisi=0 geog=0 musi=1 poli=1
+    água        total=  5  biol=1 comp=0 econ=0 espo=0 fisi=3 geog=1 musi=0 poli=0
+f_max=50 direcionada: 10k vértices ← 90 parágrafos / 11971 tokens
+
+=== f_max=50, amostragem direcionada: 15k vértices ← 141 parágrafos / 18770 tokens
+  vértices: 15108
+  tipos: 5826
+  tipos 1–2: 4455
+  %vért 1–2: 36
+  tipos 3–9: 1168
+  %vért 3–9: 35
+  tipos 10–49: 169
+  %vért 10–49: 18
+  tipos ≥50: 34
+  %vért ≥50: 11
+  %vért palavra inteira: 56
+  tipos f≥3: 1371
+  tipos f≥10: 203
+  tipos f≥10 palavra inteira: 122
+  conteúdo f≥10: 56
+  conteúdo f≥10, ≥3 oc. em ≥2 temas: 33
+  conteúdo f≥10, ≥3 oc. em ≥3 temas: 10
+  exemplos de conteúdo em ≥3 temas: banco, não, campo, dados, teoria, estudo, forma, ciência, qualquer, sistemas
+  palavras-alvo com ≥10 ocorrências em ≥2 temas: 1 → ['banco']
+    banco       total= 50  biol=7 comp=13 econ=18 espo=4 fisi=0 geog=4 musi=3 poli=1
+    campo       total= 50  biol=5 comp=6 econ=6 espo=6 fisi=8 geog=9 musi=4 poli=6
+    órgão       total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    estado      total=  1  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=1 musi=0 poli=0
+    carga       total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    rede        total=  2  biol=0 comp=0 econ=1 espo=0 fisi=1 geog=0 musi=0 poli=0
+    nota        total=  1  biol=0 comp=0 econ=0 espo=0 fisi=1 geog=0 musi=0 poli=0
+    capital     total= 13  biol=0 comp=0 econ=13 espo=0 fisi=0 geog=0 musi=0 poli=0
+    família     total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    massa       total=  2  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=2 musi=0 poli=0
+    matriz      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    planta      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    corrente    total=  5  biol=1 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=3 poli=1
+    onda        total=  1  biol=0 comp=0 econ=0 espo=0 fisi=1 geog=0 musi=0 poli=0
+    célula      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    núcleo      total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+    ano         total=  2  biol=0 comp=0 econ=0 espo=1 fisi=0 geog=0 musi=1 poli=0
+    século      total= 12  biol=6 comp=0 econ=3 espo=1 fisi=0 geog=1 musi=1 poli=0
+    grande      total=  8  biol=2 comp=0 econ=2 espo=2 fisi=0 geog=1 musi=1 poli=0
+    primeiro    total=  7  biol=0 comp=1 econ=0 espo=3 fisi=1 geog=1 musi=1 poli=0
+    importante  total=  1  biol=0 comp=0 econ=0 espo=0 fisi=1 geog=0 musi=0 poli=0
+    água        total=  0  biol=0 comp=0 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=0
+
+=== pool inteiro (sem limite): ocorrências das palavras-alvo por tema
+  banco       total=  62  biol=8 comp=19 econ=22 espo=5 fisi=0 geog=4 musi=3 poli=1
+  campo       total= 279  biol=31 comp=25 econ=20 espo=45 fisi=79 geog=57 musi=10 poli=12
+  órgão       total=  51  biol=6 comp=1 econ=5 espo=8 fisi=0 geog=0 musi=21 poli=10
+  estado      total= 251  biol=23 comp=34 econ=28 espo=8 fisi=75 geog=13 musi=18 poli=52
+  carga       total=  47  biol=9 comp=3 econ=6 espo=0 fisi=17 geog=0 musi=3 poli=9
+  rede        total= 133  biol=6 comp=63 econ=14 espo=1 fisi=15 geog=16 musi=3 poli=15
+  nota        total=  49  biol=4 comp=5 econ=9 espo=1 fisi=4 geog=0 musi=22 poli=4
+  capital     total= 208  biol=0 comp=0 econ=157 espo=18 fisi=1 geog=9 musi=5 poli=18
+  família     total=  55  biol=9 comp=9 econ=3 espo=3 fisi=10 geog=1 musi=13 poli=7
+  massa       total= 109  biol=2 comp=1 econ=6 espo=3 fisi=45 geog=35 musi=9 poli=8
+  matriz      total=  32  biol=12 comp=3 econ=2 espo=0 fisi=5 geog=0 musi=9 poli=1
+  planta      total=  27  biol=18 comp=0 econ=0 espo=0 fisi=0 geog=8 musi=0 poli=1
+  corrente    total= 134  biol=3 comp=1 econ=10 espo=0 fisi=107 geog=0 musi=7 poli=6
+  onda        total=  69  biol=0 comp=1 econ=5 espo=0 fisi=47 geog=2 musi=11 poli=3
+  célula      total=  78  biol=76 comp=1 econ=0 espo=0 fisi=0 geog=0 musi=0 poli=1
+  núcleo      total=  43  biol=8 comp=15 econ=2 espo=1 fisi=12 geog=0 musi=0 poli=5
+  ano         total= 205  biol=8 comp=12 econ=22 espo=54 fisi=24 geog=21 musi=43 poli=21
+  século      total= 351  biol=29 comp=12 econ=29 espo=11 fisi=85 geog=66 musi=57 poli=62
+  grande      total= 527  biol=57 comp=46 econ=67 espo=66 fisi=91 geog=50 musi=76 poli=74
+  primeiro    total= 488  biol=24 comp=50 econ=38 espo=134 fisi=60 geog=46 musi=89 poli=47
+  importante  total= 221  biol=51 comp=19 econ=41 espo=7 fisi=22 geog=21 musi=29 poli=31
+  água        total= 169  biol=76 comp=0 econ=13 espo=2 fisi=27 geog=46 musi=1 poli=4
