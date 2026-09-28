@@ -37,25 +37,39 @@ STAGES: dict[str, tuple[str, str]] = {
 PIPELINE = ["corpus", "sample", "extract", "knn", "metrics", "analyze", "report"]
 
 
+def _common_options(parser: argparse.ArgumentParser, suppress: bool) -> None:
+    """Options accepted both before and after the stage name.
+
+    Sub-parsers use SUPPRESS defaults so that a value given before the stage is not reset.
+    """
+
+    def default(value: object) -> object:
+        return argparse.SUPPRESS if suppress else value
+
+    parser.add_argument("--config", type=Path, default=default(Path("configs/experiment.yaml")))
+    parser.add_argument("--root", type=Path, default=default(Path(".")), help="Raiz do repositório")
+    parser.add_argument(
+        "--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default=default("INFO")
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="gender-networks",
         description="Da rede lexical à rede contextual: pipeline do experimento.",
     )
-    parser.add_argument("--config", type=Path, default=Path("configs/experiment.yaml"))
-    parser.add_argument("--root", type=Path, default=Path("."), help="Raiz do repositório")
-    parser.add_argument(
-        "--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="INFO"
-    )
+    _common_options(parser, suppress=False)
     sub = parser.add_subparsers(dest="stage", required=True)
     for name, (_, help_text) in STAGES.items():
         stage = sub.add_parser(name, help=help_text)
+        _common_options(stage, suppress=True)
         stage.add_argument("--force", action="store_true", help="Refaz a etapa mesmo com cache")
         if name == "extract":
             stage.add_argument(
                 "--verify", action="store_true", help="Só roda as checagens no modelo real"
             )
     everything = sub.add_parser("all", help="Roda todas as etapas em ordem")
+    _common_options(everything, suppress=True)
     everything.add_argument("--force", action="store_true")
     return parser
 
