@@ -1,5 +1,22 @@
 # gender-representation-networks
 
+## Piloto completo de redes por ocorrência
+
+Execute o piloto metodológico completo com:
+
+```bash
+uv run python scripts/run_network_pilot.py
+```
+
+O padrão usa `pierreguillou/gpt2-small-portuguese` (GPT-2 small treinado na Wikipédia em
+português) e valida que o texto português padrão contém 100–150 tokens. Os resultados ficam em
+`outputs/network_pilot/`: metadados das ocorrências, tabelas de vizinhos/métricas/Jaccard/
+dominância/comunidades, seis figuras, `metadata.json` e `report.md`. A rede não direcionada usa a
+união das escolhas k-NN; empates são resolvidos pela posição para tornar as repetições lexicais
+reproduzíveis.
+
+---
+
 Infraestrutura inicial para um experimento piloto que extrai representações internas do
 `Qwen/Qwen3-4B` para pares de prompts contrafactuais. Esta etapa **não** cria grafos, calcula
 métricas de redes ou toma decisões metodológicas sobre como transformar ativações em redes.

@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "accelerate>=1.0",
+    "matplotlib>=3.8",
+    "networkx>=3.2",
     "pyyaml>=6.0",
     "safetensors>=0.4",
     "torch>=2.2",
@@ -20,6 +22,7 @@ dev = [
 
 [project.scripts]
 gender-networks-pilot = "gender_networks.cli:main"
+gender-networks-network-pilot = "gender_networks.network_pilot:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -38,4 +41,4 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-
+per-file-ignores = { "src/gender_networks/network_pilot.py" = ["E501"] }
