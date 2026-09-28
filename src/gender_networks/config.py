@@ -18,6 +18,7 @@ class ModelConfig:
     trust_remote_code: bool = False
     torch_dtype: str = "auto"
     device_map: str | None = "auto"
+    max_memory: dict[int | str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -112,6 +113,12 @@ def load_config(path: str | Path) -> ExperimentConfig:
     device_map = model_raw.get("device_map", "auto")
     if device_map is not None and not isinstance(device_map, str):
         raise ValueError("model.device_map must be a string or null")
+    max_memory = model_raw.get("max_memory")
+    if max_memory is not None and (
+        not isinstance(max_memory, dict)
+        or any(not isinstance(value, str) for value in max_memory.values())
+    ):
+        raise ValueError("model.max_memory must be null or a mapping of device to size string")
 
     return ExperimentConfig(
         model=ModelConfig(
@@ -120,6 +127,7 @@ def load_config(path: str | Path) -> ExperimentConfig:
             trust_remote_code=trust_remote_code,
             torch_dtype=torch_dtype,
             device_map=device_map,
+            max_memory=max_memory,
         ),
         tokenization=TokenizationConfig(
             add_special_tokens=add_special_tokens,

@@ -8,9 +8,12 @@ from gender_networks.config import load_config
 def test_load_config() -> None:
     config = load_config(Path("configs/model.yaml"))
 
-    assert config.model.name_or_path == "Qwen/Qwen3-4B"
+    assert config.model.name_or_path == "Qwen/Qwen3-4B-Base"
+    assert len(config.model.revision) == 40
+    assert config.model.max_memory == {0: "6GiB", "cpu": "10GiB"}
     assert config.extraction.hidden_state_indices == (0, -1)
     assert config.tokenization.truncation is False
+    assert config.tokenization.add_special_tokens is False
 
 
 def test_rejects_truncation_without_max_length(tmp_path: Path) -> None:

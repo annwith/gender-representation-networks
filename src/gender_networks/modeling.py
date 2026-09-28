@@ -46,8 +46,9 @@ def load_model_and_tokenizer(config: ExperimentConfig) -> ModelBundle:
         model_config.name_or_path,
         revision=model_config.revision,
         trust_remote_code=model_config.trust_remote_code,
-        torch_dtype=model_config.torch_dtype,
+        dtype=model_config.torch_dtype,
         device_map=model_config.device_map,
+        max_memory=model_config.max_memory,
     )
     model.eval()
     return ModelBundle(tokenizer=tokenizer, model=model)
