@@ -1,0 +1,176 @@
+# Execução principal do experimento "da rede lexical à rede contextual".
+# Uso: uv run gender-networks <etapa> --config configs/experiment.yaml
+name: main
+
+paths:
+  raw_dir: data/raw/wiki
+  corpus_dir: data/corpus
+  runs_dir: outputs/experiment
+  report_dir: report/relatorio
+
+model:
+  name_or_path: Qwen/Qwen3-4B-Base
+  revision: 906bfd4b4dc7f14ee4320094d8b41684abff8539
+  dtype: bfloat16
+  device_map: auto
+  # Os pesos (~7,5 GiB) não cabem inteiros nos 8 GiB da RTX 4070; o resto vai para a CPU.
+  max_memory:
+    0: 6GiB
+    cpu: 10GiB
+  prefix_token: "<|endoftext|>"
+  layers: {L01: 1, L18: 18, L36: 36}
+  capture_all_layers: true
+  verify_sequences: 8
+
+corpus:
+  themes:
+    fisica: [Categoria:Física]
+    biologia: [Categoria:Biologia]
+    economia: [Categoria:Economia]
+    politica: [Categoria:Política]
+    computacao: [Categoria:Ciência da computação]
+    musica: [Categoria:Música]
+    esporte: [Categoria:Futebol]
+    geografia: [Categoria:Geografia]
+  # Categorias extras para os sentidos fracos das palavras-alvo (contagens do estudo de
+  # viabilidade: nota/Economia 7, carga/Economia 6, órgão/Biologia 6, banco/Geografia 4).
+  extra_categories:
+    economia:
+      - Categoria:Numismática          # nota (cédula)
+      - Categoria:Impostos             # carga tributária
+      - Categoria:Direito tributário   # carga tributária
+      - Categoria:Sistema bancário     # banco (instituição)
+      - Categoria:Indústria            # planta industrial
+    biologia:
+      - Categoria:Anatomia humana      # órgão
+      - Categoria:Órgãos (anatomia)    # órgão
+      - Categoria:Botânica             # planta
+      - Categoria:Taxonomia            # família (taxonomia)
+    computacao:
+      - Categoria:Bancos de dados      # banco de dados
+      - Categoria:Redes de computadores  # rede
+      - Categoria:Matrizes             # matriz (matemática)
+    geografia:
+      - Categoria:Geomorfologia        # banco de areia
+      - Categoria:Oceanografia         # banco de areia, massa de água
+      - Categoria:Hidrografia          # rede hidrográfica
+    musica:
+      - Categoria:Teoria musical       # nota musical
+  bfs_depth: 2
+  max_titles_per_theme: 600
+  articles_per_theme: 150
+  articles_per_extra_category: 60
+  delay_s: 2.5
+  batch_titles: 50
+  # Política da Wikimedia: identifique um contato no User-Agent (edite antes de rodar).
+  user_agent: "gender-representation-networks/0.2 (projeto academico MO438)"
+  skip_category_patterns:
+    - "Categoria:!"
+    - "Artigos"
+    - "Esboço"
+    - "Páginas"
+    - "Predefinições"
+    - "Wikipédia"
+    - "Usuário"
+    - "Listas"
+  exclude_infobox_patterns:
+    - "Info/Biografia"
+    - "Info/Futebolista"
+    - "Info/Político"
+    - "Info/Músico"
+    - "Info/Música/artista"
+    - "Info/Cientista"
+    - "Info/Treinador"
+    - "Info/Presidente"
+    - "Info/Monarca"
+    - "Info/Deputado"
+    - "Info/Senador"
+    - "Info/Prefeito"
+    - "Info/Governador"
+    - "Info/Escritor"
+  drop_multi_theme: true
+  cut_sections:
+    - Referências
+    - Ligações externas
+    - Ver também
+    - Bibliografia
+    - Notas
+    - Notas e referências
+    - Leitura adicional
+    - Leituras adicionais
+    - Fontes
+  paragraph:
+    min_words: 40
+    max_digit_ratio: 0.08
+    dedup_chars: 80
+  seed: 438
+
+sample:
+  seed: 438
+  themes: null            # null = todos os temas do corpus
+  f_max: 50
+  bands: [[1, 2], [3, 9], [10, 49], [50, 50]]
+  core:
+    articles_per_theme: 5
+    paragraphs_per_article: 2
+  # Cotas por tema de sentido (≥ 10 por tema para a palavra continuar na análise).
+  targets:
+    banco: {economia: 17, computacao: 17, geografia: 16}
+    campo: {fisica: 17, esporte: 17, geografia: 16}
+    órgão: {biologia: 17, musica: 17, politica: 16}
+    estado: {fisica: 25, politica: 25}
+    carga: {fisica: 25, economia: 25}
+    rede: {computacao: 25, geografia: 25}
+    nota: {musica: 25, economia: 25}
+    capital: {economia: 25, politica: 25}
+    família: {biologia: 25, politica: 25}
+    massa: {fisica: 25, geografia: 25}
+    matriz: {biologia: 25, computacao: 25}
+    planta: {biologia: 25, economia: 25}
+  # Controles com a mesma alocação dos alvos (2 com três temas, 4 com dois temas).
+  controls:
+    ano: {economia: 17, esporte: 17, musica: 16}
+    século: {fisica: 17, geografia: 17, politica: 16}
+    grande: {fisica: 25, biologia: 25}
+    primeiro: {esporte: 25, computacao: 25}
+    importante: {biologia: 25, economia: 25}
+    água: {biologia: 25, geografia: 25}
+  min_per_sense: 10
+  multitheme:
+    n_types: 150
+    per_type: 20
+    min_themes: 3
+    min_per_theme: 5
+  limits:
+    per_type_paragraph: 1
+    per_type_article: 3
+  senses_per_target: 20
+
+networks:
+  k_values: [5, 10, 20]
+  k_main: 10
+  eps: 1.0e-6
+  eps_sensitivity: 1.0e-4
+  seeds: 20
+  base_seed: 438
+  candidates: 128
+  type_candidates: 64
+  block_size: 1024
+  representations: [lex, L01, L18, L36]
+  robust_representations: [L36n]
+  centered: true
+  vocab:
+    k_values: [5, 10, 20]
+
+analysis:
+  leiden_runs: 10
+  resolution: 1.0
+  resolution_sweep: [0.5, 1.0, 2.0]
+  permutations: 20
+  distance_sample_sources: 500
+  workers: 12
+  exact_distances_vocab: true
+
+lens:
+  k: 20
+  batch_size: 512

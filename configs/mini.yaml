@@ -1,0 +1,46 @@
+# Ensaio rápido de ponta a ponta (~1.500 vértices, 2 temas). Usa o mesmo corpus da execução
+# principal: só a amostra e as redes ficam menores.
+# Uso: uv run gender-networks <etapa> --config configs/mini.yaml
+base: experiment.yaml
+name: mini
+
+# Material gerado do ensaio não entra no relatório de verdade.
+paths:
+  report_dir: outputs/experiment/mini/relatorio
+
+sample:
+  themes: [fisica, economia]
+  core:
+    articles_per_theme: 3
+    paragraphs_per_article: 2
+  targets:
+    carga: {fisica: 12, economia: 12}
+  controls:
+    grande: {fisica: 12, economia: 12}
+  min_per_sense: 5
+  multitheme:
+    n_types: 20
+    per_type: 10
+    min_themes: 2
+    min_per_theme: 3
+  senses_per_target: 5
+
+networks:
+  k_values: [5, 10]
+  k_main: 10
+  seeds: 3
+  candidates: 64
+  type_candidates: 32
+  vocab:
+    k_values: [10]
+
+analysis:
+  leiden_runs: 3
+  resolution_sweep: [1.0]
+  permutations: 5
+  distance_sample_sources: 100
+  workers: 4
+  exact_distances_vocab: false
+
+lens:
+  k: 10

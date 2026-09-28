@@ -24,6 +24,7 @@ dev = [
 ]
 
 [project.scripts]
+gender-networks = "gender_networks.cli:main"
 gender-networks-network-pilot = "gender_networks.network_pilot:main"
 
 [build-system]
