@@ -3,7 +3,27 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
-outputs/activations/*
-!outputs/activations/.gitkeep
+
+# Saídas do piloto (reproduzíveis com scripts/run_network_pilot.py)
 outputs/network_pilot/*
 !outputs/network_pilot/.gitkeep
+
+# Artefatos do experimento (grandes e reproduzíveis pela CLI)
+outputs/experiment/
+data/raw/
+data/corpus/*.jsonl
+data/corpus/_manifest.json
+
+# Dados do estudo de viabilidade (texto da Wikipédia, 7 MB)
+scripts/feasibility/*.jsonl
+
+# Arquivos auxiliares do LaTeX
+report/**/*.aux
+report/**/*.log
+report/**/*.fls
+report/**/*.fdb_latexmk
+report/**/*.synctex.gz
+report/**/*.out
+report/**/*.toc
+report/**/*.bbl
+report/**/*.blg

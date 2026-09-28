@@ -6,8 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "accelerate>=1.0",
+    "igraph>=1.0.0",
     "matplotlib>=3.8",
+    "mwparserfromhell>=0.7.2",
     "networkx>=3.2",
+    "pandas>=3.0.6",
     "pyyaml>=6.0",
     "safetensors>=0.4",
     "torch>=2.2",
@@ -37,6 +40,8 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Scripts do estudo de viabilidade ficam como registro, no estado em que foram usados.
+extend-exclude = ["scripts/feasibility"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
