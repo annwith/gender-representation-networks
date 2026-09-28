@@ -100,3 +100,20 @@ def extract_hidden_states(
         configured: hidden_states[resolved][0].detach().to(device="cpu")
         for configured, resolved in zip(indices, resolved_indices, strict=True)
     }
+
+
+def extract_input_embeddings(
+    model: PreTrainedModel, tokenized: TokenizedPrompt
+) -> torch.Tensor:
+    """Return the lexical input embedding for every token occurrence on CPU.
+
+    This intentionally indexes ``model.get_input_embeddings()`` directly instead
+    of using ``hidden_states[0]``.  For many causal models the latter already
+    includes positional information (and sometimes dropout), while this tensor is
+    the shared lexical embedding table specified in the experiment proposal.
+    """
+
+    embedding = model.get_input_embeddings()
+    input_ids = torch.tensor(tokenized.input_ids, dtype=torch.long, device=embedding.weight.device)
+    with torch.inference_mode():
+        return embedding(input_ids).detach().to(device="cpu")

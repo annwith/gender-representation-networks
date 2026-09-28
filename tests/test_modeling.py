@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import torch
 from torch import nn
 
-from gender_networks.modeling import extract_hidden_states
+from gender_networks.modeling import extract_hidden_states, extract_input_embeddings
 from gender_networks.tokenization import TokenizedPrompt
 
 
@@ -32,3 +32,11 @@ def test_extracts_selected_states_without_batch_dimension() -> None:
     assert torch.equal(states[-1], states[0] + 2)
     assert states[-1].device.type == "cpu"
 
+
+def test_extracts_lexical_embeddings_directly_from_input_table() -> None:
+    model = TinyModel()
+    tokenized = TokenizedPrompt([1, 2], [1, 1], ["one", "two"])
+
+    embeddings = extract_input_embeddings(model, tokenized)  # type: ignore[arg-type]
+
+    assert torch.equal(embeddings, model.embedding.weight[[1, 2]])
