@@ -1,0 +1,103 @@
+% ============================================================
+\section{Perguntas de pesquisa e hipóteses}\label{sec:perguntas}
+% ============================================================
+
+O objetivo geral, como na proposta, é caracterizar por meio de redes complexas quanto e de que
+forma a estrutura de similaridade entre representações de tokens se transforma entre o espaço
+lexical de entrada e as representações contextuais das camadas inicial, intermediária e final
+de um Transformer. A hipótese central \emph{não} é que a identidade lexical desapareça, mas que
+exista uma reorganização progressiva das vizinhanças e das comunidades, cuja intensidade possa
+ser medida. O objetivo se desdobra em quatro perguntas.
+
+\begin{description}
+    \item[P1. Quanto e de que forma a organização da rede muda?]
+    Quantificar a reorganização \emph{local}, pela similaridade de Jaccard entre as vizinhanças
+    de uma mesma ocorrência em duas redes e pela dominância lexical (fração de vizinhos do mesmo
+    tipo), e a reorganização \emph{global}, pela distribuição de graus de entrada (surgimento ou
+    desaparecimento de \emph{hubs}), pela reciprocidade, pela clusterização, pelas distâncias e
+    pelas comunidades.
+
+    \emph{Hipótese H1.} Na rede lexical por ocorrência a dominância é máxima por construção
+    (ocorrências do mesmo tipo são idênticas). Ela cai ao longo das camadas, mas continua acima
+    do acaso no bloco 36. A mudança não é só local: esperamos \emph{hubs} diferentes em cada
+    camada (em espaços de alta dimensão, alguns pontos viram vizinhos de muitos
+    outros~\cite{radovanovic2010}) e comunidades menos alinhadas ao tipo.
+
+    \item[P2. As mudanças concentram-se em determinadas camadas?]
+    Comparar as transições lexical $\to$ bloco 1, bloco 1 $\to$ 18 e bloco 18 $\to$ 36, e as
+    acumuladas, identificando a que concentra a maior queda de Jaccard e de dominância lexical.
+    A curva camada a camada (os 36 blocos) localiza a mudança com mais precisão. A resposta é
+    dada por faixa de frequência e por categoria de token (palavra inteira ou fragmento).
+
+    \emph{Hipótese H2.} Fragmentos de palavras (início e continuação) precisam do contexto
+    imediato para ``virar'' uma palavra; esperamos que a vizinhança deles mude mais cedo (já no
+    bloco 1) do que a de palavras inteiras de conteúdo. Tokens frequentes, cujo
+    \emph{embedding} é pouco informativo sozinho (palavras funcionais), também devem mudar
+    cedo.
+
+    \item[P3. Surgem comunidades associadas a contextos semelhantes?]
+    Verificar se as comunidades deixam de ser explicadas pelo tipo de token e passam a ser
+    explicadas pelo contexto de origem (tema, artigo, parágrafo, sentença) ou pelo que vem
+    depois (o próximo token), com medidas de concordância entre partições (NMI, ARI, pureza)
+    corrigidas por uma linha de base de permutação, e por inspeção qualitativa.
+
+    \emph{Hipótese H3.} A concordância com o tipo cai e a concordância com o contexto sobe ao
+    longo das camadas. No bloco 36, a concordância com o \emph{próximo} token deve crescer,
+    porque é essa a informação que a última camada precisa carregar. A faixa de posição entra
+    como controle: se ela explicar as comunidades, o resultado é um artefato posicional, e não
+    contexto.
+
+    \item[P4. Ocorrências de um mesmo token separam-se conforme o contexto?]
+    Para tipos com muitas ocorrências ($f_t\ge 10$), em especial palavras usadas em sentidos
+    diferentes em temas diferentes (as \emph{palavras-alvo}, como \emph{banco}, \emph{campo} e
+    \emph{órgão}), verificar se representações inicialmente idênticas passam a ocupar
+    comunidades ou regiões diferentes da rede.
+
+    \emph{Hipótese H4.} As palavras-alvo se separam mais, por tema de sentido, do que as
+    palavras de controle (\emph{ano}, \emph{grande}, \emph{água}\ldots), que têm frequência e
+    distribuição por tema comparáveis mas um sentido estável.
+\end{description}
+
+\subsection{Como cada pergunta será respondida}
+
+A Tabela~\ref{tab:perguntas} liga cada pergunta às redes, medidas e seções de resultados. Duas
+regras valem para todas as respostas:
+\begin{itemize}
+    \item \textbf{Nada é interpretado abaixo do nível de ruído.} Na rede lexical por
+    ocorrência, a escolha entre vizinhos empatados é arbitrária. Uma mudança lexical $\to$
+    contextual só conta como reorganização se for maior que a variação produzida pelo próprio
+    desempate (o \emph{piso de ruído}, Seção~\ref{sec:met-ruido}). Da mesma forma, NMI só é
+    lido depois de descontada a linha de base de permutação.
+    \item \textbf{Resultados sempre estratificados.} Faixa de frequência, categoria de token,
+    estrato da amostra e faixa de posição mudam os valores esperados das medidas (por exemplo, a
+    dominância lexical máxima depende de $f_t$). Por isso as distribuições são reportadas por
+    grupo, e não só como médias globais.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Perguntas, redes usadas, medidas e onde os resultados aparecem.}\label{tab:perguntas}
+\small
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}p{3.6cm} X l@{}}
+\toprule
+& \textbf{Redes} & \textbf{Medidas} & \textbf{Seção} \\
+\midrule
+P1 & por ocorrência (lexical, blocos 1, 18, 36), direcionada e por união &
+$J_i$ e $D_i$ por faixa, categoria e estrato; CCDF do grau de entrada, \emph{hubs},
+reciprocidade; métricas globais; comunidades & \ref{sec:res-p1} \\
+P2 & as mesmas, mais as 36 camadas &
+$1-J$ acima do piso de ruído e $\Delta D$ por transição; fração de vértices cuja maior mudança
+cai em cada transição; curvas $J(\ell,\ell+1)$ e $D(\ell)$ & \ref{sec:res-p2} \\
+P3 & só o núcleo da amostra, por união &
+NMI (bruto e menos a linha de base), ARI e pureza contra tipo, tema, artigo, parágrafo,
+sentença, próximo token e faixa de posição, camada a camada & \ref{sec:res-p3} \\
+P4 & rede inteira; tipos com $f_t\ge10$ &
+número efetivo de comunidades $e^{H}$, NMI comunidade$\times$tema dentro do tipo,
+autossimilaridade, cosseno intra $-$ entre temas, separação por sentido anotado, redes ego &
+\ref{sec:res-p4} \\
+Vocabulário & rede lexical de tipos (151,6 mil vértices) &
+graus, \emph{hubs}, clusterização, distâncias; comunidades contra a classe de escrita;
+vizinhança das palavras-alvo & \ref{sec:res-vocab} \\
+\bottomrule
+\end{tabularx}
+\end{table}

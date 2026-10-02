@@ -1,0 +1,102 @@
+% ============================================================
+\section{Introdução e motivação}\label{sec:introducao}
+% ============================================================
+
+Transformers representam cada token por um vetor num espaço de alta dimensão. Na entrada do
+modelo, esse vetor é uma linha da matriz de \emph{embeddings}: todas as ocorrências de um mesmo
+tipo de token começam com \emph{exatamente} o mesmo vetor, não importa o texto em que
+apareçam. À medida que atravessam os blocos do Transformer, as representações incorporam
+informação do contexto (atenção sobre os tokens anteriores e transformações não lineares) e
+se reorganizam no espaço vetorial. No último bloco, a representação de uma ocorrência serve
+para prever o \emph{próximo} token, e não mais para identificar o token atual.
+
+A pergunta de fundo deste projeto é \textbf{como} essa reorganização acontece: quanto da
+estrutura de similaridade entre representações continua organizada pela identidade lexical e
+quanto passa a refletir o contexto, e em que camadas. Estudos anteriores mediram essa
+passagem com estatísticas de pares de vetores, como a autossimilaridade das ocorrências de uma
+palavra e a anisotropia do espaço~\cite{ethayarajh2019}. Essas medidas resumem distâncias, mas
+não dizem \emph{quem é vizinho de quem}, nem se a mudança é só local (troca de alguns vizinhos)
+ou se altera a organização em escala maior (\emph{hubs}, comunidades, distâncias).
+
+\subsection{Por que redes complexas}
+
+A proposta é representar cada espaço de representações como uma \textbf{rede}: os vértices são
+ocorrências de tokens (ou tipos, na rede lexical de tipos) e cada vértice se liga aos seus $k$
+vizinhos mais próximos pelo cosseno. Essa construção tem três vantagens para as perguntas do
+projeto:
+\begin{itemize}
+    \item \textbf{Comparação vértice a vértice.} As redes por ocorrência têm \emph{os mesmos
+    vértices} em todas as representações (lexical e camadas 1, 18 e 36). A vizinhança de uma
+    ocorrência pode ser comparada diretamente entre camadas (Jaccard), e a fração de vizinhos do
+    mesmo tipo (dominância lexical) mede quanto a identidade do token ainda manda.
+    \item \textbf{Escalas diferentes.} As ferramentas de redes complexas separam a escala local
+    (vizinhança, clusterização) da global (distribuição de graus, \emph{hubs}, distâncias,
+    componentes e comunidades). Isso permite distinguir uma reorganização que só troca vizinhos
+    de uma que muda a estrutura inteira.
+    \item \textbf{Rótulos externos.} As comunidades encontradas podem ser comparadas com
+    partições conhecidas (tipo de token, tema, artigo, parágrafo, sentença, próximo token) por
+    medidas de concordância, o que transforma ``a rede ficou contextual'' numa afirmação
+    mensurável.
+\end{itemize}
+
+\subsection{O que o experimento faz}
+
+O experimento usa cerca de $1{,}5\times10^4$ ocorrências de tokens em parágrafos da Wikipédia em
+português, escolhidas em oito temas, e o modelo aberto Qwen3-4B-Base~\cite{qwen3} (36 blocos,
+dimensão 2560). Para cada ocorrência, extraímos o \emph{embedding} de entrada do seu token e
+a saída bruta dos blocos 1, 18 e 36 (e, para a curva camada a camada, dos 36 blocos). Com
+esses vetores construímos:
+\begin{enumerate}
+    \item a \textbf{rede lexical de tipos}, sobre o vocabulário inteiro do modelo (cerca de
+    151,6 mil tipos), que descreve a geometria do espaço de entrada;
+    \item a \textbf{rede lexical por ocorrência}, em que cada ocorrência recebe o vetor do seu
+    tipo, de modo que ocorrências do mesmo tipo são idênticas;
+    \item as \textbf{redes contextuais}, com os mesmos vértices representados pelos estados
+    internos de cada camada analisada.
+\end{enumerate}
+As redes são construídas por k-NN com similaridades calculadas em \emph{float64}, com três
+tratamentos explícitos de empates (os empates são a regra, e não a exceção, na rede lexical
+por ocorrência), nas versões direcionada, por união e mútua. As Seções~\ref{sec:redes}
+e~\ref{sec:metodos} descrevem esse método em detalhe.
+
+\subsection{Como ler este relatório}
+
+Este é um \textbf{documento vivo}: ele é atualizado a cada etapa do pipeline e registra o que
+foi feito, por que foi feito assim, o que deu errado e o que se encontrou. Ele serve de base
+para o relatório final da disciplina, que pode ser uma versão condensada dele. Três convenções
+valem para o documento inteiro:
+\begin{itemize}
+    \item Todo número de resultado citado no texto vem de \cod{tabelas/numeros.tex}, gerado
+    pela etapa \etapa{report} a partir dos artefatos da última execução; nada é digitado à
+    mão. Enquanto a etapa correspondente não roda, o número aparece como \pendente.
+    \item Figuras (\cod{figuras/*.pdf}) e tabelas (\cod{tabelas/*.tex}) também são geradas.
+    Quando ainda não existem, um quadro indica o arquivo esperado e a etapa que o produz.
+    Números de planejamento (estudo de viabilidade, parâmetros de configuração) são fixos e
+    aparecem diretamente no texto, com a fonte indicada.
+    \item As Seções~\ref{sec:resultados}--\ref{sec:discussao} ainda são só estrutura: cada
+    subseção diz o que vai conter e de qual etapa vêm os dados.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Estado das seções deste relatório.}\label{tab:estado}
+\small
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+\textbf{Seção} & \textbf{Estado} & \textbf{Depende de} \\
+\midrule
+1--3. Introdução, perguntas, terminologia & escrita & proposta e plano de execução \\
+4. Dados & desenho e viabilidade escritos & números do corpus e da amostra: etapas
+\etapa{corpus} e \etapa{sample} \\
+5. Modelo e extração & método escrito & diagnósticos: etapa \etapa{extract} \\
+6--7. Redes e métodos & método escrito & tempos e estatísticas de empates: etapa \etapa{knn} \\
+8. Resultados & estrutura & etapas \etapa{knn}, \etapa{metrics}, \etapa{analyze} e
+\etapa{lens} \\
+9. Robustez & estrutura & grade de variantes das etapas \etapa{metrics} e \etapa{analyze} \\
+10. Discussão & estrutura & resultados \\
+11--12. Limitações e problemas & escritas até o planejamento & atualizadas a cada etapa \\
+Apêndices & registro de decisões e comandos escritos & tabela de versões: etapa
+\etapa{report} \\
+\bottomrule
+\end{tabularx}
+\end{table}

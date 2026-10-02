@@ -1,0 +1,186 @@
+% ============================================================
+% Apêndices (incluídos depois de \appendix)
+% ============================================================
+
+\section{Registro de decisões}\label{sec:decisoes}
+
+Cada decisão de método entra aqui com o contexto em que foi tomada, as alternativas
+consideradas, a escolha, o motivo e a consequência para o experimento. O registro começa com as
+decisões do planejamento e cresce a cada etapa. As decisões mais finas (limiares, listas de
+categorias) ficam nos arquivos de configuração e nas seções correspondentes.
+
+{\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.035\linewidth}
+    >{\raggedright\arraybackslash}p{0.155\linewidth}
+    >{\raggedright\arraybackslash}p{0.155\linewidth}
+    >{\raggedright\arraybackslash}p{0.17\linewidth}
+    >{\raggedright\arraybackslash}p{0.21\linewidth}
+    >{\raggedright\arraybackslash}p{0.185\linewidth}@{}}
+\caption{Registro de decisões.}\label{tab:decisoes}\\
+\toprule
+\textbf{\#} & \textbf{Contexto} & \textbf{Alternativas} & \textbf{Escolha} & \textbf{Motivo} &
+\textbf{Consequência} \\
+\midrule
+\endfirsthead
+\multicolumn{6}{@{}l}{\emph{Tabela~\ref{tab:decisoes}, continuação}}\\
+\toprule
+\textbf{\#} & \textbf{Contexto} & \textbf{Alternativas} & \textbf{Escolha} & \textbf{Motivo} &
+\textbf{Consequência} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{6}{r@{}}{\emph{continua}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+D1 & Modelo a analisar, entre 4 e 8 bilhões de parâmetros e cabendo numa GPU de 8 GiB. &
+Qwen3-4B pós-treinado; Tucano-2b4; GPT-2 small português (piloto). &
+Qwen3-4B-Base, revisão fixada por SHA. &
+É o modelo de linguagem puro (sem ajuste para diálogo), com arquitetura atual e 36 blocos para a
+curva camada a camada. O Tucano tokeniza melhor, mas é menos representativo; o GPT-2 é pequeno e
+foi treinado no mesmo texto. &
+Português fragmentado (28\% de palavras inteiras): alvos restritos a um token e medidas sempre
+por categoria (Seções~\ref{sec:mod-escolha} e~\ref{sec:prob-fragmentacao}). \\
+\midrule
+D2 & Amostrar cerca de 15 mil vértices que sirvam a P1--P4. &
+Parágrafos inteiros (amostragem natural); natural começando pelos alvos. &
+Desenho híbrido: núcleo de parágrafos inteiros e estratos de alvos, controles e multitema. &
+Parágrafos inteiros deixam só 4 a 9 palavras de conteúdo repetidas em 3 temas e nenhum alvo
+utilizável; o híbrido dá cerca de 170 (Seção~\ref{sec:viabilidade}). &
+Frequências na amostra refletem o desenho (faixas também pelo corpus); P3 só no núcleo; cerca
+de 330 mil tokens a processar. \\
+\midrule
+D3 & Que vértices tem a rede lexical de tipos. &
+Só os $\approx$3,3 mil tipos da amostra; o vocabulário inteiro. &
+Vocabulário inteiro (151.643 tipos, sem especiais nem enchimento). &
+Descreve a geometria do espaço de entrada sem depender da amostra, e é uma rede grande com
+estrutura própria para as métricas da disciplina. &
+Uma tabela auxiliar de tipos da amostra continua necessária (não é um recorte;
+Seção~\ref{sec:vocab-vs-amostra}); distâncias exatas só na configuração principal. \\
+\midrule
+D4 & Precisão do cosseno com tolerância de empate $\eps=10^{-6}$ e $d=2560$. &
+\emph{float32} na GPU; \emph{float64} na CPU. &
+\emph{float64} na CPU, em blocos. &
+Em \emph{float32} o erro é de $10^{-6}$ a $10^{-5}$, comparável a $\eps$; empates falsos e
+desfeitos mudariam as vizinhanças. &
+Cálculo mais lento e cerca de 3 GB de memória na rede do vocabulário; empates exatos e
+reprodutíveis. \\
+\midrule
+D5 & Qual versão do bloco 36 usar, dado que \cod{hidden\_\allowbreak states[36]} é
+normalizado no transformers 5.16. &
+\cod{hidden\_\allowbreak states[36]} (pós-RMSNorm); saída bruta do bloco. &
+Saída bruta por \emph{hook}; a normalizada como robustez (\cod{L36n}). &
+Os blocos 1 e 18 só existem na forma bruta; comparar objetos do mesmo tipo na transição
+$18\to36$. &
+Verificação \cod{norm(hook\_36) == hidden\_states[36]} no modelo real; uma variante a mais na
+robustez (Seção~\ref{sec:prob-hidden}). \\
+\midrule
+D6 & Desempate dos vizinhos na fronteira do $k$-ésimo. &
+Só posição (piloto); sorteio; todos os empatados; tipos distintos. &
+Sorteio com 20 sementes como principal; as outras três como referência e robustez. &
+A posição cria \emph{hubs} artificiais a 15 mil vértices (todas as ocorrências de um tipo
+escolhem os mesmos vizinhos). &
+Métricas estruturais da rede lexical com média e desvio entre sementes (semente 0 nas
+contextuais, onde os empates são raros); piso de ruído e $J^w$ para separar o efeito do
+sorteio (Seção~\ref{sec:red-empates}). \\
+\midrule
+D7 & Biblioteca de redes e detecção de comunidades. &
+NetworkX (piloto); igraph; Louvain; Leiden com CPM. &
+igraph, com Leiden maximizando a modularidade, 10 sementes; Louvain como checagem. &
+Distâncias exatas em C (segundos por rede, contra 20 a 25 minutos no NetworkX); o Leiden
+garante comunidades conexas; o padrão CPM do igraph tem outra resolução, por isso o código
+passa \cod{objective\_function=\allowbreak"modularity"}. &
+NetworkX fica como referência nos testes; estabilidade das comunidades reportada. \\
+\midrule
+D8 & O que fazer com o piloto e com o código contrafactual de gênero herdado. &
+Estender o piloto; reescrever tudo; congelar. &
+Piloto congelado (rodando e com testes); código contrafactual e notebook removidos (ficam no
+histórico do \cod{git}). &
+O piloto é monolítico e não escala, mas documenta os achados que motivaram o método; o código
+contrafactual não serve às perguntas atuais. &
+Pipeline novo em módulos próprios; um teste de regressão exige que o k-NN novo (posição,
+união) reproduza o do piloto. \\
+\midrule
+D9 & Como configurar execuções (principal e ensaio). &
+Argumentos de linha de comando; vários YAMLs por etapa; um YAML por execução. &
+Um YAML por execução (\cod{configs/\allowbreak experiment.yaml}; \cod{configs/\allowbreak mini.yaml} herda dele). &
+Uma execução fica descrita por um arquivo só, gravado no \cod{\_manifest.json} de cada etapa. &
+Artefatos separados por execução (\cod{outputs/\allowbreak experiment/\allowbreak <nome>/}); o ensaio não sobrescreve a
+execução principal. \\
+\midrule
+D10 & Como documentar o experimento. &
+Escrever o relatório no fim; relatório vivo. &
+Relatório técnico vivo, com figuras, tabelas e números gerados pelo pipeline. &
+O texto nunca diverge da última execução, e as decisões e problemas são registrados enquanto
+ainda estão frescos. &
+Regra de trabalho: uma etapa só está pronta com a seção do relatório atualizada e o documento
+compilando. \\
+\end{longtable}
+}
+
+% ------------------------------------------------------------
+\section{Reprodutibilidade}\label{sec:reprodutibilidade}
+
+\paragraph{Ambiente.} Python 3.12 com dependências fixadas em \cod{uv.lock}; instalação com
+\cod{uv sync --dev}. As versões efetivamente usadas em cada etapa (Python, numpy, torch, transformers,
+igraph, networkx, pandas) são gravadas no \cod{\_manifest.json} da etapa e
+reunidas na Tabela~\ref{tab:versoes}. A versão do \cod{mwparserfromhell}, que afeta a
+limpeza (Seção~\ref{sec:prob-ref}), ainda não é gravada nos manifestos; até lá, ela é a fixada
+em \cod{uv.lock} (0.7.2). O relatório compilado indica a data e a revisão do
+\cod{git} da execução que gerou os números (\dataExecucao, \revisaoGit).
+
+\paragraph{Modelo.} \cod{Qwen/Qwen3-4B-Base}, revisão
+\cod{\seqsplit{906bfd4b4dc7f14ee4320094d8b41684abff8539}} do Hugging Face (código do próprio transformers, sem código remoto).
+Pesos em bf16, \cod{device\_map="auto"} e \cod{max\_memory} de 6 GiB na GPU e 10 GiB na CPU
+(\emph{offload} de parte dos blocos). O \emph{offload} muda o tempo, não as contas.
+
+\paragraph{Dados.} A lista de artigos, com \cod{pageid} e \cod{revid}, fica versionada em
+\cod{data/corpus/manifest.csv}: o mesmo texto pode ser baixado de novo pelas revisões, mesmo
+que os artigos tenham mudado. As respostas cruas da API ficam em cache em \cod{data/raw/wiki}.
+
+\paragraph{Sementes.} Todas vêm do YAML da execução:
+\begin{itemize}
+    \item \cod{corpus.seed} $=438$: ordem de download dos artigos de cada tema;
+    \item \cod{sample.seed} $=438$: um único gerador sorteia, em ordem, o núcleo, o limite por
+    tipo, alvos, controles e multitema;
+    \item \cod{networks.base\_seed} $=438$: a semente $r$ do desempate da representação
+    \cod{rep} com $k$ vizinhos usa \cod{numpy.random.default\_rng([438, crc32(rep), k, r])},
+    $r=0,\ldots,19$;
+    \item Leiden: 10 execuções com sementes fixas do gerador \cod{random} do Python (usado pelo
+    igraph); permutações da linha de base com gerador semeado.
+\end{itemize}
+
+\paragraph{Comandos.} Cada etapa lê os artefatos da anterior e pode ser refeita sozinha; uma
+etapa cujas saídas já existem é pulada, a menos que se passe \cod{--force}.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}>{\ttfamily\raggedright\arraybackslash}p{0.47\linewidth} X@{}}
+\toprule
+\normalfont\textbf{Comando} & \textbf{O que faz} \\
+\midrule
+uv run gender-networks corpus & baixa e limpa os artigos (\cod{data/corpus/}) \\
+uv run gender-networks sample & monta a amostra híbrida (\cod{sample/}) \\
+uv run gender-networks extract -{}-verify & checa as premissas no modelo real (8 sequências) \\
+uv run gender-networks extract & extrai as representações (\cod{reps/}) \\
+uv run gender-networks knn & candidatos e vizinhos k-NN de todas as variantes (\cod{knn/}) \\
+uv run gender-networks metrics & métricas estruturais e comunidades (\cod{metrics/}) \\
+uv run gender-networks analyze & análises de P1--P4 (\cod{analysis/}) \\
+uv run gender-networks lens & extensão ``vizinhos no vocabulário'' (\cod{lens/}) \\
+uv run gender-networks report & figuras, tabelas e \cod{numeros.tex} deste relatório \\
+uv run gender-networks all & todas as etapas em ordem (sem a extensão) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+Todos aceitam \cod{--config} (padrão \cod{configs/experiment.yaml}); o ensaio de ponta a ponta
+usa \cod{--config configs/mini.yaml} (2 temas, cerca de 1.500 vértices), cujos artefatos e
+relatório gerado ficam em \cod{outputs/experiment/mini/}. O relatório é compilado com
+\cod{latexmk -pdf relatorio.tex} em \cod{report/relatorio/}. O piloto congelado roda com
+\cod{uv run python scripts/run\_network\_pilot.py}.
+
+\tabelaopcional[etapa \etapa{report} a partir dos \cod{\_manifest.json} de todas as etapas]
+    {versoes}
+    {Versões do software, revisão do modelo e tempos de cada etapa na última execução.}
+    {tab:versoes}

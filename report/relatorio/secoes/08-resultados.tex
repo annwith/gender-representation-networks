@@ -1,0 +1,176 @@
+% ============================================================
+\section{Resultados}\label{sec:resultados}
+% ============================================================
+
+Esta seção ainda é só estrutura. Cada subseção diz o que vai conter, quais medidas da
+Seção~\ref{sec:metodos} entram e de qual etapa vêm os dados. Os quadros ``pendente'' indicam o
+arquivo esperado; quando a etapa \etapa{report} for executada depois das etapas indicadas, eles
+são substituídos pelas figuras e tabelas geradas, sem mudar o texto ao redor.
+
+Duas regras de leitura valem para toda a seção (Seção~\ref{sec:perguntas}): nenhuma mudança é
+interpretada abaixo do piso de ruído, e nenhum NMI é lido sem a linha de base de permutação.
+Salvo indicação, os valores são da configuração principal ($k=10$, união, variante (a)). As
+métricas estruturais da rede lexical são a média $\pm$ desvio entre as 20 sementes do
+desempate; as das camadas contextuais e todas as comunidades usam a semente 0
+(Seção~\ref{sec:red-empates}); as medidas de vizinhança ($J$, $D$) usam as 20 sementes em todas
+as representações.
+
+% ------------------------------------------------------------
+\subsection{Visão geral das redes}\label{sec:res-geral}
+
+\previsto{Uma tabela com as métricas exigidas pela disciplina para todas as redes da
+configuração principal (vocabulário, \cod{lex}, \cod{L01}, \cod{L18}, \cod{L36}): $n$, $m$,
+grau médio, densidade, reciprocidade, clusterização global e local média, distância média,
+diâmetro, número de componentes e tamanho do maior, e assimetria do grau de entrada. Um
+parágrafo compara as camadas: o que é esperado por construção (por exemplo, $\langle k\rangle$
+entre $k$ e $2k$) e o que muda de fato. Dados: etapa \etapa{metrics}.}
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{metrics}]{metricas_globais}
+    {Métricas estruturais das redes da configuração principal ($k=10$, união; média $\pm$
+    desvio entre as 20 sementes na rede lexical, semente 0 nas camadas contextuais).}
+    {tab:metricas-globais}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{knn} e \etapa{metrics}]{graus_camadas}
+    {Distribuição do grau de entrada (CCDF, escala log-log) nas redes por ocorrência
+    direcionadas, por representação. A linha vertical marca $k$, a média comum a todas.}
+    {fig:graus-camadas}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{knn} e \etapa{metrics}]{subgrafo_camadas}
+    {O mesmo subgrafo (vértices de um parágrafo do núcleo e seus vizinhos) desenhado com
+    posições fixas nas redes \cod{lex}, \cod{L01}, \cod{L18} e \cod{L36}; cor pelo tipo de
+    token.}
+    {fig:subgrafo-camadas}
+
+% ------------------------------------------------------------
+\subsection{Rede lexical de tipos (vocabulário)}\label{sec:res-vocab}
+
+\previsto{Descrição da geometria do espaço de entrada com os \nTiposVocab{} tipos do
+vocabulário: distribuição de graus de entrada e \emph{hubs} (quais tokens são escolhidos por
+muitos: tokens pouco treinados, pedaços de bytes, tokens de outras escritas?), clusterização,
+distância média e diâmetro exatos, comunidades do Leiden comparadas com a classe de escrita (NMI
+e ARI, com linha de base), fração de tokens que aparecem no corpus em cada comunidade e a
+vizinhança das palavras-alvo no vocabulário inteiro (os 10 vizinhos de \tok{\esp banco},
+\tok{\esp campo}\ldots). Dados: etapas \etapa{knn} (\cod{vocab\_k10.npz}), \etapa{metrics} e
+\etapa{analyze}.}
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{metrics}]{vocab_comunidades}
+    {Rede do vocabulário: maiores comunidades, composição por classe de escrita e fração de
+    tipos presentes no corpus; NMI e ARI entre comunidades e classe de escrita.}
+    {tab:vocab-comunidades}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{vocab_vizinhos_alvos}
+    {Os 10 vizinhos mais próximos de cada palavra-alvo e de controle na rede do vocabulário.}
+    {tab:vocab-vizinhos-alvos}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{metrics}]{vocab_graus}
+    {Rede do vocabulário: CCDF do grau de entrada, separada por classe de escrita.}
+    {fig:vocab-graus}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{metrics}]{vocab_comunidades}
+    {Rede do vocabulário: composição das maiores comunidades por classe de escrita.}
+    {fig:vocab-comunidades}
+
+% ------------------------------------------------------------
+\subsection{P1: quanto e de que forma a organização muda}\label{sec:res-p1}
+
+\previsto{\textbf{Escala local.} Distribuições de $J_i(\mathrm{lex},\ell)$ e de $D_i$ em cada
+camada, por faixa de frequência (amostra e corpus), categoria de token e estrato, com controle
+pela faixa de posição; a dominância relativa ao teto $\tilde D$; o piso de ruído por faixa ao
+lado de cada distribuição. \textbf{Escala global.} CCDF do grau de entrada e assimetria por
+camada, identidade dos \emph{hubs} de cada camada (que tokens, que posições) e se eles se
+mantêm entre camadas, reciprocidade, clusterização e distâncias (Tabela~\ref{tab:metricas-globais}),
+número e tamanho das comunidades. Resposta à H1: a dominância cai, mas continua acima do acaso
+no bloco 36? Os \emph{hubs} mudam? Dados: etapas \etapa{knn}, \etapa{metrics} e
+\etapa{analyze}.}
+
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p1_jaccard_faixas}
+    {Distribuição de $J_i(\mathrm{lex},\ell)$ para $\ell\in\{1,18,36\}$ por faixa de frequência
+    na amostra, com o piso de ruído $1-M^{\text{ruído}}$ de cada faixa.}
+    {fig:p1-jaccard-faixas}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p1_dominancia}
+    {Dominância lexical $D$ e dominância relativa ao teto $\tilde D$ por camada, faixa de
+    frequência e categoria de token ($f_t\ge3$).}
+    {fig:p1-dominancia}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p1_resumo}
+    {P1: $J$, $M$ acima do piso, $D$ e $\tilde D$ médios por camada, estrato e categoria de
+    token.}
+    {tab:p1-resumo}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{metrics}]{p1_hubs}
+    {Os 10 vértices de maior grau de entrada em cada camada: token, categoria, faixa de
+    posição e grau.}
+    {tab:p1-hubs}
+
+% ------------------------------------------------------------
+\subsection{P2: em que camadas a mudança se concentra}\label{sec:res-p2}
+
+\previsto{Mudança $M$ acima do piso e $\Delta D$ em cada transição (lexical $\to$ 1, $1\to18$,
+$18\to36$) e nas acumuladas, por faixa e categoria; fração de vértices cuja maior mudança cai em
+cada transição; curvas $J(\ell,\ell+1)$ e $D(\ell)$ nos 36 blocos, a partir de
+\cod{all\_layers.npy}. Resposta à H2: fragmentos e palavras funcionais mudam mais cedo que
+palavras inteiras de conteúdo? Dados: etapas \etapa{extract} (36 camadas), \etapa{knn} e
+\etapa{analyze}.}
+
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p2_curvas_camadas}
+    {Curvas camada a camada: $J(\ell,\ell+1)$ entre blocos consecutivos e dominância
+    $D(\ell)$, por categoria de token.}
+    {fig:p2-curvas-camadas}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p2_transicoes}
+    {Fração de vértices cuja maior mudança acontece em cada transição, por categoria de token
+    e faixa de frequência.}
+    {fig:p2-transicoes}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p2_transicoes}
+    {P2: mudança média acima do piso e $\Delta D$ por transição, por categoria de token.}
+    {tab:p2-transicoes}
+
+% ------------------------------------------------------------
+\subsection{P3: comunidades e contexto}\label{sec:res-p3}
+
+\previsto{Só no núcleo (\nVerticesNucleo{} vértices): NMI bruto, NMI menos a linha de base,
+ARI e pureza das comunidades de cada camada contra tipo, tema, artigo, parágrafo, sentença,
+próximo token previsto e real, e faixa de posição (controle de artefato). Tema também na rede
+inteira. Exemplos qualitativos: as comunidades mais puras por parágrafo e por próximo token no
+bloco 36. Estabilidade do Leiden entre as 10 execuções e, na rede lexical, concordância entre
+as partições das sementes 0 e 1 do desempate. Resposta à H3: a concordância com o tipo cai e
+a com o contexto e com o próximo token sobe? A faixa de posição explica as comunidades? Dados:
+etapas \etapa{metrics} (comunidades) e \etapa{analyze} (concordância).}
+
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p3_nmi_camadas}
+    {NMI menos a linha de base de permutação entre as comunidades de cada camada e cada rótulo
+    (núcleo da amostra), na semente 0 do desempate. A estabilidade do Leiden (NMI médio entre
+    as 10 execuções) é informada ao lado.}
+    {fig:p3-nmi-camadas}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p3_concordancia}
+    {P3: NMI bruto, linha de base, ARI e pureza por camada e rótulo (núcleo).}
+    {tab:p3-concordancia}
+
+% ------------------------------------------------------------
+\subsection{P4: separação das ocorrências de um mesmo token}\label{sec:res-p4}
+
+\previsto{Para os tipos com $f_t\ge10$, separados em alvos, controles, multitema e palavras
+funcionais: número efetivo de comunidades $e^{H_t}$, NMI comunidade$\times$tema dentro do tipo,
+autossimilaridade, diferença entre cosseno intra e entre temas, por camada. Comparação entre
+alvos e controles (mesma alocação de temas e cotas) para testar a H4. Separação pelo sentido
+anotado em \cod{senses.csv}. Redes ego de 2 ou 3 alvos com layout fixo entre camadas. Dados:
+etapas \etapa{metrics} e \etapa{analyze}; anotação manual.}
+
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p4_separacao}
+    {Separação intra-tipo por camada: autossimilaridade, diferença entre cosseno intra e entre
+    temas e NMI comunidade$\times$tema, para alvos, controles e multitema.}
+    {fig:p4-separacao}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p4_alvos}
+    {P4: medidas de separação por palavra-alvo e de controle no bloco 36, com o valor na camada
+    lexical como referência.}
+    {tab:p4-alvos}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p4_ego_banco}
+    {Rede ego de \tok{\esp banco} nas redes \cod{lex}, \cod{L01}, \cod{L18} e \cod{L36}, com
+    as ocorrências coloridas pelo tema de sentido e posições fixas entre camadas.}
+    {fig:p4-ego-banco}
+
+% ------------------------------------------------------------
+\subsection{Extensão: vizinhos no vocabulário}\label{sec:res-lente}
+
+\previsto{Se a extensão for feita (etapa \etapa{lens}): posição mediana do próprio token e do
+próximo token no ranking das linhas da matriz de \emph{embeddings}, camada a camada, por
+categoria de token e estrato; Jaccard entre os vizinhos no vocabulário de camadas consecutivas;
+as duas checagens da Seção~\ref{sec:met-lente}. A pergunta é em que camada a ocorrência deixa de
+se parecer com o próprio token e passa a se parecer com o próximo.}
+
+\figuraopcional[etapa \etapa{report} a partir de \etapa{lens}]{lente_ranking}
+    {Posição mediana do próprio token e do próximo token entre os vizinhos no vocabulário, por
+    camada e categoria de token.}
+    {fig:lente-ranking}

@@ -1,0 +1,230 @@
+% ============================================================
+\section{Métricas e métodos de análise}\label{sec:metodos}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{Métricas estruturais}\label{sec:met-estruturais}
+
+Em todas as redes da configuração principal calculamos as métricas exigidas pela disciplina,
+mais reciprocidade e \emph{hubs}. Seja $G=(V,E)$ a rede não direcionada por união, $n=|V|$,
+$m=|E|$ e $k_i$ o grau do vértice $i$.
+\begin{description}
+    \item[Tamanho e grau.] $n$, $m$, grau médio $\langle k\rangle=2m/n$ e densidade
+    $\rho=2m/[n(n-1)]$. Nas redes k-NN, $m$ fica entre $nk/2$ (todas as escolhas recíprocas) e
+    $nk$ (nenhuma recíproca), então $\langle k\rangle\in[k,2k]$ e a densidade é muito baixa
+    por construção; o interesse está em como $m$ varia entre camadas, que reflete a
+    reciprocidade.
+    \item[Distribuição de graus.] Na rede não direcionada, e de entrada e de saída na
+    direcionada. Na variante (a), o grau de saída é $k$ para todos, e toda a informação está no
+    grau de entrada $k^{\mathrm{in}}_i=|\{j: i\in\N_j\}|$, cuja média também é $k$. Reportamos a
+    CCDF $P(K^{\mathrm{in}}\ge x)$ e a assimetria (\emph{skewness}) de $k^{\mathrm{in}}$, a medida
+    usual de \emph{hubness}~\cite{radovanovic2010}: assimetria alta significa poucos vértices
+    escolhidos por muitos.
+    \item[Reciprocidade.] Fração das arestas direcionadas $i\to j$ para as quais $j\to i$
+    também existe.
+    \item[Clusterização.] Global (transitividade),
+    $C=3\times(\text{triângulos})/(\text{trios conexos})$, e local média,
+    \begin{equation}
+        \bar C=\frac1n\sum_i C_i,\qquad C_i=\frac{2\,e_i}{k_i(k_i-1)},
+    \end{equation}
+    onde $e_i$ é o número de arestas entre os vizinhos de $i$ e $C_i=0$ quando $k_i<2$ (o que
+    não acontece na rede por união, em que $k_i\ge k$).
+    \item[Distâncias.] Distância média $\langle\ell\rangle$ entre pares do maior componente
+    conexo, diâmetro e histograma das distâncias, por busca em largura exata a partir de todos
+    os vértices.
+    \item[Componentes.] Número de componentes conexos, fração de vértices no maior componente
+    e distribuição dos tamanhos, para toda representação e nas versões por união e mútua. A
+    versão por união \emph{não} é necessariamente conexa: um tipo com $f_t>k$ manda todas as
+    $k$ arestas de saída de cada ocorrência para outras ocorrências do próprio tipo ($s=1$) e
+    vira um componente fechado se nenhum vértice de outro tipo escolher alguma delas; o mesmo
+    vale, nas camadas contextuais, para um grupo de prefixo com mais de $k$ ocorrências
+    (vetores idênticos) e, na rede do vocabulário, para um grupo de mais de $k$ tipos com
+    \emph{embeddings} idênticos (há 58 grupos desses, o maior com 524 tipos;
+    Seção~\ref{sec:red-vocab}). Espera-se, portanto, que a rede lexical por união tenha vários
+    componentes pequenos formados justamente pelos tipos frequentes do desenho (alvos,
+    controles e multitemáticos); numa simulação com o perfil de frequências da amostra híbrida,
+    $k=10$ e vetores aleatórios, foram 23 a 24 componentes, com o maior reunindo cerca de 96\%
+    dos vértices. Como distância média e diâmetro são calculados no maior componente, na rede
+    lexical eles excluem esses tipos, e a comparação de $\langle\ell\rangle$ entre
+    representações deve ser lida junto com a fração do maior componente, que a tabela de
+    métricas da rede por união informa.
+\end{description}
+
+As métricas são calculadas com o igraph~\cite{csardi2006}, cuja busca em largura roda em C:
+as distâncias exatas de uma rede de 15 mil vértices levam segundos, contra 20 a 25 minutos por
+rede no NetworkX do piloto. O NetworkX fica como referência nos testes (as duas bibliotecas
+devem dar os mesmos valores em grafos pequenos). Na rede do vocabulário (151,6 mil vértices),
+as distâncias exatas são calculadas só na configuração principal (estimativa: de dezenas de
+minutos a cerca de uma hora); nas variantes de robustez, a distância média é estimada por busca
+em largura a partir de 500 fontes sorteadas, e o diâmetro, por um limite inferior de varredura
+dupla (a partir de um vértice, ir ao mais distante e repetir).
+
+% ------------------------------------------------------------
+\subsection{Persistência da vizinhança: Jaccard}\label{sec:met-jaccard}
+
+A reorganização da vizinhança de uma ocorrência entre as redes $a$ e $b$ (por exemplo, lexical
+e bloco 1) é medida pela similaridade de Jaccard
+\begin{equation}
+    J_i(a,b)=\frac{|\N_i^{(a)}\cap\N_i^{(b)}|}{|\N_i^{(a)}\cup\N_i^{(b)}|}.
+\end{equation}
+Com vizinhanças de tamanho fixo $k$ (variante (a)) e $c=|\N_i^{(a)}\cap\N_i^{(b)}|$ vizinhos em
+comum, $J_i=c/(2k-c)$: $J=1$ quando nada muda e $J=0$ quando nenhum vizinho se mantém. Na
+variante (b), os conjuntos têm tamanhos diferentes e a fórmula geral vale; na variante (c), a
+mesma fórmula é aplicada aos conjuntos de tipos $T_i$. Chamamos de \emph{mudança} o complemento
+$M_i=1-J_i$. Com 20 sementes na rede lexical, $J_i(\mathrm{lex},\ell)$ é calculado para cada
+semente e resumido por média e desvio.
+
+% ------------------------------------------------------------
+\subsection{Dominância lexical e seu teto}\label{sec:met-dominancia}
+
+A dominância lexical é a fração de vizinhos do mesmo tipo,
+\begin{equation}
+    D_i=\frac{|\{\,j\in\N_i : t_j=t_i\,\}|}{|\N_i|},
+\end{equation}
+com $|\N_i|=k$ na variante (a) e o tamanho variável na variante (b). Na rede lexical com a
+variante (a), as outras ocorrências do tipo são as mais similares ($s=1$), então
+\begin{equation}
+    D_i^{\mathrm{lex}}=D^{\max}_i=\frac{\min(f_{t_i}-1,\,k)}{k}
+\end{equation}
+exatamente (um teste verifica isso). Esse teto depende de $f_t$: uma ocorrência de um tipo com
+$f_t=4$ nunca passa de $D=0{,}3$ com $k=10$. Para comparar faixas de frequência, reportamos
+também a dominância relativa ao teto, $\tilde D_i=D_i/D^{\max}_i$ (definida para $f_t\ge2$ e
+analisada para $f_t\ge3$). A queda $\Delta D$ entre duas camadas mede quanto a identidade do
+token perde espaço na vizinhança.
+
+% ------------------------------------------------------------
+\subsection{Piso de ruído}\label{sec:met-ruido}
+
+Na rede lexical, parte dos vizinhos é sorteada entre candidatos empatados. Duas construções com
+sementes diferentes, $r\neq r'$, já dão $J_i(\mathrm{lex}_r,\mathrm{lex}_{r'})<1$ sem nenhuma
+mudança de representação. O \textbf{piso de ruído} é essa mudança produzida só pelo desempate,
+\begin{equation}
+    M^{\text{ruído}}_i = 1-\frac{1}{m}\sum_{q=0}^{m-1}
+        J_i\bigl(\mathrm{lex}_{2q},\mathrm{lex}_{2q+1}\bigr),\qquad m=\lfloor R/2\rfloor,
+\end{equation}
+isto é, a média sobre os pares \emph{disjuntos} de sementes $(0,1),(2,3),\dots$ (com $R=20$
+sementes, 10 pares; com $R$ ímpar a última fica de fora). Usar pares disjuntos, em vez de
+todos os $\binom{R}{2}$ pares, mantém as estimativas de cada par independentes entre si; o
+valor esperado é o mesmo. O piso é
+calculado por ocorrência e resumido por faixa de frequência (ele é maior para tipos frequentes,
+em que o bloco empatado é grande). Uma mudança lexical $\to$ contextual só é interpretada como
+reorganização se $M_i(\mathrm{lex},\ell)$ ficar acima do piso da faixa correspondente.
+
+% ------------------------------------------------------------
+\subsection{Jaccard por composição de tipos}\label{sec:met-jw}
+
+Como complemento que não depende da semente, comparamos a \emph{composição por tipos} das
+vizinhanças. Seja $n^{(a)}_{iu}$ o número de vizinhos de $i$ do tipo $u$ na rede $a$. O Jaccard
+ponderado é
+\begin{equation}
+    J^{w}_i(a,b)=\frac{\sum_u \min\bigl(n^{(a)}_{iu},n^{(b)}_{iu}\bigr)}
+                      {\sum_u \max\bigl(n^{(a)}_{iu},n^{(b)}_{iu}\bigr)}.
+\end{equation}
+Na rede lexical, o bloco empatado da fronteira costuma ser formado por ocorrências de um único
+tipo (as do tipo seguinte no ranking), e então qualquer sorteio dá a mesma composição: $J^w$ é
+invariante à semente sempre que o bloco da fronteira tem um só tipo (um teste verifica isso em
+dados sintéticos). Isso vale para quase todas as linhas, mas não para todas: dois tipos com
+\emph{embeddings} idênticos, ou com cossenos a menos de $\eps$ um do outro, dividem o mesmo
+bloco, e nessas linhas a composição varia com a semente. A fração dessas exceções é
+reportada junto com $J^w$. Ele responde a uma pergunta um pouco
+diferente de $J$: a ocorrência continua perto dos mesmos \emph{tipos}, ainda que de outras
+ocorrências deles?
+
+% ------------------------------------------------------------
+\subsection{Estratificação}\label{sec:met-estratos}
+
+As distribuições de $J$, $M$, $D$ e $\tilde D$ são reportadas por faixa de frequência (na
+amostra e no corpus; Seção~\ref{sec:faixas}), por categoria de token, por estrato da amostra
+(núcleo, alvos, controles, multitema) e com controle pela faixa de posição. Na P2, além da
+mudança média por transição, contamos a fração de vértices cuja maior mudança acontece em cada
+transição (lexical $\to$ 1, $1\to18$, $18\to36$) e traçamos as curvas $J(\ell,\ell+1)$ e
+$D(\ell)$ nos 36 blocos, a partir do \emph{memmap} de todas as camadas.
+
+% ------------------------------------------------------------
+\subsection{Comunidades}\label{sec:met-comunidades}
+
+As comunidades são detectadas na rede por união com o algoritmo de
+Leiden~\cite{traag2019}, que melhora o Louvain~\cite{blondel2008} garantindo comunidades
+conexas, maximizando a modularidade~\cite{newman2006}
+\begin{equation}
+    Q=\frac1{2m}\sum_{ij}\Bigl(A_{ij}-\gamma\frac{k_ik_j}{2m}\Bigr)\,\delta(c_i,c_j),
+\end{equation}
+com resolução $\gamma=1$ na configuração principal e $\gamma\in\{0{,}5;\,2\}$ na robustez. No
+igraph, o objetivo padrão do \cod{community\_leiden} é o CPM (\emph{constant Potts model}),
+cuja resolução tem outro significado (com resolução 1, o CPM tende a produzir comunidades
+unitárias); por isso o código sempre passa \cod{objective\_function="modularity"}. O Leiden roda
+com 10 sementes (o igraph usa o gerador \cod{random} do Python, que é semeado a cada execução);
+fica a partição de maior modularidade, e a \textbf{estabilidade} é o NMI médio entre as
+partições das 10 execuções. O Louvain serve de checagem.
+
+% ------------------------------------------------------------
+\subsection{Concordância entre partições (P3)}\label{sec:met-concordancia}
+
+As comunidades de cada camada são comparadas com partições conhecidas dos vértices: tipo de
+token, tema, artigo, parágrafo, sentença, próximo token previsto, próximo token real e faixa de
+posição (esta como controle de artefato). Três medidas são usadas:
+\begin{description}
+    \item[NMI.] Informação mútua normalizada, $\mathrm{NMI}(U,V)=2\,I(U;V)/[H(U)+H(V)]$, via
+    \cod{igraph.\allowbreak compare\_communities}. O NMI cresce com o número de classes mesmo entre
+    partições sem relação nenhuma~\cite{vinh2010}, o que é grave aqui: ``parágrafo'' tem cerca
+    de 80 classes no núcleo e ``tipo'', milhares. Por isso cada NMI é acompanhado de uma
+    \textbf{linha de base de permutação}: o NMI médio entre as comunidades e 20 permutações
+    aleatórias do rótulo, que preservam o número e o tamanho das classes. Reportamos o NMI
+    bruto e $\mathrm{NMI}-\mathrm{NMI}_{\mathrm{perm}}$.
+    \item[ARI.] Índice de Rand ajustado~\cite{hubert1985}, já corrigido pelo acaso (zero em
+    média para partições independentes).
+    \item[Pureza.] $P=\frac1n\sum_c\max_\lambda |c\cap\lambda|$: a fração de vértices que
+    pertencem ao rótulo majoritário da sua comunidade. É fácil de interpretar, mas favorece
+    comunidades pequenas, então é lida junto com as outras duas.
+\end{description}
+A P3 é analisada \textbf{só no núcleo}, onde os parágrafos estão inteiros e artigo e parágrafo
+são rótulos distintos (dois parágrafos por artigo); nos estratos esparsos, cada parágrafo
+contribui com uma ou poucas ocorrências e os rótulos de contexto quase coincidem com o tipo. O
+tema também é analisado na rede inteira.
+
+% ------------------------------------------------------------
+\subsection{Separação intra-tipo (P4)}\label{sec:met-p4}
+
+Para cada tipo com $f_t\ge10$ (alvos, controles, multitema e palavras funcionais separados):
+\begin{itemize}
+    \item \textbf{número efetivo de comunidades} ocupadas pelas suas ocorrências,
+    $e^{H_t}$ com $H_t=-\sum_c p_{tc}\ln p_{tc}$ e $p_{tc}$ a fração das ocorrências de $t$
+    na comunidade $c$ (vale 1 quando todas estão juntas; na rede lexical tende a 1, porque
+    ocorrências do mesmo tipo são idênticas e ligadas entre si);
+    \item \textbf{NMI entre comunidade e tema} dentro do tipo: as ocorrências se separam
+    \emph{segundo o tema}, ou só se espalham?
+    \item \textbf{autossimilaridade}: cosseno médio entre as próprias ocorrências do tipo
+    (1 na camada lexical)~\cite{ethayarajh2019};
+    \item \textbf{diferença entre o cosseno médio dentro do mesmo tema e entre temas};
+    \item \textbf{separação pelo sentido anotado} (cerca de 20 ocorrências por alvo, em
+    \cod{senses.csv}), que controla o fato de o tema ser só um indicador aproximado do sentido;
+    \item \textbf{redes ego} de 2 ou 3 alvos, com layout fixo entre camadas, para inspeção
+    qualitativa.
+\end{itemize}
+A hipótese H4 é testada comparando a distribuição dessas medidas entre alvos e controles,
+que têm a mesma alocação de temas e cotas (Seção~\ref{sec:amostra}).
+
+% ------------------------------------------------------------
+\subsection{Rede do vocabulário}\label{sec:met-vocab}
+
+Na rede lexical de tipos, além das métricas estruturais: distribuição de graus e \emph{hubs}
+(quais tokens são escolhidos por muitos: tokens pouco treinados? pedaços de bytes?),
+comunidades comparadas com a classe de escrita (NMI e ARI), a fração de tokens que aparecem no
+corpus em cada comunidade e a vizinhança das palavras-alvo no vocabulário inteiro.
+
+% ------------------------------------------------------------
+\subsection{Extensão opcional: vizinhos no vocabulário}\label{sec:met-lente}
+
+Para cada ocorrência e representação (lexical, blocos 1, 18 e 36, e bloco 36 normalizado),
+calculamos o ranking das linhas da matriz de \emph{embeddings} inteira pelo cosseno (em
+\emph{float32} na GPU; aqui não há tratamento de empates, porque só a posição no ranking é
+usada) e medimos, camada a camada, a posição do \emph{próprio} token e a do \emph{próximo}
+token nesse ranking, e o Jaccard entre os $k=20$ vizinhos no vocabulário de camadas
+consecutivas. A pergunta: em que camada a ocorrência deixa de parecer com o próprio token e
+passa a parecer com o próximo? Nas camadas intermediárias, a comparação mistura espaços que não
+foram treinados para se alinhar; só o bloco 36 normalizado é exatamente o que a matriz de saída
+lê. Duas checagens validam a extensão: na camada lexical, o próprio token é o primeiro do
+ranking; no bloco 36 normalizado, a linha de \emph{maior produto interno} (os \emph{logits}
+recalculados a partir de $E$) coincide com o argmax dos \emph{logits} do próprio modelo em
+praticamente todas as ocorrências (\concordanciaPredicao{} na última execução). Pelo cosseno, a
+primeira linha pode diferir, porque as linhas de $E$ não têm todas a mesma norma.

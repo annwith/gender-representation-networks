@@ -1,0 +1,393 @@
+% ============================================================
+\section{Dados: corpus, estudo de viabilidade e amostra}\label{sec:dados}
+% ============================================================
+
+Os vértices das redes são ocorrências de tokens em parágrafos reais da Wikipédia em português.
+Esta seção descreve como o corpus é montado (etapa \etapa{corpus}), o estudo de viabilidade que
+dimensionou a amostra e o desenho final da amostra (etapa \etapa{sample}).
+
+% ------------------------------------------------------------
+\subsection{Corpus}\label{sec:corpus}
+
+\paragraph{Por que a Wikipédia.} É texto real, em português, com licença aberta e
+organizado por categorias, o que permite definir \emph{temas} de forma reproduzível. Cada
+artigo tem um identificador de revisão (\cod{revid}); guardando esses identificadores, o mesmo
+texto pode ser baixado de novo no futuro, mesmo que o artigo tenha mudado.
+
+\paragraph{Temas.} São oito, cada um definido pela árvore de uma categoria raiz: Física,
+Biologia, Economia, Política, Ciência da computação, Música, Futebol (tema ``esporte'') e
+Geografia. O tema cumpre dois papéis: é um dos rótulos de contexto da P3 e serve como
+\emph{indicador aproximado do sentido} das palavras-alvo na P4 (\emph{banco} num artigo de
+computação tende a ser banco de dados; em economia, instituição financeira). Os temas foram
+escolhidos distantes entre si, para que o vocabulário de cada um seja característico, e de
+modo que cada palavra-alvo tenha sentidos diferentes em pelo menos dois deles.
+
+\paragraph{Busca por categorias.} A partir de cada raiz, uma busca em largura percorre as
+subcategorias até a profundidade 2 e junta até 600 títulos por tema. Só entram páginas do
+domínio principal (artigos); subcategorias de manutenção ou de usuário (títulos que contêm
+``Artigos'', ``Esboço'', ``Páginas'', ``Predefinições'', ``Wikipédia'', ``Usuário'', ``Listas''
+ou ``Categoria:!'') não são seguidas, e títulos ``Lista de\ldots'' são descartados
+(Seção~\ref{sec:prob-categorias}). Todas as respostas cruas da API ficam num cache em disco
+(\cod{data/raw/wiki}), o que torna o download retomável e a limpeza refazível sem rede.
+
+\paragraph{Categorias extras para os sentidos fracos.} No estudo de viabilidade, alguns
+sentidos das palavras-alvo apareciam muito pouco no tema que os representa: \emph{nota} em
+Economia (7 ocorrências, no sentido de cédula), \emph{carga} em Economia (6, carga
+tributária), \emph{órgão} em Biologia (6) e \emph{banco} em Geografia (4, banco de areia);
+\emph{matriz} e \emph{planta} também tinham um segundo sentido fraco. Para esses casos, o
+corpus inclui categorias extras ligadas a um dos oito temas (por exemplo, Numismática e Impostos
+em Economia; Anatomia humana e Botânica em Biologia; Geomorfologia e Oceanografia em
+Geografia; Bancos de dados e Matrizes em Computação), com busca até a profundidade 1 e até 60
+artigos por categoria. A lista completa está em \cod{configs/experiment.yaml}.
+
+\paragraph{Páginas descartadas.} Um artigo é descartado quando:
+\begin{itemize}
+    \item é alcançado a partir de \textbf{mais de um tema} (contando as categorias extras). A
+    busca registra todos os temas que chegam a cada título. Uma página multitema (por exemplo,
+    Economia política) misturaria o vocabulário de dois temas e borraria justamente o rótulo
+    usado na P3 e na P4;
+    \item é uma \textbf{biografia}, detectada pelas predefinições de infobox
+    (\cod{Info/Biografia}, \cod{Info/Futebolista}, \cod{Info/Político}, \cod{Info/Músico} e
+    outras). Biografias aparecem em quase todas as árvores de categorias e falam de datas,
+    lugares e carreiras, um vocabulário que não é do tema;
+    \item é uma página de \textbf{desambiguação}, não tem texto, repete um artigo já escolhido
+    ou não sobra nenhum parágrafo depois da limpeza.
+\end{itemize}
+Os artigos restantes de cada tema são embaralhados com semente fixa e baixados em lotes de 50
+até completar a cota de 150 por tema (60 por categoria extra).
+
+\paragraph{Limpeza.} As seções de material de apoio do \emph{wikitext} (Referências, Ligações
+externas, Ver também, Bibliografia, Notas, Fontes e variantes) e suas subseções são removidas;
+seções de conteúdo que vêm depois delas são mantidas (em artigos de música, por exemplo,
+``Notas'' pode vir antes de ``História''). O texto é então convertido em texto com o \cod{mwparserfromhell}. Antes da conversão, a árvore sintática é
+reescrita em três pontos, porque a conversão padrão (\cod{strip\_code}) mantém o conteúdo de
+marcas que não são texto corrido:
+\begin{itemize}
+    \item marcas de bloco (\cod{<ref>}, \cod{<gallery>}, \cod{<timeline>}, \cod{<pre>},
+    tabelas e outras) e links para arquivos e categorias são removidos sem deixar rastro; sem
+    isso, o texto das referências entrava nos parágrafos (Seção~\ref{sec:prob-ref});
+    \item marcas que não podem virar palavras (\cod{<math>}, \cod{<chem>}, \cod{<score>}) e itens
+    de lista fazem a linha inteira ser descartada: apagar uma fórmula deixaria um buraco na
+    frase (``a energia é dada por , onde\ldots''); fórmulas triviais (um símbolo ou um número,
+    como \cod{<math>v</math>}) são mantidas como texto;
+    \item predefinições em linha cujo texto visível é um argumento (\cod{formatnum},
+    \cod{nowrap}, conversões de unidades como \cod{converter}) são trocadas por esse texto; as
+    demais predefinições (infoboxes, navegação, pronúncia, datas formatadas) são descartadas, e
+    os restos que deixam (``( )'', ``, ,'') são limpos por expressões regulares.
+\end{itemize}
+
+\paragraph{Filtros de parágrafo.} Fica só a prosa corrida: parágrafos com pelo menos 40
+palavras, que terminam como frase (``.'', ``!'' ou ``?'', eventualmente seguidos de aspas ou
+parênteses), não começam com marcação de tabela ou lista e têm no máximo 8\% de dígitos
+(o que elimina tabelas de resultados e cronologias). Parágrafos repetidos são removidos pelos
+primeiros 80 caracteres em minúsculas (textos copiados entre artigos são comuns). Cada
+parágrafo é dividido em sentenças por expressão regular, com uma lista de abreviações do
+português (``Sr.'', ``séc.'', ``p.ex.'', iniciais de nomes\ldots), para dar o rótulo de
+sentença usado na P3.
+
+\paragraph{Saídas.} \cod{data/\allowbreak corpus/\allowbreak articles.jsonl} (todos os candidatos, com o motivo de
+descarte), \cod{data/\allowbreak corpus/\allowbreak paragraphs.jsonl} (parágrafos mantidos, com os limites das
+sentenças) e \cod{data/\allowbreak corpus/\allowbreak manifest.csv}, a lista versionada de \cod{pageid},
+\cod{revid}, título, tema e categoria de origem.
+
+\subsubsection*{Estatísticas do corpus}
+
+O corpus final tem \nArtigos{} artigos (de \nArtigosCandidatos{} candidatos), \nParagrafos{}
+parágrafos, \nPalavrasCorpus{} palavras, \nTokensCorpus{} tokens do Qwen3 e \nTiposCorpus{}
+tipos distintos.
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{corpus}]{corpus_temas}
+    {Artigos, parágrafos e palavras por tema, e artigos descartados por motivo.}
+    {tab:corpus-temas}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{corpus}]{corpus_paragrafos}
+    {Parágrafos por tema e distribuição do tamanho dos parágrafos (em palavras).}
+    {fig:corpus-paragrafos}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{corpus}]{corpus_descartes}
+    {Páginas candidatas descartadas por motivo (multitema, biografia, desambiguação, sem
+    parágrafos, duplicada), por tema.}
+    {fig:corpus-descartes}
+
+% ------------------------------------------------------------
+\subsection{Estudo de viabilidade}\label{sec:viabilidade}
+
+Antes de implementar o pipeline, um estudo rápido (scripts em \cod{scripts/feasibility/})
+respondeu a três perguntas: (i) a meta de cerca de 15 mil vértices é alcançável com parágrafos
+inteiros? (ii) Parágrafos inteiros deixam palavras repetidas suficientes, em temas diferentes,
+para a P4? (iii) Que tokenizer, e portanto que modelo, usar?
+
+\paragraph{Dados do estudo.} O \cod{fetch\_wiki.py} baixou uma versão simplificada do corpus:
+os mesmos oito temas, busca até a profundidade 2, 120 artigos por tema, limpeza só com
+\cod{strip\_code} e os mesmos filtros de parágrafo. Resultaram \textbf{958 artigos} e
+\textbf{7.876 parágrafos} (Biologia 965, Computação 1.034, Economia 1.147, Esporte 836, Física
+948, Geografia 785, Música 1.032, Política 1.129), com \textbf{1,28 milhão de tokens} do
+Qwen3 (1.276.475) e cerca de 23 mil tipos distintos. Três tokenizers foram comparados: o do
+Qwen3-4B (idêntico ao do Qwen3-4B-Base, 151.669 ids), o do Tucano-2b4 (treinado em português) e
+o do GPT-2 small português (o modelo do piloto).
+
+\paragraph{Amostragem natural.} O \cod{simulate\_sample.py} simula a amostragem mais simples:
+parágrafos inteiros, em rodízio entre os temas, com todos os tokens como vértices e um limite
+$f_{\max}$ por tipo, até chegar a 15 mil vértices. Também simula uma variante
+``direcionada'', que começa pelos parágrafos que contêm as palavras-alvo (até 12 por palavra e
+tema) e depois segue a ordem natural. As saídas estão em \cod{sim\_<modelo>.txt}.
+
+\paragraph{Desenho híbrido.} O \cod{sim\_hybrid.py} simula a alternativa adotada: um
+\emph{núcleo} denso de parágrafos inteiros mais estratos esparsos de ocorrências escolhidas
+(palavras-alvo, controles e palavras de conteúdo presentes em vários temas), em que só as
+posições sorteadas viram vértices e o resto do parágrafo é contexto. As saídas estão em
+\cod{hyb\_<modelo>.txt}.
+
+Nas contagens a seguir, \emph{palavra de conteúdo} é um tipo cuja categoria mais comum é
+palavra inteira, só com letras, com pelo menos 3 letras e fora de uma lista de palavras
+funcionais. O critério da P4 é ter $f_t\ge10$ na amostra e pelo menos 3 ocorrências em pelo
+menos 3 temas.
+
+\begin{table}[htbp]
+\centering
+\caption{Estudo de viabilidade: tokenizers e amostragem natural até 15 mil vértices com
+$f_{\max}=50$. Fontes: linha \cod{pool:} e bloco \cod{f\_max=50, amostragem natural} de
+\cod{scripts/feasibility/sim\_<modelo>.txt}.}\label{tab:viab-natural}
+\small
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+& \textbf{Qwen3-4B} & \textbf{Tucano-2b4} & \textbf{GPT-2 small PT} \\
+\midrule
+Tokens no \emph{pool} de 7.876 parágrafos & 1.276.475 & 953.290 & 939.895 \\
+Tokens por palavra & 1,78 & 1,33 & 1,31 \\
+Palavras-alvo candidatas que são um token só & 12 de 16 & 16 de 16 & 16 de 16 \\
+\midrule
+Parágrafos para chegar a 15 mil vértices & 101 & 134 & 160 \\
+Tipos distintos na amostra & 3.693 & 6.144 & 6.213 \\
+Vértices com $f_t\le2$ & 19\% & 40\% & 39\% \\
+Vértices que são palavras inteiras & 28\% & 54\% & 72\% \\
+Tipos com $f_t\ge10$ & 293 & 183 & 170 \\
+Conteúdo com $f_t\ge10$ e $\ge3$ oc.\ em $\ge3$ temas & 4 & 5 & 9 \\
+Alvos com $\ge10$ oc.\ em $\ge2$ temas & 0 & 0 & 0 \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{Variante direcionada (alvos primeiro), $f_{\max}=50$}} \\
+Conteúdo com $f_t\ge10$ e $\ge3$ oc.\ em $\ge3$ temas & 10 & 10 & 21 \\
+Alvos com $\ge10$ oc.\ em $\ge2$ temas & 2 & 1 & 2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\figuraopcional[\cod{scripts/feasibility/plot\_feasibility.py}]{viabilidade_tokenizers}
+    {Comparação dos tokenizers no \emph{pool} do estudo de viabilidade: tokens por palavra e
+    fração dos vértices que são palavras inteiras na amostragem natural ($f_{\max}=50$). O
+    Qwen3 (em destaque) é o tokenizer do modelo escolhido. Fonte:
+    \cod{scripts/feasibility/sim\_<modelo>.txt}.}
+    {fig:viab-tokenizers}
+
+A Tabela~\ref{tab:viab-natural} e a Figura~\ref{fig:viab-tokenizers} mostram três coisas.
+
+\textbf{A meta de vértices é fácil.} Com qualquer tokenizer, 15 mil vértices saem de 100 a 160
+parágrafos (de 18 a 21 mil tokens), uma fração pequena do \emph{pool}. Com $f_{\max}=20$ bastam
+de 127 a 177 parágrafos.
+
+\textbf{Parágrafos inteiros não servem para a P4.} Mesmo com 15 mil vértices, só de 4 a 9
+palavras de conteúdo têm $f_t\ge10$ com ocorrências espalhadas por 3 temas, e \emph{nenhuma}
+palavra-alvo chega a 10 ocorrências em 2 temas. O motivo é a lei de Zipf: num trecho pequeno de
+texto, só palavras funcionais e pontuação se repetem muito; palavras de conteúdo aparecem uma
+ou duas vezes. Começar pelos parágrafos que contêm as palavras-alvo (variante direcionada)
+melhora pouco (de 10 a 21 palavras de conteúdo, 1 ou 2 alvos).
+
+\textbf{O Qwen3 fragmenta muito o português.} São 1,78 tokens por palavra, contra 1,33 do
+Tucano e 1,31 do GPT-2 português, e só 28\% dos vértices são palavras inteiras (54\% e 72\% nos
+outros). Quatro das 16 palavras-alvo candidatas não são um token só no Qwen3 (\emph{corrente},
+\emph{onda}, \emph{célula} e \emph{núcleo}; por exemplo, ``\esp célula'' vira
+\tok{\esp cél}${}+{}$\tok{ula}) e saíram da lista, que ficou com 12. Essa foi a principal
+desvantagem pesada contra o Qwen3 na escolha do modelo (Seção~\ref{sec:mod-escolha}).
+
+\begin{table}[htbp]
+\centering
+\caption{Estudo de viabilidade: desenho híbrido com 15 mil vértices e $f_{\max}=50$
+(núcleo de parágrafos inteiros, 12 ou 16 alvos, 6 controles e 150 palavras multitema com 20
+ocorrências cada). Fonte: \cod{scripts/feasibility/hyb\_<modelo>.txt}.}\label{tab:viab-hibrido}
+\small
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+& \textbf{Qwen3-4B} & \textbf{Tucano-2b4} & \textbf{GPT-2 small PT} \\
+\midrule
+Vértices & 15.104 & 15.002 & 15.099 \\
+\quad núcleo & 11.251 & 10.954 & 11.045 \\
+\quad alvos & 553 & 748 & 754 \\
+\quad controles & 300 & 300 & 300 \\
+\quad multitema & 3.000 & 3.000 & 3.000 \\
+Parágrafos inteiros no núcleo & 78 & 93 & 107 \\
+Vértices por parágrafo do núcleo (média) & 144 & 118 & 103 \\
+Parágrafos tocados no total & 2.894 & 2.943 & 3.017 \\
+Tokens a processar no modelo & 329.555 & 243.959 & 248.579 \\
+Tipos distintos & 3.257 & 4.904 & 4.856 \\
+Vértices com $f_t\le2$ & 17\% & 32\% & 30\% \\
+Tipos com $f_t\ge10$ & 354 & 274 & 286 \\
+Conteúdo com $f_t\ge10$ e $\ge3$ oc.\ em $\ge3$ temas & 169 & 172 & 173 \\
+Alvos com $\ge10$ oc.\ em $\ge2$ temas & 3 de 12 & 7 de 16 & 7 de 16 \\
+Alvos com $\ge5$ oc.\ em $\ge3$ temas & 11 de 12 & 14 de 16 & 14 de 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\figuraopcional[\cod{scripts/feasibility/plot\_feasibility.py}]{viabilidade_amostragem}
+    {Amostragem natural (parágrafos inteiros, $f_{\max}=50$) contra o desenho híbrido, nas duas
+    contagens que decidem a P4: palavras de conteúdo repetidas em vários temas e palavras-alvo
+    com ocorrências suficientes em dois temas. Fontes:
+    \cod{scripts/feasibility/sim\_<modelo>.txt} e \cod{hyb\_<modelo>.txt}.}
+    {fig:viab-amostragem}
+
+\textbf{O desenho híbrido resolve.} Com o mesmo número de vértices, o núcleo continua com cerca
+de 11 mil vértices em 78 a 107 parágrafos inteiros (o bastante para a P3 e para as métricas
+globais), e o número de palavras de conteúdo com $f_t\ge10$ espalhadas por 3 temas sobe de
+4--9 para cerca de 170 (Tabela~\ref{tab:viab-hibrido} e Figura~\ref{fig:viab-amostragem}). O
+custo é processar mais texto no modelo: cerca de 330 mil tokens com o Qwen3, porque cada
+ocorrência esparsa exige o parágrafo até a posição dela.
+
+Na simulação, os alvos ainda ficaram fracos (3 de 12 com $\ge10$ ocorrências em 2 temas), mas
+por uma razão corrigível: as 50 ocorrências de cada alvo foram sorteadas em rodízio entre os
+\emph{oito} temas, e não concentradas nos temas em que a palavra tem sentidos diferentes. A
+Tabela~\ref{tab:viab-pool} mostra que o \emph{pool} tem ocorrências suficientes para cotas por
+\emph{tema de sentido} na maioria dos casos, e onde faltam (\emph{banco} em Geografia,
+\emph{órgão} em Biologia, \emph{nota} e \emph{carga} em Economia, \emph{planta} em Economia,
+\emph{matriz} em Computação), as categorias extras da Seção~\ref{sec:corpus} entram. A
+simulação também tinha dois defeitos de desenho, corrigidos no desenho final
+(Seção~\ref{sec:prob-simulacao}): o limite por tipo do núcleo era aplicado por ordem de
+chegada, e cada parágrafo do núcleo vinha de um artigo diferente.
+
+\begin{table}[htbp]
+\centering
+\caption{Ocorrências das palavras-alvo e de controle no \emph{pool} inteiro do estudo de
+viabilidade (tokenizer do Qwen3, sem limite por tipo), por tema. Em negrito, os temas de
+sentido usados nas cotas do desenho final (Tabela~\ref{tab:cotas}). Fonte: bloco \cod{pool
+inteiro} de \cod{scripts/feasibility/sim\_Qwen3-4B.txt}.}\label{tab:viab-pool}
+\footnotesize
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{@{}l r r r r r r r r r@{}}
+\toprule
+& \textbf{Total} & \textbf{Bio} & \textbf{Comp} & \textbf{Econ} & \textbf{Esp} & \textbf{Fís}
+& \textbf{Geo} & \textbf{Mús} & \textbf{Pol} \\
+\midrule
+banco & 66 & 9 & \textbf{19} & \textbf{24} & 6 & 0 & \textbf{4} & 3 & 1 \\
+campo & 335 & 34 & 26 & 22 & \textbf{74} & \textbf{82} & \textbf{72} & 11 & 14 \\
+órgão & 57 & \textbf{6} & 1 & 6 & 9 & 0 & 0 & \textbf{25} & \textbf{10} \\
+estado & 282 & 24 & 39 & 28 & 13 & \textbf{84} & 19 & 20 & \textbf{55} \\
+carga & 53 & 9 & 4 & \textbf{6} & 0 & \textbf{22} & 0 & 3 & 9 \\
+rede & 133 & 4 & \textbf{71} & 15 & 2 & 11 & \textbf{15} & 3 & 12 \\
+nota & 41 & 2 & 5 & \textbf{7} & 0 & 2 & 0 & \textbf{24} & 1 \\
+capital & 271 & 1 & 0 & \textbf{201} & 18 & 1 & 9 & 6 & \textbf{35} \\
+família & 70 & \textbf{10} & 10 & 4 & 4 & 13 & 2 & 13 & \textbf{14} \\
+massa & 140 & 2 & 3 & 10 & 3 & \textbf{59} & \textbf{39} & 14 & 10 \\
+matriz & 27 & \textbf{10} & \textbf{3} & 2 & 0 & 5 & 0 & 6 & 1 \\
+planta & 35 & \textbf{25} & 0 & \textbf{0} & 0 & 0 & 9 & 0 & 1 \\
+\midrule
+ano & 310 & 13 & 15 & \textbf{36} & \textbf{82} & 35 & 30 & \textbf{65} & 34 \\
+século & 356 & 29 & 12 & 31 & 11 & \textbf{86} & \textbf{66} & 59 & \textbf{62} \\
+grande & 527 & \textbf{58} & 48 & 67 & 66 & \textbf{88} & 49 & 77 & 74 \\
+primeiro & 510 & 24 & \textbf{52} & 39 & \textbf{134} & 63 & 48 & 92 & 58 \\
+importante & 247 & \textbf{53} & 20 & \textbf{47} & 9 & 24 & 23 & 36 & 35 \\
+água & 249 & \textbf{102} & 0 & 24 & 2 & 47 & \textbf{65} & 1 & 8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Os números do estudo são aproximados por construção: o corpus do estudo não removia páginas
+multitema nem biografias, a limpeza ainda deixava restos de referências e as contagens
+ignoram os limites por parágrafo e por artigo do desenho final. Eles serviram para escolher o
+desenho e o modelo; a composição real da amostra está na Seção~\ref{sec:amostra}.
+
+% ------------------------------------------------------------
+\subsection{Amostra híbrida}\label{sec:amostra}
+
+A amostra final tem cerca de 15 mil vértices, $f_{\max}=50$ e sementes fixas (semente 438),
+com quatro estratos sorteados em ordem por um único gerador aleatório.
+
+\paragraph{1. Núcleo (P1--P3).} Por tema, 5 artigos $\times$ 2 parágrafos (cerca de 80
+parágrafos e 11 mil vértices), com todos os tokens que não são só espaço como vértices. Dois
+parágrafos por artigo fazem \emph{artigo} e \emph{parágrafo} serem rótulos distintos na P3 (na
+simulação eles quase coincidiam). O limite $f_{\max}$ é aplicado por \textbf{sorteio uniforme}
+entre as ocorrências de cada tipo acima do limite, depois de juntar todo o núcleo, e não por
+ordem de chegada: assim as ocorrências mantidas de ``de'' ou ``,'' se espalham por todos os
+parágrafos, em vez de serem as dos primeiros parágrafos. O núcleo é o único estrato em que um
+parágrafo aparece inteiro, e por isso a P3 é analisada só nele.
+
+\paragraph{2. Palavras-alvo (P4).} Doze palavras com sentidos diferentes em temas diferentes:
+\emph{banco}, \emph{campo}, \emph{órgão}, \emph{estado}, \emph{carga}, \emph{rede},
+\emph{nota}, \emph{capital}, \emph{família}, \emph{massa}, \emph{matriz} e \emph{planta}. Cada
+uma tem cotas por \textbf{tema de sentido}: 2 ou 3 temas, com 16 a 25 ocorrências em cada
+(Tabela~\ref{tab:cotas}). A cota conta as ocorrências do alvo que já estão no núcleo daquele
+tema; só a diferença é sorteada em parágrafos fora do núcleo, com no máximo 1 ocorrência por
+(tipo, parágrafo) e 3 por (tipo, artigo), para que um único artigo não domine a amostra de uma
+palavra. As ocorrências que ficam no núcleo mantêm o estrato \cod{core}, mas recebem
+\cod{target\_word} e \cod{sense\_theme} como as sorteadas; por isso as contagens por estrato
+(\nVerticesAlvo{} alvos, \nVerticesControle{} controles) ficam abaixo da soma das cotas, sem que
+falte ocorrência. Só conta o id da forma minúscula precedida de espaço
+(Seção~\ref{sec:categorias}). Um alvo que não chegar a 10 ocorrências (\cod{min\_per\_sense})
+em pelo menos 2 temas sai da lista, e as faltas por (alvo, tema) ficam registradas.
+
+\paragraph{3. Controles (P4).} Seis palavras de sentido estável (\emph{ano}, \emph{século},
+\emph{grande}, \emph{primeiro}, \emph{importante} e \emph{água}) com a \textbf{mesma
+alocação} dos alvos: duas com três temas e cotas 17/17/16, quatro com dois temas e cotas
+25/25. Se os controles tivessem outro número de temas ou de ocorrências, uma diferença entre
+alvos e controles na P4 poderia vir só do desenho.
+
+\paragraph{4. Multitema (P4).} 150 palavras de conteúdo com pelo menos 5 ocorrências em pelo
+menos 3 temas fora do núcleo, completadas até 20 ocorrências no total (contando as que já
+estão na amostra, no núcleo ou nos estratos anteriores), sorteadas em rodízio entre os temas.
+Por isso o estrato multitema (\nVerticesMultitema{} vértices) fica abaixo de $150\times20$.
+Elas ampliam a P4 para além das 18 palavras escolhidas à mão.
+
+\begin{table}[htbp]
+\centering
+\caption{Cotas por tema de sentido do desenho final (\cod{configs/experiment.yaml}). São
+parâmetros do desenho; as quantidades efetivamente obtidas estão na
+Tabela~\ref{tab:amostra-cotas}.}\label{tab:cotas}
+\small
+\begin{tabular}{@{}l l@{\hspace{2.5em}}l l@{}}
+\toprule
+\textbf{Alvo} & \textbf{Cotas} & \textbf{Controle} & \textbf{Cotas} \\
+\midrule
+banco & Economia 17, Computação 17, Geografia 16 & ano & Economia 17, Esporte 17, Música 16 \\
+campo & Física 17, Esporte 17, Geografia 16 & século & Física 17, Geografia 17, Política 16 \\
+órgão & Biologia 17, Música 17, Política 16 & grande & Física 25, Biologia 25 \\
+estado & Física 25, Política 25 & primeiro & Esporte 25, Computação 25 \\
+carga & Física 25, Economia 25 & importante & Biologia 25, Economia 25 \\
+rede & Computação 25, Geografia 25 & água & Biologia 25, Geografia 25 \\
+nota & Música 25, Economia 25 & & \\
+capital & Economia 25, Política 25 & & \\
+família & Biologia 25, Política 25 & & \\
+massa & Física 25, Geografia 25 & & \\
+matriz & Biologia 25, Computação 25 & & \\
+planta & Biologia 25, Economia 25 & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Sequências.} Cada parágrafo tocado pela amostra vira uma sequência
+\tok{<|endoftext|>} $+$ tokens do parágrafo, truncada logo depois da última posição escolhida
+nele (Seção~\ref{sec:mod-sequencias}). Nos estratos esparsos, os tokens antes da posição
+sorteada são só contexto. A tabela \cod{occurrences.csv} tem uma linha por vértice, ordenada
+por (sequência, posição), com origem (tema, artigo, revisão, parágrafo, sentença), posição e
+faixa de posição, grupo de prefixo, token (id, texto, \emph{offsets}, vizinhos na sequência),
+palavra e categoria, frequências e faixas na amostra e no corpus, estrato, palavra-alvo, tema
+de sentido e contexto local. A ordem das linhas define o desempate por posição
+(Seção~\ref{sec:red-empates}). Para a separação por sentido na P4, cerca de 20 ocorrências por
+alvo são anotadas à mão em \cod{senses.csv}.
+
+\paragraph{A amostra obtida.} Na última execução, a amostra tem \nVertices{} vértices em
+\nSequencias{} sequências (\nTokensProcessados{} tokens a processar no modelo) e \nTipos{}
+tipos distintos: \nVerticesNucleo{} no núcleo (\nParagrafosNucleo{} parágrafos),
+\nVerticesAlvo{} de alvos, \nVerticesControle{} de controles e \nVerticesMultitema{}
+multitema. Ficaram \nAlvosMantidos{} alvos na análise.
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{sample}]{amostra_composicao}
+    {Composição da amostra por estrato e tema (vértices, parágrafos e tipos).}
+    {tab:amostra-composicao}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{sample}]{amostra_faixas}
+    {Vértices por faixa de frequência (na amostra e no corpus) e por categoria de token.}
+    {tab:amostra-faixas}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{sample}]{amostra_cotas}
+    {Ocorrências por palavra-alvo e controle em cada tema de sentido: cota, ocorrências que já
+    estavam no núcleo, sorteadas fora dele e total obtido; alvos descartados por falta de
+    ocorrências.}
+    {tab:amostra-cotas}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{sample}]{amostra_composicao}
+    {Composição da amostra: vértices por estrato, tema, faixa de frequência e categoria de
+    token.}
+    {fig:amostra-composicao}

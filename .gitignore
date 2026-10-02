@@ -27,3 +27,6 @@ report/**/*.out
 report/**/*.toc
 report/**/*.bbl
 report/**/*.blg
+
+# PDF compilado do relatório técnico (gerado com latexmk)
+report/relatorio/relatorio.pdf

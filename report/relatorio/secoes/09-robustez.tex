@@ -1,0 +1,56 @@
+% ============================================================
+\section{Robustez}\label{sec:robustez}
+% ============================================================
+
+As conclusões das Seções~\ref{sec:res-p1}--\ref{sec:res-p4} só valem se não dependerem de uma
+escolha particular de construção. A grade de variações está na Tabela~\ref{tab:grade}; cada
+variação muda uma dimensão por vez em relação à configuração principal. Esta seção ainda é só
+estrutura.
+
+\previsto{Uma tabela automática que, para cada variação, repete as medidas-resumo principais
+(assimetria do grau de entrada, clusterização, distância média, $J$ médio acima do piso,
+$D$ médio, NMI menos a linha de base contra tipo e contra parágrafo, separação dos alvos menos a
+dos controles) e marca quando a conclusão qualitativa muda em relação à configuração principal.
+Dados: etapas \etapa{knn} (todas as variantes), \etapa{metrics} e \etapa{analyze}.}
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{metrics} e \etapa{analyze}]{robustez}
+    {Medidas-resumo em cada variação de robustez, ao lado da configuração principal.}
+    {tab:robustez}
+
+\subsection{Número de vizinhos e simetrização}
+\previsto{$k\in\{5,20\}$ contra $k=10$, e a versão mútua contra a união: as tendências entre
+camadas se mantêm? Na mútua, quantos componentes surgem e quanto a assimetria do grau cai
+(a mútua corta as arestas que chegam a \emph{hubs}).}
+
+\subsection{Tratamento de empates e tolerância}
+\previsto{Variantes (b) (todos os empatados) e (c) (tipos distintos) e desempate por posição,
+contra o sorteio; $\eps=10^{-4}$ contra $10^{-6}$ (arquivos \cod{nbr\_<rep>\_k10\_eps.npz}). Em
+particular: quanto do $J$ lexical $\to$ bloco 1 some quando o ruído do desempate é eliminado
+(variante (b), $J^w$), e quantos empates novos aparecem nas camadas contextuais com a tolerância
+maior.}
+
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{robustez_empates}
+    {$J(\mathrm{lex},\ell)$ médio nas variantes de empate (a), posição, (b) e (c), e o
+    Jaccard por composição $J^w$, por faixa de frequência.}
+    {fig:robustez-empates}
+
+\subsection{Normalização final e centragem}
+\previsto{\cod{L36n} contra \cod{L36}: quanto a RMSNorm final (ganho por dimensão) muda as
+vizinhanças. \cod{L01c}, \cod{L18c}, \cod{L36c} contra as versões sem centragem: se a
+anisotropia e as ativações massivas (Seção~\ref{sec:mod-diagnosticos}) estiverem dominando o
+cosseno, a centragem deve mudar sobretudo os \emph{hubs}.}
+
+\subsection{Resolução das comunidades e subconjunto do núcleo}
+\previsto{Resoluções $\gamma\in\{0{,}5;\,2\}$ do Leiden e o Louvain como checagem: a ordem dos
+rótulos na P3 se mantém? Redes construídas só com o núcleo ($\approx$11 mil vértices): os
+estratos esparsos alteram a estrutura global?}
+
+\textbf{Planejado, ainda sem etapa.} As redes só do núcleo \emph{não} podem ser obtidas
+restringindo as redes da amostra inteira. Pelo argumento da Seção~\ref{sec:vocab-vs-amostra}, o
+$k$-NN de um subconjunto não é o subgrafo induzido do $k$-NN completo: quando vizinhos de fora
+do núcleo são removidos, cada vértice precisa escolher novos vizinhos dentro dele. Restringir
+os candidatos gravados (\cod{cand\_<rep>.npz}) às colunas do núcleo também não serve, porque uma
+linha pode ficar com menos de $k$ candidatos e perde a garantia de completude. É preciso um
+$k$-NN próprio sobre as linhas do núcleo, com candidatos recalculados; nenhuma etapa o produz
+ainda (seria uma opção da etapa \etapa{knn} restrita ao estrato \cod{core}), e este item fica
+de fora da tabela de robustez até lá.

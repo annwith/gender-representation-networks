@@ -1,0 +1,293 @@
+% ============================================================
+% Relatório técnico (documento vivo) do projeto
+% "Da rede lexical à rede contextual" -- MO438 Redes Complexas, Unicamp.
+%
+% Compilação:  cd report/relatorio && latexmk -pdf relatorio.tex
+%
+% Material gerado (NÃO editar à mão; ver README.md desta pasta):
+%   figuras/*.pdf        -- escritas pela etapa `report` do pipeline
+%                           (e, só as de viabilidade, por scripts/feasibility/plot_feasibility.py)
+%   tabelas/*.tex        -- escritas pela etapa `report`
+%   tabelas/numeros.tex  -- macros com os números citados no texto
+% Tudo o que ainda não foi gerado aparece como um quadro "pendente", e o documento
+% compila antes de qualquer execução do pipeline.
+% ============================================================
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Pacotes
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{tikz}
+\usepackage{seqsplit}  % quebra de linha dentro do SHA da revisão do modelo
+\usetikzlibrary{arrows.meta,positioning}
+% Sem siunitx de propósito: tabelas/numeros.tex e tabelas/*.tex trazem os números como texto
+% simples já formatado em pt-BR (ex.: 15.104; 0,83). Com siunitx, \num{15.104} leria o ponto
+% como separador decimal e imprimiria 15,104.
+\usepackage{hyperref}
+
+% ------------------------------------------------------------
+% Layout (o mesmo da proposta, com seções numeradas)
+% ------------------------------------------------------------
+\geometry{top=2.0cm, bottom=2.0cm, left=2.0cm, right=2.0cm}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+% Caminhos e nomes em \texttt não se dividem; um pouco de folga evita linhas estouradas.
+\setlength{\emergencystretch}{2.5em}
+
+\setlist[itemize]{leftmargin=1.35em, itemsep=1pt, topsep=2pt, parsep=0pt}
+\setlist[enumerate]{leftmargin=1.55em, itemsep=1pt, topsep=2pt, parsep=0pt}
+\setlist[description]{leftmargin=1.2em, itemsep=2pt, topsep=2pt, parsep=0pt}
+
+\titleformat{\section}{\bfseries\large}{\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{12pt}{4pt}
+\titleformat{\subsection}{\bfseries\normalsize}{\thesubsection}{0.6em}{}
+\titlespacing*{\subsection}{0pt}{8pt}{2pt}
+\titleformat{\subsubsection}{\bfseries\itshape\normalsize}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\subsubsection}{0pt}{6pt}{1pt}
+
+\captionsetup{font=small, labelfont=bf, margin=0.5cm}
+\captionsetup[table]{position=top, skip=4pt}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue,
+    pdftitle={Da rede lexical à rede contextual: relatório técnico},
+    pdfauthor={Juliana Midlej},
+}
+
+\setlength{\LTpre}{4pt}
+\setlength{\LTpost}{4pt}
+
+% ------------------------------------------------------------
+% Números gerados pela etapa `report`
+% ------------------------------------------------------------
+% tabelas/numeros.tex define (com \newcommand) as macros dos números citados no texto.
+% Os \providecommand abaixo só valem enquanto o arquivo não existe ou não define a macro:
+% assim o texto compila antes de qualquer execução e nunca traz um número digitado à mão.
+\newcommand{\pendente}{\textit{[pendente]}}
+\IfFileExists{tabelas/numeros.tex}{\input{tabelas/numeros.tex}}{}
+% corpus (etapa corpus; tokens e tipos contados pela etapa sample)
+\providecommand{\nArtigosCandidatos}{\pendente}
+\providecommand{\nArtigos}{\pendente}
+\providecommand{\nParagrafos}{\pendente}
+\providecommand{\nPalavrasCorpus}{\pendente}
+\providecommand{\nTokensCorpus}{\pendente}
+\providecommand{\nTiposCorpus}{\pendente}
+% amostra (etapa sample)
+\providecommand{\nVertices}{\pendente}
+\providecommand{\nTipos}{\pendente}
+\providecommand{\nSequencias}{\pendente}
+\providecommand{\nTokensProcessados}{\pendente}
+\providecommand{\nParagrafosNucleo}{\pendente}
+\providecommand{\nVerticesNucleo}{\pendente}
+\providecommand{\nVerticesAlvo}{\pendente}
+\providecommand{\nVerticesControle}{\pendente}
+\providecommand{\nVerticesMultitema}{\pendente}
+\providecommand{\nAlvosMantidos}{\pendente}
+\providecommand{\nGruposPrefixo}{\pendente}
+% vocabulário (etapas sample e knn)
+\providecommand{\nTiposVocab}{\pendente}
+\providecommand{\nTiposVocabCorpus}{\pendente}
+% extração (etapa extract)
+\providecommand{\difMaxPrefixo}{\pendente}
+\providecommand{\concordanciaPredicao}{\pendente}
+% execução
+\providecommand{\dataExecucao}{\pendente}
+\providecommand{\revisaoGit}{\pendente}
+
+% ------------------------------------------------------------
+% Figuras e tabelas opcionais (geradas pelo pipeline)
+% ------------------------------------------------------------
+\newsavebox{\caixafigura}
+% Inclui um PDF no tamanho natural, reduzindo só se for mais largo que a coluna
+% (as figuras são desenhadas na largura final, então as fontes não mudam de tamanho).
+\newcommand{\incluirlimitado}[1]{%
+    \sbox{\caixafigura}{\includegraphics{#1}}%
+    \ifdim\wd\caixafigura>\linewidth
+        \includegraphics[width=\linewidth]{#1}%
+    \else
+        \usebox{\caixafigura}%
+    \fi}
+% Quadro que ocupa o lugar de um material ainda não gerado.
+\newcommand{\caixapendente}[1]{%
+    \fcolorbox{black!45}{black!4}{%
+        \parbox{0.9\linewidth}{\centering\small\color{black!75}%
+            \rule{0pt}{1.8em}#1\par\vspace{1.1em}}}}
+\newcommand{\etapa}[1]{\texttt{#1}}
+% \figuraopcional[quem gera]{arquivo sem extensão}{legenda}{rótulo}
+\newcommand{\figuraopcional}[4][etapa \etapa{report}]{%
+    \begin{figure}[htbp]
+        \centering
+        \IfFileExists{figuras/#2.pdf}{%
+            \incluirlimitado{figuras/#2.pdf}%
+        }{%
+            \caixapendente{\textbf{Figura pendente:}
+                \texttt{\detokenize{figuras/#2.pdf}}\\[2pt]
+                Gerada por: #1.}%
+        }
+        \caption{#3}\label{#4}
+    \end{figure}}
+% \tabelaopcional[quem gera]{arquivo sem extensão}{legenda}{rótulo}
+% O arquivo gerado contém só o ambiente tabular (booktabs); legenda e rótulo ficam aqui.
+\newcommand{\tabelaopcional}[4][etapa \etapa{report}]{%
+    \begin{table}[htbp]
+        \centering
+        \caption{#3}\label{#4}
+        \IfFileExists{tabelas/#2.tex}{%
+            \small\input{tabelas/#2.tex}%
+        }{%
+            \caixapendente{\textbf{Tabela pendente:}
+                \texttt{\detokenize{tabelas/#2.tex}}\\[2pt]
+                Gerada por: #1.}%
+        }
+    \end{table}}
+
+% ------------------------------------------------------------
+% Notação
+% ------------------------------------------------------------
+\newcommand{\tok}[1]{\texttt{#1}}              % um token, como aparece no texto
+\newcommand{\esp}{\textvisiblespace}           % espaço inicial de um token
+\newcommand{\cod}[1]{\texttt{#1}}              % código, arquivos, comandos
+\newcommand{\eps}{\varepsilon}
+\newcommand{\N}{\mathcal{N}}
+\newcommand{\previsto}[1]{%
+    \par\noindent\fcolorbox{black!30}{white}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
+        \small\textbf{Conteúdo previsto.} #1}}\par}
+
+% ============================================================
+\begin{document}
+
+\begin{center}
+    {\large\bfseries MO438 -- Redes Complexas (Unicamp)}\\[4pt]
+    {\LARGE\bfseries Da rede lexical à rede contextual}\\[3pt]
+    {\large Relatório técnico do experimento com o Qwen3-4B-Base}\\[8pt]
+    Juliana Midlej\\[2pt]
+    {\small Documento vivo, escrito junto com a implementação. Compilado em \today.
+    Números da execução de \dataExecucao{} (\texttt{git} \revisaoGit).}
+\end{center}
+
+\begin{abstract}
+\noindent
+Este relatório registra, etapa por etapa, o experimento que representa a passagem das
+representações lexicais às contextuais de um Transformer como uma sequência de redes complexas.
+Os vértices são \emph{ocorrências} de tokens em textos da Wikipédia em português; as arestas
+ligam representações semelhantes por $k$ vizinhos mais próximos (k-NN) sob o cosseno. Os
+mesmos vértices recebem vetores do \emph{embedding} de entrada e das saídas dos blocos 1, 18 e
+36 do Qwen3-4B-Base, o que permite comparar as redes vértice a vértice. O texto explica o que
+foi feito e por quê, as alternativas descartadas, os problemas encontrados e as limitações.
+Figuras, tabelas e números vêm diretamente dos artefatos da última execução do pipeline; o que
+ainda não foi executado aparece marcado como \pendente.
+\end{abstract}
+
+\tableofcontents
+
+\input{secoes/01-introducao}
+\input{secoes/02-perguntas}
+\input{secoes/03-terminologia}
+\input{secoes/04-dados}
+\input{secoes/05-modelo}
+\input{secoes/06-redes}
+\input{secoes/07-metodos}
+\input{secoes/08-resultados}
+\input{secoes/09-robustez}
+\input{secoes/10-discussao}
+\input{secoes/11-limitacoes}
+\input{secoes/12-problemas}
+
+% ------------------------------------------------------------
+\begin{thebibliography}{99}
+\small
+
+\bibitem{blondel2008}
+V.~D. Blondel, J.-L. Guillaume, R.~Lambiotte e E.~Lefebvre.
+Fast unfolding of communities in large networks.
+\emph{Journal of Statistical Mechanics: Theory and Experiment}, P10008, 2008.
+
+\bibitem{csardi2006}
+G.~Csárdi e T.~Nepusz.
+The igraph software package for complex network research.
+\emph{InterJournal, Complex Systems}, 1695, 2006.
+
+\bibitem{ethayarajh2019}
+K.~Ethayarajh.
+How contextual are contextualized word representations? Comparing the geometry of BERT,
+ELMo, and GPT-2 embeddings.
+Em \emph{Proceedings of EMNLP-IJCNLP}, 2019.
+
+\bibitem{hubert1985}
+L.~Hubert e P.~Arabie.
+Comparing partitions.
+\emph{Journal of Classification}, 2(1):193--218, 1985.
+
+\bibitem{newman2006}
+M.~E.~J. Newman.
+Modularity and community structure in networks.
+\emph{Proceedings of the National Academy of Sciences}, 103(23):8577--8582, 2006.
+
+\bibitem{press2017}
+O.~Press e L.~Wolf.
+Using the output embedding to improve language models.
+Em \emph{Proceedings of EACL}, 2017.
+
+\bibitem{qwen3}
+Qwen Team.
+Qwen3 technical report.
+\emph{arXiv:2505.09388}, 2025.
+
+\bibitem{radovanovic2010}
+M.~Radovanović, A.~Nanopoulos e M.~Ivanović.
+Hubs in space: popular nearest neighbors in high-dimensional data.
+\emph{Journal of Machine Learning Research}, 11:2487--2531, 2010.
+
+\bibitem{sun2024}
+M.~Sun, X.~Chen, J.~Z. Kolter e Z.~Liu.
+Massive activations in large language models.
+\emph{arXiv:2402.17762}, 2024.
+
+\bibitem{timkey2021}
+W.~Timkey e M.~van Schijndel.
+All bark and no bite: rogue dimensions in transformer language models obscure
+representational quality.
+Em \emph{Proceedings of EMNLP}, 2021.
+
+\bibitem{traag2019}
+V.~A. Traag, L.~Waltman e N.~J. van Eck.
+From Louvain to Leiden: guaranteeing well-connected communities.
+\emph{Scientific Reports}, 9:5233, 2019.
+
+\bibitem{vinh2010}
+N.~X. Vinh, J.~Epps e J.~Bailey.
+Information theoretic measures for clusterings comparison: variants, properties,
+normalization and correction for chance.
+\emph{Journal of Machine Learning Research}, 11:2837--2854, 2010.
+
+\bibitem{zhang2019}
+B.~Zhang e R.~Sennrich.
+Root mean square layer normalization.
+Em \emph{Advances in Neural Information Processing Systems 32}, 2019.
+
+\end{thebibliography}
+
+\appendix
+\input{secoes/13-apendices}
+
+\end{document}

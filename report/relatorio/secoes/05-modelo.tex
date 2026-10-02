@@ -1,0 +1,179 @@
+% ============================================================
+\section{Modelo e extração das representações}\label{sec:modelo}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{Escolha do modelo}\label{sec:mod-escolha}
+
+O modelo analisado é o \textbf{Qwen3-4B-Base}~\cite{qwen3}, na revisão fixada
+\cod{\seqsplit{906bfd4b4dc7f14ee4320094d8b41684abff8539}} do Hugging Face. É um decodificador causal com
+36 blocos, dimensão oculta $d=2560$, atenção com 32 cabeças de consulta e 8 de chave e valor,
+RMSNorm~\cite{zhang2019} e RoPE, cerca de 4 bilhões de parâmetros e pesos em
+\emph{bfloat16} (cerca de 7,5 GiB). O tokenizer tem 151.669 ids; a matriz de
+\emph{embeddings} tem 151.936 linhas, e as 267 linhas extras são enchimento que o tokenizer
+nunca produz.
+
+Quatro candidatos foram considerados:
+\begin{description}
+    \item[Qwen3-4B pós-treinado.] É a versão para conversa (ajuste fino supervisionado e
+    aprendizado por reforço, com modos de raciocínio). O pós-treino adapta as representações ao
+    formato de diálogo e a instruções, o que não tem relação com prosa enciclopédica. A
+    pergunta do projeto é sobre como um modelo de linguagem reorganiza tokens em contexto, e o
+    modelo \emph{Base} é o modelo de linguagem puro, treinado só para prever o próximo token.
+    \item[Tucano-2b4.] Treinado em português, com o melhor tokenizer para o nosso texto (1,33
+    tokens por palavra e 54\% dos vértices como palavras inteiras, contra 1,78 e 28\% do Qwen3;
+    Seção~\ref{sec:viabilidade}). Mas é menor, menos usado e menos representativo dos modelos
+    atuais.
+    \item[GPT-2 small português.] O modelo do piloto: GPT-2 small (12 blocos, $d=768$) ajustado
+    na Wikipédia em português. Tem o tokenizer mais amigável (72\% de palavras inteiras), mas
+    é pequeno e antigo, e foi treinado justamente no texto que vamos analisar.
+    \item[Qwen3-4B-Base.] Arquitetura atual, multilíngue, com profundidade suficiente para uma
+    curva camada a camada (36 blocos) e tamanho dentro da faixa de 4 a 8 bilhões de parâmetros
+    prevista na proposta. Cabe na GPU disponível (RTX 4070 de 8 GiB) com parte dos blocos na
+    CPU.
+\end{description}
+
+A escolha foi o Qwen3-4B-Base. O custo é a fragmentação do português
+(Seção~\ref{sec:prob-fragmentacao}), tratado de três formas: as medidas são sempre reportadas
+por categoria de token, as palavras-alvo foram restritas às que são um token só, e as
+interpretações semânticas se concentram em palavras inteiras de conteúdo.
+
+\paragraph{Embeddings amarrados.} O \cod{config.json} da revisão fixada tem
+\cod{tie\_word\_embeddings: true}: a matriz de entrada $E$ também é a matriz de saída, e os
+\emph{logits} do próximo token são $E\,\mathrm{norm}(h^{(36)})$~\cite{press2017}. Isso
+significa que $e_t$ é, ao mesmo tempo, o vetor com que o token $t$ entra no modelo e a direção
+que o modelo usa para prevê-lo. A interpretação da rede lexical e da extensão ``vizinhos no
+vocabulário'' (Seção~\ref{sec:res-lente}) leva isso em conta: só a saída normalizada do bloco
+36 vive exatamente no espaço que a matriz de saída lê.
+
+% ------------------------------------------------------------
+\subsection{Camadas e representações}
+
+Para cada ocorrência são guardados:
+\begin{itemize}
+    \item \textbf{Lexical} (\cod{lex}): $e_{t_i}$, a linha da matriz de \emph{embeddings} do
+    tipo. Os vetores lexicais por ocorrência nunca são materializados: a matriz inteira é
+    guardada uma vez (151.669 linhas em bf16, cerca de 780 MB) e $e_{t_i}$ é lido pelo índice.
+    \item \textbf{Blocos 1, 18 e 36} (\cod{L01}, \cod{L18}, \cod{L36}): a saída \emph{bruta}
+    do bloco, isto é, o fluxo residual depois do bloco $\ell$, sem normalização. O bloco 1 é a
+    primeira mistura com o contexto, o 18 ($=\lfloor 36/2\rfloor$) é o intermediário e o 36 é
+    o último.
+    \item \textbf{Bloco 36 normalizado} (\cod{L36n}): a saída da RMSNorm final, a mesma que os
+    \emph{logits} leem. Entra como variante de robustez.
+    \item \textbf{Todos os 36 blocos}, gravados num \emph{memmap} em disco (cerca de 2,8 GB
+    em bf16 para 15 mil vértices), para a curva camada a camada da P2.
+    \item \textbf{Previsão do próximo token}: o argmax de $E\,\mathrm{norm}(h^{(36)}_i)$, usado
+    como rótulo na P3 e na checagem da extensão.
+\end{itemize}
+
+\paragraph{Por que a saída bruta, e não a normalizada.} Os blocos 1 e 18 só existem na forma
+bruta (a RMSNorm final só é aplicada depois do último bloco). Para que a transição
+$18\to36$ compare objetos do mesmo tipo, o bloco 36 também é tomado na forma bruta. A RMSNorm
+divide cada vetor pela sua raiz da média dos quadrados e multiplica cada dimensão por um ganho
+aprendido; o cosseno é invariante à primeira operação, mas não à segunda, então as duas
+versões do bloco 36 podem ter vizinhanças diferentes, e essa diferença é medida na robustez.
+
+\paragraph{A pegadinha do \texttt{hidden\_states[36]}.} Por convenção, a tupla
+\cod{hidden\_states} devolvida com \cod{output\_hidden\_states=True} tem 37 elementos: o
+\emph{embedding} de entrada e a saída de cada bloco. No transformers 5.16, porém, o último
+elemento é substituído pela saída \emph{depois} da RMSNorm final: \cod{hidden\_states[36]} não
+é a saída bruta do bloco 36 (Seção~\ref{sec:prob-hidden}). Por isso as saídas brutas são
+capturadas por \emph{hooks} de \emph{forward} em \cod{layers[0]}, \cod{layers[17]} e
+\cod{layers[35]}, e a versão normalizada por um \emph{hook} em \cod{norm}. Hooks em todos os
+36 blocos alimentam o \emph{memmap}.
+
+\paragraph{Carregamento.} O modelo é carregado com \cod{AutoModel} (o decodificador sem a cabeça
+de linguagem, desnecessária porque a matriz de saída é a própria $E$), com
+\cod{dtype=torch.bfloat16} (o argumento \cod{torch\_dtype} está obsoleto no transformers 5),
+\cod{device\_map="auto"} e \cod{max\_memory} de 6 GiB na GPU e 10 GiB na CPU. Os pesos
+(7,5 GiB) não cabem inteiros nos 8 GiB da GPU junto com as ativações, então o
+\cod{accelerate} deixa parte dos blocos na CPU e os transfere para a GPU durante o
+\emph{forward}. Isso deixa a extração mais lenta, mas não muda o resultado: cada bloco faz as
+mesmas contas em bf16.
+
+% ------------------------------------------------------------
+\subsection{Sequências, prefixo e grupos de prefixo}\label{sec:mod-sequencias}
+
+\paragraph{Um parágrafo por \emph{forward pass}.} Cada parágrafo é uma sequência processada
+sozinha (lote 1), sem \emph{padding}. Assim, o contexto de cada ocorrência é exatamente o texto
+anterior a ela no parágrafo, e não depende de quais outros parágrafos estão no lote.
+
+\paragraph{Prefixo.} Toda sequência começa com \tok{<|endoftext|>} (id 151643), que nunca vira
+vértice. O tokenizer do Qwen3 não acrescenta token de início (\cod{add\_bos\_token: false}),
+e esse id é o separador de documentos do pré-treino (também é o \cod{bos\_token\_id} do
+\cod{config.json}), ou seja, o contexto natural de ``início de documento''. Sem prefixo, o
+primeiro token do parágrafo ocuparia a posição 0, que em decodificadores funciona como
+``sorvedouro'' de atenção e tem ativações de norma enorme~\cite{sun2024}; ele viraria um
+vértice atípico por causa da posição, e não do conteúdo.
+
+\paragraph{Truncamento.} Cada sequência é processada só até o último vértice escolhido nela. Como
+o modelo é causal, os tokens posteriores não mudam os estados das posições anteriores, e o
+truncamento economiza processamento, principalmente nos estratos esparsos.
+
+\paragraph{Grupos de prefixo.} Vértices cujas sequências têm o \emph{mesmo} prefixo de tokens até
+eles (inclusive) têm estados matematicamente iguais em todas as camadas; o caso típico é
+``\tok{O}'' ou ``\tok{A}'' no começo de vários parágrafos. Na prática, sequências de
+comprimentos diferentes podem dar diferenças numéricas mínimas (os \emph{kernels} de atenção
+agrupam as contas de forma diferente). Os vértices são agrupados pelo prefixo, os vetores do
+primeiro membro são copiados para os outros e a maior diferença encontrada é registrada como
+diagnóstico de ruído numérico (\difMaxPrefixo{} na última execução, em \nGruposPrefixo{}
+grupos). Com a cópia, esses vértices ficam exatamente empatados e recebem o mesmo tratamento
+de empates que a rede lexical, em vez de uma ordem decidida por ruído.
+
+% ------------------------------------------------------------
+\subsection{Verificações antes da extração}\label{sec:mod-verificacao}
+
+Antes da extração completa, \cod{gender-networks extract --verify} roda o modelo real em 8
+sequências e checa as premissas acima:
+\begin{enumerate}
+    \item \cod{len(hidden\_states) == 37};
+    \item \cod{hidden\_states[0]} é igual a \cod{embed\_tokens(ids)}: a entrada do primeiro bloco
+    é o \emph{embedding} puro (o RoPE age dentro da atenção e não soma nada ao fluxo residual);
+    \item o \emph{hook} de \cod{layers[k-1]} é igual a \cod{hidden\_states[k]} para
+    $k\in\{1,18,35\}$;
+    \item \cod{norm(hook\_36)} é igual a \cod{hidden\_states[36]}, o que confirma que este é o
+    estado normalizado;
+    \item duas execuções dão resultados idênticos.
+\end{enumerate}
+As quatro primeiras bloqueiam a extração se falharem; a última só gera um aviso.
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{extract} (\cod{verify.json})]
+    {extracao_verificacao}
+    {Resultado das verificações no modelo real: maior diferença absoluta e tolerância de cada
+    checagem.}
+    {tab:extracao-verificacao}
+
+% ------------------------------------------------------------
+\subsection{Diagnósticos das representações}\label{sec:mod-diagnosticos}
+
+Para cada representação, a etapa \etapa{extract} grava em \cod{diagnostics.json}:
+\begin{itemize}
+    \item quantis da norma dos vetores e normas por faixa de posição (as primeiras posições
+    costumam ter normas atípicas);
+    \item o cosseno médio entre pares aleatórios de vértices, uma medida de
+    \textbf{anisotropia}: se todos os vetores apontam para uma direção comum, o cosseno médio
+    é alto e o k-NN por cosseno fica dominado por essa direção~\cite{ethayarajh2019};
+    \item as dimensões dominantes (\emph{ativações massivas}): poucas coordenadas com valores
+    muito maiores que as demais, conhecidas em modelos grandes~\cite{sun2024,timkey2021}, que
+    podem dominar o cosseno;
+    \item o perfil camada a camada (norma média e cosseno médio de pares aleatórios nos 36
+    blocos), que antecipa onde a geometria do espaço muda.
+\end{itemize}
+A previsão do próximo token (\cod{pred\_next.npy}) é calculada como os \emph{logits} do modelo,
+$E\,\mathrm{norm}(h^{(36)}_i)$, sem carregar a cabeça de linguagem, graças aos
+\emph{embeddings} amarrados.
+Esses diagnósticos motivam duas variantes de robustez: o cosseno \emph{centrado} (vetores menos
+a média sobre as ocorrências, o que remove a direção comum) e o k-NN mútuo, menos sensível a
+\emph{hubs} (Seção~\ref{sec:red-robustez}).
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{extract}]{extracao_diagnosticos}
+    {Diagnósticos por representação: quantis de norma, cosseno médio de pares aleatórios e
+    dimensões dominantes.}
+    {tab:extracao-diagnosticos}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{extract}]{extracao_camadas}
+    {Norma média e cosseno médio entre pares aleatórios ao longo dos 36 blocos.}
+    {fig:extracao-camadas}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{extract}]{extracao_dimensoes}
+    {Dimensões dominantes: magnitude das maiores coordenadas por camada e norma por faixa de
+    posição.}
+    {fig:extracao-dimensoes}

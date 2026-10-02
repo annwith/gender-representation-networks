@@ -1,0 +1,249 @@
+% ============================================================
+\section{Construção das redes}\label{sec:redes}
+% ============================================================
+
+Todas as redes do experimento são grafos de $k$ vizinhos mais próximos (k-NN) sob o cosseno.
+Esta seção descreve os conjuntos de vértices, o cálculo das similaridades, os três tratamentos
+de empate e as versões direcionada, por união e mútua. A construção é feita pela etapa
+\etapa{knn}.
+
+% ------------------------------------------------------------
+\subsection{Conjuntos de vértices}\label{sec:red-vertices}
+
+Os tipos da amostra (os \cod{token\_id} distintos entre as ocorrências, cerca de 3,3 mil) saem
+só da amostragem, antes de qualquer k-NN. O k-NN roda então sobre três conjuntos de vértices:
+\begin{description}
+    \item[As $\approx$15 mil ocorrências da amostra.] As redes principais, onde P1--P4 são
+    respondidas: lexical por ocorrência (\cod{lex}) e contextuais (\cod{L01}, \cod{L18},
+    \cod{L36}), mais as variantes de robustez (\cod{L36n} e as centradas \cod{L01c},
+    \cod{L18c}, \cod{L36c}). Elas se restringem à amostra porque só tokens que aparecem num
+    texto têm vetor contextual. Todas têm exatamente os mesmos \nVertices{} vértices.
+    \item[O vocabulário inteiro.] A rede lexical de tipos (\cod{vocab}), com os 151.669 ids do
+    tokenizer menos os 26 especiais, ou seja, 151.643 vértices (\nTiposVocab{} na última
+    execução). As 267 linhas de enchimento da matriz de \emph{embeddings} ficam de fora porque
+    nenhum texto as produz. Cada vértice tem como atributos a frequência no corpus e na amostra
+    (zero para a maioria), a classe de escrita e se aparece no corpus (\nTiposVocabCorpus{}
+    tipos).
+    \item[Os $\approx$3,3 mil tipos da amostra.] A tabela auxiliar de vizinhos, não reportada
+    como rede, usada na derivação exata da rede lexical por ocorrência e no $T_i$ lexical da
+    variante (c) (Seções~\ref{sec:vocab-vs-amostra} e~\ref{sec:red-derivacao}).
+\end{description}
+
+A classe de escrita de cada tipo do vocabulário é uma de: latina, chinês/japonês/coreano (CJK),
+mista (código, misturas de escritas), pontuação, outras escritas (cirílico, árabe\ldots), pedaço
+de bytes (decodifica para U+FFFD), espaço, dígitos e especial. Uma medição na fase de
+planejamento deu 50\% de tokens de escrita latina, 20\% CJK e 13\% mistos: a maior parte do
+vocabulário nunca aparece num texto em português. Tokens pouco treinados podem ter
+\emph{embeddings} quase iguais e formar aglomerados ou \emph{hubs} artificiais; isso é
+diagnosticado e reportado nos resultados da rede do vocabulário.
+
+% ------------------------------------------------------------
+\subsection{Similaridade em \emph{float64}}\label{sec:red-cosseno}
+
+A similaridade entre dois vértices é o cosseno
+\begin{equation}
+    s_{ij} = \frac{x_i^\top x_j}{\lVert x_i\rVert\,\lVert x_j\rVert}.
+\end{equation}
+Os vetores são guardados em bf16, convertidos exatamente para \emph{float64}, normalizados
+linha a linha e multiplicados em blocos de até 1.024 linhas na CPU (limitados a 512~MiB por
+bloco; cerca de 440 linhas na rede do vocabulário). O \emph{float64} é necessário
+por causa da tolerância de empate $\eps=10^{-6}$: em \emph{float32}, um produto interno com
+$d=2560$ termos acumula erro de arredondamento da ordem de $10^{-6}$ a $10^{-5}$ no cosseno,
+comparável à própria tolerância, o que criaria empates falsos e desfaria empates verdadeiros.
+Em \emph{float64} o erro fica abaixo de $10^{-12}$.
+
+A mesma rotina serve para a rede do vocabulário: 151,6 mil vetores normalizados ocupam cerca de
+3,1 GB em \emph{float64}, e o cálculo em blocos mantém a memória sob controle.
+
+% ------------------------------------------------------------
+\subsection{Listas de candidatos}\label{sec:red-candidatos}
+
+Para cada representação, a etapa guarda para cada vértice $i$ uma lista de candidatos ordenada
+por similaridade decrescente (e índice crescente), sem o próprio $i$, em formato CSR
+(\cod{cand\_<rep>.npz}). A lista tem os $K=128$ mais similares, com uma garantia: ela contém
+\emph{todo} $j$ com $s_{ij}\ge s_{i(k_{\max})}-\eps$, onde $s_{i(k_{\max})}$ é a
+$k_{\max}$-ésima maior similaridade da linha e $k_{\max}=20$ é o maior $k$ usado. Se um bloco de
+empates passar do $K$-ésimo candidato, a linha inteira é recalculada e todos os empatados
+entram. Com essa garantia, todos os valores de $k\le k_{\max}$ e todos os tratamentos de empate
+saem da mesma lista, sem recalcular similaridades.
+
+% ------------------------------------------------------------
+\subsection{Rede direcionada, por união e mútua}\label{sec:red-versoes}
+
+A relação de $k$ vizinhos mais próximos não é simétrica: $j\in\N_i$ não implica $i\in\N_j$. O
+objeto produzido pelo k-NN é, portanto, um \textbf{grafo direcionado}
+\begin{equation}
+    G^{\rightarrow} = \bigl(V,\ \{\,i\to j : j\in\N_i\,\}\bigr),
+\end{equation}
+em que todo vértice tem grau de saída $k$ (nas variantes de tamanho fixo) e o grau de entrada
+varia: vértices escolhidos por muitos outros são \emph{hubs}. A versão direcionada é usada nas
+medidas de vizinhança (Jaccard e dominância, que dependem de $\N_i$), na distribuição de graus
+de entrada e na reciprocidade.
+
+Para clusterização, distâncias, diâmetro, componentes e comunidades, usamos a versão
+\textbf{não direcionada por união},
+\begin{equation}
+    E^{\cup} = \bigl\{\{i,j\} : j\in\N_i \ \text{ou}\ i\in\N_j\bigr\},
+\end{equation}
+em que todo vértice tem grau pelo menos $k$ e, portanto, não há vértices isolados (o que não
+garante conexidade, como se vê abaixo). A versão
+\textbf{mútua},
+\begin{equation}
+    E^{\cap} = \bigl\{\{i,j\} : j\in\N_i \ \text{e}\ i\in\N_j\bigr\},
+\end{equation}
+é mais conservadora (só relações confirmadas pelos dois lados, o que corta as arestas que
+chegam a \emph{hubs}) e entra como robustez. Distância média e diâmetro são calculados no maior
+componente conexo, porque as duas versões podem se fragmentar. A mútua, por construção; a
+união, por um mecanismo específico destas redes: um conjunto de mais de $k$ vértices com vetores
+idênticos (as ocorrências de um tipo com $f_t>k$ na rede lexical, ou um grupo de prefixo com
+mais de $k$ ocorrências nas camadas contextuais) manda todas as suas arestas de saída para
+dentro de si e forma um componente fechado se nenhum vértice de fora escolher algum deles. Na
+rede lexical isso atinge justamente os tipos frequentes do desenho, e as distâncias do maior
+componente os excluem; por isso a tabela de métricas informa, para cada representação, o
+número de componentes e a fração de vértices no maior (Seção~\ref{sec:met-estruturais}).
+
+% ------------------------------------------------------------
+\subsection{Tratamento de empates}\label{sec:red-empates}
+
+\paragraph{Por que os empates importam.} Na rede lexical por ocorrência, as $f_{t_i}-1$ outras
+ocorrências do tipo de $i$ têm $s_{ij}=1$ exatamente. Se $f_{t_i}-1>k$, a escolha de quais delas
+entram em $\N_i$ é arbitrária. Se $f_{t_i}-1<k$, as vagas restantes vão para ocorrências do
+tipo mais próximo, que também são idênticas entre si e, portanto, também empatam. Empates exatos
+também aparecem nas camadas contextuais, nos grupos de prefixo (Seção~\ref{sec:mod-sequencias}).
+Como as redes contextuais são comparadas com a lexical, o tratamento de empates afeta
+diretamente as medidas de reorganização.
+
+\paragraph{Definição comum.} Seja $s_{i(k)}$ a $k$-ésima maior similaridade da linha $i$. Os
+candidatos se dividem em
+\begin{equation}
+    F_i = \{\,j : s_{ij} > s_{i(k)}+\eps\,\},\qquad
+    B_i = \{\,j : |s_{ij}-s_{i(k)}|\le\eps\,\},\qquad
+    r_i = k-|F_i|,
+\end{equation}
+isto é, os que estão com certeza entre os $k$ primeiros ($F_i$, de ``\emph{front}'') e o bloco
+empatado na fronteira ($B_i$, de ``\emph{boundary}''). Sempre vale $|F_i|<k\le|F_i|+|B_i|$, e
+faltam $r_i$ vizinhos a escolher em $B_i$. Usamos $\eps=10^{-6}$ na configuração principal e
+$\eps=10^{-4}$ como teste de sensibilidade. As três variantes são:
+
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{Sorteio com sementes (principal).} $\N_i=F_i\cup R_i$, com $R_i\subset B_i$
+    sorteado uniformemente sem reposição, $|R_i|=r_i$. A etapa \etapa{knn} grava o sorteio com
+    $R=20$ sementes para toda representação, e as medidas de vizinhança ($J$, $D$, piso de
+    ruído) usam todas elas. As métricas estruturais usam as 20 sementes só na rede lexical, onde
+    os empates são maciços, e são reportadas como média $\pm$ desvio entre elas; nas camadas
+    contextuais os empates vêm só de grupos de prefixo (vetores idênticos), o sorteio quase não
+    muda a rede, e as métricas estruturais e as comunidades usam a semente 0, com o desempate
+    por posição como checagem. As comunidades da rede lexical usam as sementes 0 e 1 (a segunda
+    mostra quanto a partição depende do sorteio). A semente $r$ da
+    representação \cod{rep} com $k$ vizinhos usa o gerador
+    \cod{default\_rng([438, crc32(rep), k, r])}, de modo que cada combinação tem um fluxo
+    aleatório próprio e reprodutível, que não depende da ordem em que as redes são calculadas.
+    O desempate pela \textbf{posição} (os $r_i$ menores \cod{occurrence\_id} de $B_i$) é mantido
+    como referência determinística; com ele e a versão por união, o k-NN novo reproduz
+    exatamente o \cod{build\_union\_knn\_graph} do piloto (teste de regressão).
+    \item \textbf{Todos os empatados.} $\N_i=F_i\cup B_i$. Elimina a arbitrariedade, ao custo de
+    um grau de saída variável ($|\N_i|\ge k$). Robustez.
+    \item \textbf{Tipos distintos.} As ocorrências do próprio tipo são ignoradas, e a vizinhança
+    passa a ser um conjunto $T_i$ de $k$ \emph{tipos} $u\neq t_i$. Cada tipo recebe a nota da
+    sua ocorrência mais similar a $i$,
+    \begin{equation}
+        \sigma_{iu} = \max_{j:\,t_j=u} s_{ij},
+    \end{equation}
+    e $T_i$ são os $k$ tipos de maior nota, com a mesma regra de $F$ e $B$ sobre $\sigma$
+    (desempate pelo menor \cod{token\_id} ou por sorteio). Nas camadas contextuais, $T_i$ diz
+    \emph{de quais outros tokens} a ocorrência se aproxima no seu contexto. A variante entra só
+    nas medidas de vizinhança (Jaccard sobre conjuntos de tipos), porque a dominância lexical
+    não faz sentido quando o próprio tipo é excluído.
+\end{enumerate}
+
+\paragraph{Dois exemplos na rede lexical.} Com $k=10$:
+\begin{itemize}
+    \item um tipo com $f_t=50$: $F_i=\emptyset$ e $B_i$ são as 49 outras ocorrências do tipo
+    ($s=1$); $r_i=10$. Com o desempate por posição, as 50 ocorrências escolhem as mesmas 10 de
+    menor índice, que viram \emph{hubs} com grau de entrada perto de 50, um artefato puro. Com
+    o sorteio, cada ocorrência escolhe 10 das 49 ao acaso, e os graus de entrada se espalham em
+    torno de 10. Foi esse artefato, visível já no piloto com 104 tokens, que motivou o sorteio
+    como regra principal;
+    \item um tipo com $f_t=4$ cujo tipo mais próximo $u$ tem $f_u\ge7$: $F_i$ são as 3 outras
+    ocorrências do tipo ($s=1$), $B_i$ são as $f_u$ ocorrências de $u$ (todas com a mesma
+    similaridade) e $r_i=7$.
+\end{itemize}
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{knn} (\cod{\_manifest.json})]{knn_empates}
+    {Estatísticas de empates por representação e $k$: linhas com empate na fronteira, maior
+    bloco empatado, linhas recalculadas por inteiro e tempo de cálculo.}
+    {tab:knn-empates}
+
+% ------------------------------------------------------------
+\subsection{Derivação exata da rede lexical por ocorrência}\label{sec:red-derivacao}
+
+Na rede lexical, $x_i=e_{t_i}$, então $s_{ij}=c(t_i,t_j)$, onde $c(t,u)$ é o cosseno entre os
+\emph{embeddings} dos tipos $t$ e $u$: a similaridade entre duas ocorrências só depende dos
+seus tipos. A linha ordenada de $i$ é, portanto:
+\begin{enumerate}
+    \item as $f_{t_i}-1$ outras ocorrências do mesmo tipo, com $s=1$;
+    \item para cada tipo $u$ da amostra, em ordem decrescente de $c(t_i,u)$, as $f_u$
+    ocorrências de $u$, todas com a mesma similaridade.
+\end{enumerate}
+Os candidatos de $i$ (e $\N_i$ em qualquer variante) saem exatamente da matriz completa de
+similaridade entre os cerca de 3,3 mil tipos da amostra ($U\times U$, barata nesse tamanho) e
+das contagens $f_u$, sem calcular a matriz $15\,000\times15\,000$. Como há um único valor de
+similaridade por par de tipos, os blocos de empate são exatos, sem depender de arredondamento.
+Um teste compara a derivação com a força bruta. (O parâmetro \texttt{type\_candidates}${}=64$
+é outra coisa: o número de tipos candidatos guardados por linha para a variante (c).)
+
+Na variante (c), a nota de um tipo é $\sigma_{iu}=c(t_i,u)$, e $T_i$ é simplesmente o conjunto
+dos $k$ tipos da amostra mais próximos de $t_i$ na tabela auxiliar. Quase nunca há empate na
+fronteira: empates exatos só entre tipos com \emph{embeddings} idênticos e, com a tolerância
+$\eps$, raros casos de tipos distintos com cossenos a menos de $\eps$ um do outro (numa
+aproximação com os 3,3 mil tipos mais frequentes da viabilidade, 2 linhas com $k=10$ e 3 com
+$k=20$).
+
+% ------------------------------------------------------------
+\subsection{Rede lexical de tipos (vocabulário)}\label{sec:red-vocab}
+
+A rede do vocabulário usa os mesmos passos sobre os 151.643 vetores $e_t$: cosseno em
+\emph{float64}, candidatos com a garantia de completude e $k\in\{5,10,20\}$, com $k=10$ como
+principal. Empates exatos só acontecem entre tipos com \emph{embeddings} idênticos (tokens
+nunca treinados, por exemplo): na revisão fixada, 1.903 linhas do vocabulário repetem o vetor
+de pelo menos outra linha, em 58 grupos (o maior com 524 tipos). Com a tolerância $\eps$, raros
+empates entre tipos distintos também entram em $B$ (cerca de 0,1\% das linhas numa amostra com
+$k=10$). Os empates são resolvidos por posição (\cod{token\_id}) e por um sorteio. Um grupo de
+vetores idênticos com mais de $k$ tipos manda todas as suas arestas de saída para dentro de si
+e pode formar um componente fechado, pelo mesmo mecanismo da
+Seção~\ref{sec:red-versoes}. As métricas estruturais usam a versão por união; a
+distribuição de graus de entrada, a direcionada.
+
+% ------------------------------------------------------------
+\subsection{Configuração principal e grade de robustez}\label{sec:red-robustez}
+
+A configuração principal é fixa: $k=10$, versão por união (direcionada para vizinhanças e graus
+de entrada), empates pela variante (a) (20 sementes na rede lexical e nas medidas de
+vizinhança, semente 0 nas métricas estruturais das camadas contextuais), $\eps=10^{-6}$ e saídas
+brutas dos
+blocos. A Tabela~\ref{tab:grade} lista as variações da robustez; os resultados estão na
+Seção~\ref{sec:robustez}.
+
+\begin{table}[htbp]
+\centering
+\caption{Configuração principal e variações de robustez.}\label{tab:grade}
+\small
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+\textbf{Dimensão} & \textbf{Principal} & \textbf{Robustez e motivo} \\
+\midrule
+$k$ & 10 & 5 e 20: a estrutura não deve depender de um $k$ específico \\
+Simetrização & união & mútua: remove arestas que só existem por causa de \emph{hubs} \\
+Empates & (a) sorteio, 20 sementes & posição (referência do piloto); (b) todos os empatados;
+(c) tipos distintos \\
+Tolerância & $\eps=10^{-6}$ & $\eps=10^{-4}$: sensibilidade da definição de empate \\
+Bloco 36 & saída bruta (\cod{L36}) & normalizada (\cod{L36n}), o espaço que os
+\emph{logits} leem \\
+Centragem & não & \cod{L01c}, \cod{L18c}, \cod{L36c}: vetores menos a média sobre as
+ocorrências, que remove a direção comum (anisotropia, ativações massivas) \\
+Comunidades & Leiden, resolução 1 & resoluções 0,5 e 2; Louvain como checagem \\
+Vértices & amostra inteira & só o núcleo ($\approx$11 mil vértices, ainda acima de $10^4$);
+planejado: exige um $k$-NN próprio, ainda sem etapa \\
+\bottomrule
+\end{tabularx}
+\end{table}

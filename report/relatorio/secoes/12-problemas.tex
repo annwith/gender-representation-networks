@@ -1,0 +1,121 @@
+% ============================================================
+\section{Problemas encontrados e soluções}\label{sec:problemas}
+% ============================================================
+
+Cada problema é registrado com o \textbf{sintoma} (o que se observou), a \textbf{causa}, a
+\textbf{solução} adotada e o \textbf{impacto} nos resultados. O objetivo é que quem refizer o
+experimento não tropece nos mesmos pontos e que fique claro quais escolhas do método nasceram de
+um problema concreto. As entradas abaixo são da fase de planejamento e das primeiras etapas.
+
+\newcommand{\problema}[5]{%
+    \subsection{#1}\label{#2}
+    \begin{description}[leftmargin=1.2em, itemsep=1pt]
+        \item[Sintoma.] #3
+        #4
+        \item[Impacto.] #5
+    \end{description}}
+
+\problema{Limitação de taxa da API da Wikipédia (HTTP 429)}{sec:prob-429}
+{No estudo de viabilidade, depois de algumas centenas de requisições seguidas, a API passou a
+responder HTTP 429 (\emph{Too Many Requests}) e o download parava no meio.}
+{\item[Causa.] A política da Wikimedia limita a taxa de requisições por cliente, sobretudo de
+clientes sem um \cod{User-Agent} identificado; buscar artigos um a um multiplica o número de
+requisições.
+\item[Solução.] O cliente da etapa \etapa{corpus} (\cod{wiki.py}) pede o \emph{wikitext} em
+lotes de 50 páginas por requisição (o máximo da API), espera 2,5\,s entre requisições, envia um
+\cod{User-Agent} com contato (configurável), usa \cod{maxlag=5}, respeita o cabeçalho
+\cod{Retry-After} e, na falta dele, recua exponencialmente (30\,s, 60\,s, \ldots, até 10
+minutos). Toda resposta crua fica num cache em disco, então um download interrompido recomeça
+de onde parou e a limpeza pode ser refeita sem rede. Os artigos são fixados por \cod{revid} no
+\cod{manifest.csv}.}
+{Nenhum nos resultados. O download completo fica mais lento (horas, em segundo plano), mas é
+retomável e reprodutível.}
+
+\problema{Páginas de usuário e categorias de manutenção na busca por categorias}
+{sec:prob-categorias}
+{As primeiras buscas nas árvores de categorias traziam páginas de usuário, predefinições,
+listas e páginas como ``Artigos sem fontes'' e ``Esboços sobre física''.}
+{\item[Causa.] A árvore de categorias da Wikipédia mistura categorias de conteúdo com
+categorias de manutenção (artigos que precisam de revisão, esboços, páginas de discussão) e de
+organização interna, que também são subcategorias das raízes temáticas.
+\item[Solução.] Só entram membros do domínio principal (artigos, \cod{ns=0}); subcategorias cujo
+título contém ``Artigos'', ``Esboço'', ``Páginas'', ``Predefinições'', ``Wikipédia'',
+``Usuário'', ``Listas'' ou ``Categoria:!'' não são seguidas; títulos ``Lista de\ldots'' são
+descartados; a profundidade é limitada a 2 (Seção~\ref{sec:corpus}).}
+{Os temas ficam mais limpos. A lista de padrões é heurística e pode deixar passar alguma
+categoria de manutenção com outro nome; o descarte de páginas multitema e de biografias
+reduz o que sobra.}
+
+\problema{Fragmentação do português no tokenizer do Qwen3}{sec:prob-fragmentacao}
+{No estudo de viabilidade, o Qwen3 produziu 1,78 tokens por palavra, e só 28\% dos vértices
+eram palavras inteiras (54\% no Tucano, 72\% no GPT-2 português). Quatro das 16 palavras-alvo
+candidatas (\emph{corrente}, \emph{onda}, \emph{célula}, \emph{núcleo}) não são um token só.}
+{\item[Causa.] O vocabulário BPE do Qwen3 (151.669 ids) é multilíngue e dominado por inglês,
+chinês e código; palavras portuguesas menos frequentes, principalmente com acentos, são
+divididas em pedaços.
+\item[Solução.] As palavras-alvo ficaram restritas às que são um token só (12), contadas só no id
+minúsculo precedido de espaço. As categorias de token (Seção~\ref{sec:categorias}) entram em
+todas as análises, e as interpretações semânticas se concentram em palavras inteiras de
+conteúdo. O custo foi pesado na escolha do modelo (Seção~\ref{sec:mod-escolha}).}
+{Menos palavras-alvo e uma fração grande de vértices que são fragmentos. É também um resultado
+em si: a P2 compara fragmentos e palavras inteiras.}
+
+\problema{\texttt{hidden\_states[36]} normalizado e \texttt{torch\_dtype} obsoleto no
+transformers 5}{sec:prob-hidden}
+{Ao planejar a extração, a documentação e o código do transformers 5.16 mostraram que o último
+elemento de \cod{hidden\_states} não é a saída bruta do bloco 36. Além disso, carregar o modelo
+com \cod{torch\_dtype=} emite um aviso de argumento obsoleto.}
+{\item[Causa.] Nos modelos decodificadores do transformers 5, a tupla \cod{hidden\_states}
+recebe como último elemento o estado \emph{depois} da RMSNorm final (o que a cabeça de
+linguagem lê), no lugar da saída bruta do último bloco; os demais elementos são saídas brutas.
+O argumento de tipo passou a se chamar \cod{dtype}.
+\item[Solução.] As saídas brutas são capturadas por \emph{hooks} em \cod{layers[0]},
+\cod{layers[17]} e \cod{layers[35]} (e nos 36 blocos para o \emph{memmap}), e a versão
+normalizada por um \emph{hook} em \cod{norm}, que vira a variante de robustez \cod{L36n}. A
+verificação \cod{--verify} confere \cod{norm(hook\_36) == hidden\_states[36]} no modelo real
+(Seção~\ref{sec:mod-verificacao}). O carregamento usa \cod{dtype=torch.bfloat16}.}
+{Sem os \emph{hooks}, o bloco 36 seria comparado aos blocos 1 e 18 num espaço diferente
+(normalizado e reescalado dimensão a dimensão), e a transição $18\to36$ misturaria o efeito do
+bloco com o da normalização.}
+
+\problema{Limite por ordem de chegada e artigo igual a parágrafo na simulação}
+{sec:prob-simulacao}
+{Na simulação do desenho híbrido (\cod{sim\_hybrid.py}), as ocorrências mantidas dos tipos
+frequentes (``de'', ``,'') vinham todas dos primeiros parágrafos do núcleo, e cada parágrafo do
+núcleo vinha de um artigo diferente.}
+{\item[Causa.] O limite $f_{\max}$ era aplicado durante a varredura: a partir da 50.ª ocorrência
+de um tipo, as seguintes eram ignoradas. E o núcleo escolhia um parágrafo por artigo.
+\item[Solução.] No desenho final (Seção~\ref{sec:amostra}), o núcleo é montado primeiro e o
+limite é aplicado depois, por sorteio uniforme entre todas as ocorrências de cada tipo acima do
+limite. O núcleo usa 5 artigos $\times$ 2 parágrafos por tema. Um teste verifica que o limite é
+aplicado por sorteio.}
+{Com o limite por ordem de chegada, os tipos frequentes ficariam concentrados em poucos
+parágrafos, o que enviesaria a P3 (tipo e parágrafo ficariam confundidos). Com um parágrafo por
+artigo, os rótulos ``artigo'' e ``parágrafo'' da P3 seriam praticamente iguais e não poderiam ser
+distinguidos.}
+
+\problema{Conteúdo de referências no texto limpo (\texttt{mwparserfromhell} 0.7.2)}
+{sec:prob-ref}
+{No corpus do estudo de viabilidade, limpo só com \cod{strip\_code}, apareciam no meio dos
+parágrafos títulos de livros, nomes de autores, URLs e datas de acesso, colados à palavra
+anterior (``A energiaSilva, Livro, 2001 é\ldots''), e frases com buracos no lugar de fórmulas.}
+{\item[Causa.] Na versão 0.7.2 do \cod{mwparserfromhell}, o \cod{strip\_code} remove a marca
+\cod{<ref>}, mas mantém o \emph{conteúdo} dela como texto; já o conteúdo de \cod{<math>} some
+sem deixar nada no lugar (``a energia é dada por , onde\ldots'').
+\item[Solução.] Antes da conversão, a árvore sintática é reescrita: marcas \cod{<ref>} e outras
+de bloco são removidas com o conteúdo, e linhas com \cod{<math>} e afins são descartadas
+(Seção~\ref{sec:corpus}). Testes com trechos reais de \emph{wikitext} cobrem esses casos.}
+{Os números do estudo de viabilidade vêm do corpus com esse defeito; são aproximados, mas o
+defeito não muda as conclusões do estudo (ordens de grandeza de parágrafos, tokens e
+repetições). O corpus final não tem o problema.}
+
+\problema{\emph{Virtualenv} copiado com o \texttt{pytest} de outro projeto}{sec:prob-venv}
+{\cod{.venv/bin/pytest} falhava com erros de importação ou rodava com o interpretador errado,
+embora \cod{.venv/bin/python -m pytest} funcionasse.}
+{\item[Causa.] O ambiente virtual foi copiado de outro projeto. Os \emph{scripts} de entrada
+(\cod{pytest}, \cod{ruff}\ldots) têm na primeira linha (\emph{shebang}) o caminho absoluto do
+interpretador, que continuava apontando para o \cod{.venv} do projeto original.
+\item[Solução.] Rodar as ferramentas pelo interpretador do projeto
+(\cod{.venv/bin/python -m pytest}) ou pelo \cod{uv run}, que usa o ambiente certo; recriar o
+ambiente com \cod{uv sync --dev} resolve de vez.}
+{Nenhum nos resultados. Fica o alerta de sempre conferir qual interpretador executa os testes.}

@@ -1,0 +1,72 @@
+% ============================================================
+\section{Limitações}\label{sec:limitacoes}
+% ============================================================
+
+As limitações abaixo são as conhecidas até o planejamento e a etapa \etapa{corpus}. Cada uma diz
+o que pode distorcer os resultados e o que foi feito para reduzir o efeito. A lista é
+atualizada a cada etapa.
+
+\begin{description}
+    \item[O tema é só um indicador aproximado do sentido.] Na P4, o tema do artigo faz o papel
+    do sentido de uma palavra-alvo: \emph{banco} em Computação é, em geral, banco de dados, mas
+    um artigo de Computação pode falar do Banco Central. Uma separação por tema pode, então,
+    subestimar a separação por sentido (ocorrências com o ``sentido errado'' para o tema) ou
+    refletir diferenças de tema que não são de sentido (vocabulário vizinho). Mitigações: a
+    anotação manual de cerca de 20 ocorrências por alvo (\cod{senses.csv}), analisada ao lado do
+    tema, e a comparação com os controles, que têm a mesma alocação por tema mas um sentido
+    estável: o que os controles mostrarem de ``separação por tema'' é o efeito do tema sem
+    mudança de sentido.
+
+    \item[O Qwen3 fragmenta o português.] Só 28\% dos vértices do estudo de viabilidade são
+    palavras inteiras (Seção~\ref{sec:viabilidade}). Com isso, boa parte dos vértices é
+    fragmento sem significado próprio, cuja vizinhança lexical reflete a ortografia e não o
+    sentido, e as palavras-alvo ficaram restritas às que são um token só (12 de 16; saíram
+    \emph{corrente}, \emph{onda}, \emph{célula} e \emph{núcleo}). As conclusões sobre
+    fragmentos e palavras inteiras são reportadas separadamente, e as interpretações
+    semânticas se restringem a palavras inteiras de conteúdo. A generalização para modelos com
+    tokenizers melhores para o português (Tucano, GPT-2 português) não é testada.
+
+    \item[Predefinições removidas deixam frases incompletas.] A primeira frase de muitos
+    artigos usa predefinições para pronúncia, etimologia, datas e nomes em outras línguas
+    (``X (em grego: \ldots) é\ldots''). Elas são descartadas na limpeza, e a limpeza tira os
+    restos visíveis (parênteses vazios, vírgulas repetidas), mas algumas frases ficam mais
+    curtas ou com construções pouco naturais. O modelo vê esse texto como contexto, então parte
+    das primeiras posições dos parágrafos iniciais tem um contexto um pouco diferente do texto
+    original. O efeito deve ser pequeno (só atinge algumas frases iniciais), e a faixa de
+    posição entra como controle nas análises.
+
+    \item[A busca por categorias é truncada.] A árvore de categorias da Wikipédia em português
+    não é uma taxonomia limpa: em poucos níveis, uma categoria de ciência chega a pessoas,
+    lugares e obras. Por isso a busca vai só até a profundidade 2 e para em 600 títulos por
+    tema, na ordem da busca em largura. Os temas representam, portanto, a parte da árvore mais
+    próxima da raiz, e não o tema inteiro; subáreas com muitos artigos diretos na raiz podem
+    ficar super-representadas. Como o objetivo é ter temas bem separados, e não estimar o
+    vocabulário de cada área, isso é aceitável, mas os nomes dos temas devem ser lidos como
+    ``artigos próximos da categoria raiz''. O descarte de páginas multitema e de biografias
+    reduz a mistura, ao custo de excluir páginas de fronteira entre temas.
+
+    \item[Precisão \emph{bfloat16}.] O modelo roda em bf16 (8 bits de mantissa), e os vetores
+    são guardados em bf16. O cosseno em \emph{float64} é exato \emph{para os vetores
+    guardados}, mas esses vetores já carregam o arredondamento das contas do modelo: duas
+    execuções com sequências de comprimentos diferentes podem dar estados ligeiramente
+    diferentes para o mesmo prefixo (Seção~\ref{sec:mod-sequencias}). Vizinhanças decididas por
+    diferenças de cosseno menores que esse ruído são, na prática, empates. Mitigações: a cópia
+    por grupo de prefixo (que torna exatos os empates que deveriam ser exatos), o diagnóstico da
+    maior diferença dentro dos grupos (\difMaxPrefixo) e o teste de sensibilidade com
+    $\eps=10^{-4}$. Rodar o modelo em \emph{float32} não cabe na GPU disponível.
+
+    \item[A Wikipédia provavelmente está no pré-treino.] O Qwen3 foi pré-treinado em cerca de 36
+    trilhões de tokens de fontes não detalhadas~\cite{qwen3}, e a Wikipédia em português quase
+    certamente faz parte delas. O modelo pode, então, ter visto (e em parte memorizado) os
+    parágrafos analisados. Isso não invalida a análise da geometria das representações, mas
+    pode torná-las mais ``confiantes'' do que seriam em texto novo (por exemplo, uma previsão
+    do próximo token mais acertada e, no bloco 36, uma organização mais forte pelo próximo
+    token). Não há como controlar isso sem texto certamente fora do pré-treino; fica registrado
+    como ressalva de interpretação.
+
+    \item[Um modelo, uma língua, uma amostra.] Os resultados são de um único modelo
+    (Qwen3-4B-Base, numa revisão fixada), de texto enciclopédico em português e de uma amostra
+    desenhada (as frequências na amostra refletem as cotas, e não o texto natural). As faixas
+    de frequência no corpus e a análise da P3 só no núcleo reduzem o efeito do desenho, mas
+    não o eliminam.
+\end{description}

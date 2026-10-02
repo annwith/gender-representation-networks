@@ -1,0 +1,215 @@
+% ============================================================
+\section{Terminologia: palavras, tokens, tipos e ocorrências}\label{sec:terminologia}
+% ============================================================
+
+A análise mistura três níveis (o texto, o tokenizer e o modelo), e muitas conclusões dependem de
+não confundi-los. Esta seção fixa os termos usados no resto do relatório.
+
+\subsection{Definições}
+
+\begin{description}
+    \item[Palavra.] Sequência máxima de caracteres de palavra (letras, dígitos e sublinhado,
+    a classe \verb|\w| do Unicode) no texto, antes da tokenização. Com essa definição,
+    ``tornou-se'' tem duas palavras (\emph{tornou} e \emph{se}) e ``1990'' é uma palavra.
+    \item[Token.] Unidade produzida pelo tokenizer do modelo. Pode ser uma palavra inteira, um
+    fragmento de palavra, um sinal de pontuação, um dígito ou só espaço. O tokenizer do Qwen3 é
+    um BPE em bytes: o espaço antes de uma palavra faz parte do token seguinte (\tok{\esp banco}
+    é um token só), e cada dígito é um token separado.
+    \item[Tipo de token.] Um elemento do vocabulário, identificado pelo \cod{token\_id} e
+    denotado por $t$. O vocabulário do tokenizer tem 151.669 ids, dos quais 26 são tokens
+    especiais (\tok{<|endoftext|>}, \tok{<|im\_start|>}, \ldots). O número de ocorrências de
+    $t$ na amostra é $f_t$; no corpus inteiro, $f^{\mathrm{corpus}}_t$.
+    \item[Ocorrência.] Uma instância posicional de um tipo num texto, denotada por $i$, com tipo
+    $t_i$. Cada ocorrência escolhida é um \textbf{vértice} das redes por ocorrência e tem um
+    \cod{occurrence\_id}, que é também a linha dela em todos os arquivos de representações.
+    \item[Sequência.] O que entra no modelo num \emph{forward pass}: o token de prefixo
+    \tok{<|endoftext|>} seguido dos tokens de um parágrafo (Seção~\ref{sec:mod-sequencias}).
+    A posição 0 é sempre o prefixo, que nunca vira vértice.
+\end{description}
+
+\subsection{Categorias de token}\label{sec:categorias}
+
+Cada ocorrência recebe uma categoria, que define os grupos em que as medidas são reportadas:
+
+\begin{description}
+    \item[\cod{whole\_word} (palavra inteira).] O token cobre sozinho uma palavra inteira.
+    \item[\cod{word\_start} (início de palavra fragmentada).] Primeiro token de uma palavra
+    dividida em vários tokens.
+    \item[\cod{continuation} (continuação).] Token que continua uma palavra já começada.
+    \item[\cod{punctuation} (pontuação).] Token sem caracteres alfanuméricos, mas com algum
+    caractere visível (``\tok{\esp(}'', ``\tok{)}'', ``\tok{,}'').
+    \item[\cod{number} (número).] Token cujos caracteres alfanuméricos são todos dígitos. Como
+    o Qwen3 divide números dígito a dígito, ``1990'' vira quatro tokens de número, que formam
+    uma palavra só.
+\end{description}
+
+Tokens formados só por espaço (por exemplo, o espaço antes de um número) \textbf{não viram
+vértices}: eles não têm conteúdo próprio e apareceriam em quase toda sequência. Eles
+continuam no texto como contexto.
+
+A categoria é calculada pelos \emph{offsets} de caracteres de cada token no parágrafo (o trecho
+exato do texto que o token cobre), e \emph{não} pela decodificação isolada do id. Num BPE em
+bytes, um caractere acentuado pode ser dividido em dois tokens, e cada pedaço, decodificado
+sozinho, vira o caractere de substituição U+FFFD; os \emph{offsets} continuam apontando para o
+caractere certo. Cada ocorrência também guarda a palavra a que pertence, a posição do token na
+palavra, o número de tokens da palavra e se a palavra é funcional (artigos, preposições,
+pronomes, conjunções, verbos auxiliares; lista em \cod{tokens.py}). As interpretações
+semânticas se concentram em palavras inteiras de conteúdo, porque um fragmento como
+\tok{co} não tem significado próprio.
+
+A Tabela~\ref{tab:exemplos-tokens} mostra três casos reais do tokenizer do Qwen3-4B-Base (revisão
+fixada), que guiaram as regras acima.
+
+\begin{table}[htbp]
+\centering
+\caption{Exemplos de tokenização do Qwen3-4B-Base e as categorias atribuídas. O símbolo
+\esp{} marca o espaço que faz parte do token.}\label{tab:exemplos-tokens}
+\small
+\begin{tabular}{@{}l l r l l@{}}
+\toprule
+\textbf{Texto} & \textbf{Token} & \textbf{id} & \textbf{Categoria} & \textbf{Palavra} \\
+\midrule
+``\esp 1990'' & \tok{\esp} & 220 & só espaço (não é vértice) & -- \\
+ & \tok{1} & 16 & \cod{number} & 1990 \\
+ & \tok{9} & 24 & \cod{number} & 1990 \\
+ & \tok{9} & 24 & \cod{number} & 1990 \\
+ & \tok{0} & 15 & \cod{number} & 1990 \\
+\midrule
+``\esp tornou-se'' & \tok{\esp torn} & 21145 & \cod{word\_start} & tornou \\
+ & \tok{ou} & 283 & \cod{continuation} & tornou \\
+ & \tok{-se} & 7806 & \cod{whole\_word} & se \\
+\midrule
+``\esp(banco)'' & \tok{\esp(} & 320 & \cod{punctuation} & -- \\
+ & \tok{ban} & 6850 & \cod{word\_start} & banco \\
+ & \tok{co} & 1015 & \cod{continuation} & banco \\
+ & \tok{)} & 8 & \cod{punctuation} & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O terceiro caso mostra por que as palavras-alvo são contadas \textbf{só} no id da forma
+minúscula precedida de espaço: \tok{\esp banco} é o id 52465, mas ``(banco)'' vira
+\tok{ban}${}+{}$\tok{co}, ``Banco'' é outro tipo (\tok{\esp Banco}, id 76687), e o mesmo vale
+para ``Estado'' (id 40174) contra \tok{\esp estado} (id 24062). Considerar essas variantes
+misturaria tipos diferentes numa mesma ``palavra'', o que quebraria a premissa da P4 de que
+as ocorrências comparadas partem do mesmo vetor lexical.
+
+\subsection{Faixas de frequência e de posição}\label{sec:faixas}
+
+Os tipos são agrupados em faixas de frequência na amostra, $f_t\in\{1\text{--}2\}$,
+$\{3\text{--}9\}$, $\{10\text{--}49\}$ e $\{50\}$, onde $50=f_{\max}$ é o limite de ocorrências
+por tipo. Como a amostra é em parte desenhada (as palavras-alvo são levadas até perto de 50
+ocorrências, as multitema até 20), a frequência na amostra reflete o desenho. Por isso cada
+ocorrência também tem a faixa de frequência \emph{no corpus}, com as mesmas fronteiras e o topo
+aberto ($50+$), que não depende da amostragem.
+
+Tipos com $f_t\le 2$ continuam como vértices (para que o conjunto de vértices seja o mesmo em
+todas as redes), mas ficam fora das análises por tipo: para $f_t=1$ a dominância lexical é nula
+por definição, e para $f_t=2$ ela não passa de $1/k$. Dominância e análises intra-tipo usam
+$f_t\ge3$, e a P4 usa $f_t\ge10$.
+
+A posição na sequência também é agrupada, em $\{1\text{--}4\}$, $\{5\text{--}16\}$,
+$\{17\text{--}64\}$ e $\{65+\}$. As primeiras posições têm estados atípicos (pouco contexto,
+normas grandes), e a faixa de posição serve de controle nas análises.
+
+\subsection{Os três tipos de rede e a notação}\label{sec:tipos-rede}
+
+Para uma ocorrência $i$, $e_{t_i}\in\mathbb{R}^{2560}$ é o \emph{embedding} de entrada do seu
+tipo e $h_i^{(\ell)}$ é a saída do bloco $\ell$ na posição de $i$. O vetor $x_i$ usado para
+construir uma rede é um deles, e $\N_i$ é o conjunto de vizinhos de $i$ nessa rede.
+\begin{enumerate}
+    \item \textbf{Rede lexical de tipos (vocabulário):} um vértice para cada tipo do
+    vocabulário (menos os especiais), representado por $e_t$, com a frequência no corpus e na
+    amostra e a classe de escrita como atributos.
+    \item \textbf{Rede lexical por ocorrência:} os vértices são as ocorrências da amostra, e
+    $x_i=e_{t_i}$. Ocorrências do mesmo tipo têm vetores idênticos.
+    \item \textbf{Redes contextuais:} os mesmos vértices, com $x_i=h_i^{(\ell)}$ para
+    $\ell\in\{1,18,36\}$ (e as variantes da Seção~\ref{sec:red-robustez}).
+\end{enumerate}
+Na variante (c) do tratamento de empates (Seção~\ref{sec:red-empates}), a vizinhança de $i$ é
+um conjunto $T_i$ de \emph{tipos} distintos, e não de ocorrências.
+
+\subsection{Rede do vocabulário e tabela de tipos da amostra}\label{sec:vocab-vs-amostra}
+
+Há dois objetos lexicais ``de tipos'' no experimento, e eles não são a mesma coisa:
+\begin{itemize}
+    \item a \textbf{rede lexical de tipos}, com k-NN entre os $\approx$151,6 mil tipos do
+    vocabulário. É uma rede reportada nos resultados, com as métricas da disciplina;
+    \item a \textbf{tabela de vizinhos dos tipos da amostra}, com k-NN entre os $\approx$3,3 mil
+    tipos distintos que aparecem entre as ocorrências da amostra. Ela não é reportada como
+    rede. Serve para (i) derivar de forma exata a rede lexical por ocorrência
+    (Seção~\ref{sec:red-derivacao}) e (ii) dar o $T_i$ lexical da variante (c).
+\end{itemize}
+
+Seria tentador obter a tabela da amostra recortando a rede do vocabulário (o subgrafo induzido
+pelos tipos da amostra). Isso não funciona, e a Figura~\ref{fig:recorte} mostra por quê com um
+vocabulário de cinco tipos, $A$--$E$, dos quais só $A$, $B$ e $C$ aparecem na amostra, e $k=1$.
+As similaridades são
+$s(A,D)=0{,}9$, $s(B,E)=0{,}8$, $s(C,D)=0{,}7$, $s(A,B)=0{,}6$, $s(A,E)=0{,}4$,
+$s(A,C)=0{,}3$, $s(B,C)=0{,}2$ e as demais menores.
+\begin{itemize}
+    \item Na rede do vocabulário, o vizinho mais próximo de $A$ é $D$, o de $B$ é $E$ e o de
+    $C$ é $D$. Recortando os tipos da amostra, \emph{nenhuma} aresta sobra: todos os vizinhos
+    estão fora da amostra.
+    \item O k-NN calculado só entre $A$, $B$ e $C$ dá $A\to B$, $B\to A$ e $C\to A$, arestas que
+    \emph{não existem} na rede do vocabulário.
+\end{itemize}
+Logo, nenhuma das duas é subgrafo da outra: o recorte perde os vizinhos que estão fora da
+amostra, e não tem as arestas que o k-NN restrito à amostra tem. Para as redes por ocorrência,
+a vizinhança certa é a restrita à amostra, porque nas camadas contextuais só existem vetores
+para tokens que aparecem no texto; para comparar a camada lexical com as contextuais de forma
+justa, o $T_i$ lexical também precisa ser calculado entre os tipos da amostra.
+
+Isso corrige uma frase da Seção~7.3 da proposta, escrita quando a rede de tipos ainda seria
+construída só com os tipos da amostra: \emph{na etapa lexical, $T_i$ coincide com o k-NN entre
+os tipos da amostra} (a tabela auxiliar), e não com a rede lexical de tipos, que agora é a do
+vocabulário inteiro.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    every node/.style={font=\small},
+    tipo/.style={circle, draw, minimum size=6.5mm, inner sep=0pt},
+    amostra/.style={tipo, fill=black!12, very thick},
+    fora/.style={tipo, dashed, draw=black!55, text=black!60},
+    seta/.style={-{Stealth[length=2.2mm]}, thick},
+    titulo/.style={font=\small\bfseries, align=center},
+]
+% (a) vocabulário
+\begin{scope}
+    \node[amostra] (A) at (0,0) {$A$};
+    \node[amostra] (B) at (1.6,0) {$B$};
+    \node[amostra] (C) at (0,-1.6) {$C$};
+    \node[fora] (D) at (-1.3,-0.8) {$D$};
+    \node[fora] (E) at (2.6,-0.9) {$E$};
+    \draw[seta] (A) -- (D);
+    \draw[seta] (C) -- (D);
+    \draw[seta] (B) -- (E);
+    \draw[seta, draw=black!55] (D) to[bend left=30] (A);
+    \draw[seta, draw=black!55] (E) to[bend left=30] (B);
+    \node[titulo] at (0.6,1.0) {(a) vocabulário, $k=1$};
+\end{scope}
+% (b) recorte
+\begin{scope}[xshift=5.4cm]
+    \node[amostra] (A2) at (0,0) {$A$};
+    \node[amostra] (B2) at (1.6,0) {$B$};
+    \node[amostra] (C2) at (0,-1.6) {$C$};
+    \node[titulo] at (0.8,1.0) {(b) recorte de (a)\\[-1pt]nos tipos da amostra};
+    \node[font=\footnotesize, text=black!60, align=center] at (0.9,-2.35) {nenhuma aresta};
+\end{scope}
+% (c) k-NN restrito
+\begin{scope}[xshift=9.6cm]
+    \node[amostra] (A3) at (0,0) {$A$};
+    \node[amostra] (B3) at (1.6,0) {$B$};
+    \node[amostra] (C3) at (0,-1.6) {$C$};
+    \draw[seta] (A3) to[bend left=18] (B3);
+    \draw[seta] (B3) to[bend left=18] (A3);
+    \draw[seta] (C3) -- (A3);
+    \node[titulo] at (0.8,1.0) {(c) k-NN calculado\\[-1pt]só na amostra, $k=1$};
+\end{scope}
+\end{tikzpicture}
+\caption{Por que a tabela de vizinhos dos tipos da amostra não é um recorte da rede do
+vocabulário. Tipos cinza estão na amostra; $D$ e $E$ (tracejados) só existem no vocabulário.
+O recorte (b) perde todas as arestas de (a), e o k-NN restrito (c) tem arestas que (a) não
+tem.}\label{fig:recorte}
+\end{figure}
