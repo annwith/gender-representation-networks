@@ -7,7 +7,7 @@ Shared across runs (the corpus is downloaded once):
 
 - ``raw_dir/``: cached Wikipedia API responses (gzip JSON, keyed by request hash).
 - ``corpus_dir/articles.jsonl``: one record per candidate article
-  (``pageid, revid, title, theme, themes_reached, source_category, depth, is_biography,
+  (``pageid, revid, title, theme, themes_reached, source_category, depth, origin, is_biography,
   dropped_reason``; ``dropped_reason`` is null for kept articles).
 - ``corpus_dir/paragraphs.jsonl``: one record per kept paragraph
   (``paragraph_id, pageid, revid, title, theme, source_category, paragraph_idx, text,
@@ -84,8 +84,8 @@ OCCURRENCE_COLUMNS = [
     "band_sample",
     "f_corpus",
     "band_corpus",
-    "target_word",  # empty unless stratum is target/control
-    "sense_theme",  # theme of the quota the occurrence filled (targets/controls)
+    "target_word",  # target/control word when the id occurs as that whole word, any stratum
+    "sense_theme",  # paragraph theme of the rows with a target_word
     "local_context",  # about ±8 tokens, the token marked with «…»
 ]
 
@@ -100,6 +100,20 @@ VOCAB_COLUMNS = [
 ]
 
 POS_BUCKETS = [(1, 4, "1-4"), (5, 16, "5-16"), (17, 64, "17-64"), (65, None, "65+")]
+
+
+def candidates_name(rep: str) -> str:
+    return f"cand_{rep}.npz"
+
+
+def neighbors_name(rep: str, k: int, sensitivity: bool = False) -> str:
+    """``nbr_{rep}_k{k}.npz``; ``_eps`` files hold the eps-sensitivity neighbour sets."""
+
+    return f"nbr_{rep}_k{k}{'_eps' if sensitivity else ''}.npz"
+
+
+def vocab_neighbors_name(k: int) -> str:
+    return f"vocab_k{k}.npz"
 
 
 def position_bucket(position: int) -> str:
@@ -194,8 +208,33 @@ class RunPaths:
         return self.reps_dir / "all_layers.npy"
 
     @property
+    def pred_next(self) -> Path:
+        return self.reps_dir / "pred_next.npy"
+
+    @property
+    def diagnostics(self) -> Path:
+        return self.reps_dir / "diagnostics.json"
+
+    @property
+    def verify_report(self) -> Path:
+        return self.reps_dir / "verify.json"
+
+    @property
     def knn_dir(self) -> Path:
         return self.stage_dir("knn")
+
+    def cand(self, rep: str) -> Path:
+        return self.knn_dir / candidates_name(rep)
+
+    def nbr(self, rep: str, k: int, sensitivity: bool = False) -> Path:
+        return self.knn_dir / neighbors_name(rep, k, sensitivity)
+
+    @property
+    def vocab_cand(self) -> Path:
+        return self.knn_dir / "vocab_cand.npz"
+
+    def vocab_nbr(self, k: int) -> Path:
+        return self.knn_dir / vocab_neighbors_name(k)
 
     @property
     def metrics_dir(self) -> Path:

@@ -48,7 +48,7 @@ LOGGER = logging.getLogger(__name__)
 
 LEXICAL = "lex"
 NORMALIZED = "L36n"
-PRED_NEXT_FILE = "pred_next.npy"
+PRED_NEXT_FILE = "pred_next.npy"  # kept for backwards compatibility; use RunPaths.pred_next
 OCCURRENCE_FIELDS = ["occurrence_id", "token_id", "next_token_id", "token_category", "stratum"]
 RANK_COLUMNS = [
     "occurrence_id",
@@ -689,7 +689,7 @@ def run(
         LOGGER.info("Postos lexicais > 0 explicados por empates: %s", lex_info)
 
     agreement: dict[str, Any] | None = None
-    pred_path = paths.reps_dir / PRED_NEXT_FILE
+    pred_path = paths.pred_next
     if NORMALIZED in results and pred_path.exists():
         final = results[NORMALIZED]
         agreement = pred_next_agreement(final.logit_argmax, np.load(pred_path), final.topk[:, 0])

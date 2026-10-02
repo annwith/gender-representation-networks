@@ -576,19 +576,19 @@ def select_row(
 
 
 def candidates_path(paths: RunPaths, rep: str) -> Path:
-    return paths.knn_dir / f"cand_{rep}.npz"
+    return paths.cand(rep)
 
 
 def neighbors_path(paths: RunPaths, rep: str, k: int, sensitivity: bool = False) -> Path:
-    return paths.knn_dir / f"nbr_{rep}_k{k}{'_eps' if sensitivity else ''}.npz"
+    return paths.nbr(rep, k, sensitivity)
 
 
 def vocab_candidates_path(paths: RunPaths) -> Path:
-    return paths.knn_dir / "vocab_cand.npz"
+    return paths.vocab_cand
 
 
 def vocab_neighbors_path(paths: RunPaths, k: int) -> Path:
-    return paths.knn_dir / f"vocab_k{k}.npz"
+    return paths.vocab_nbr(k)
 
 
 def representation_specs(settings: Settings) -> dict[str, tuple[str, bool]]:

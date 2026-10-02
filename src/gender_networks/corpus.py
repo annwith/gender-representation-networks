@@ -281,5 +281,5 @@ def run(
         cache_hits=client.cache_hits,
         skipped_categories=list(client.skipped_categories),
     )
-    write_manifest(paths.corpus_dir, "corpus", settings, started, stats)
+    write_manifest(paths.corpus_dir, "corpus", settings, started, stats, root=paths.root)
     LOGGER.info("Corpus: %s", stats)

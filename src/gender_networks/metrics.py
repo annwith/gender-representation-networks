@@ -25,6 +25,7 @@ Louvain cross-check on the main configuration.
 from __future__ import annotations
 
 import logging
+import math
 import multiprocessing as mp
 import os
 import time
@@ -41,7 +42,9 @@ import numpy as np
 from gender_networks.artifacts import (
     RunPaths,
     ensure_dir,
+    neighbors_name,
     stage_is_fresh,
+    vocab_neighbors_name,
     write_csv,
     write_manifest,
 )
@@ -151,15 +154,15 @@ def file_safe(gid: str) -> str:
 
 
 def neighbor_file(rep: str, k: int) -> str:
-    return f"nbr_{rep}_k{k}.npz"
+    return neighbors_name(rep, k)
 
 
 def eps_file(rep: str, k: int) -> str:
-    return f"nbr_{rep}_k{k}_eps.npz"
+    return neighbors_name(rep, k, sensitivity=True)
 
 
 def vocab_file(k: int) -> str:
-    return f"vocab_k{k}.npz"
+    return vocab_neighbors_name(k)
 
 
 def community_file(gid: str, resolution: float, method: str = "leiden") -> str:
@@ -626,12 +629,14 @@ def build_plan(
 
 
 def _blank(value: Any) -> Any:
-    """CSV cell: None becomes empty; numpy scalars become Python numbers."""
+    """CSV cell: None and NaN become empty; numpy scalars become Python numbers."""
 
     if value is None:
         return ""
     if isinstance(value, np.generic):
-        return value.item()
+        value = value.item()
+    if isinstance(value, float) and math.isnan(value):
+        return ""
     return value
 
 

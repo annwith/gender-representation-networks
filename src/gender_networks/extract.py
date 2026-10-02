@@ -56,7 +56,7 @@ LOGGER = logging.getLogger(__name__)
 
 NORM_REP = "L36n"
 LEX_REP = "lex"
-PRED_NEXT_FILE = "pred_next.npy"
+PRED_NEXT_FILE = "pred_next.npy"  # kept for backwards compatibility; use RunPaths.pred_next
 DIAGNOSTICS_FILE = "diagnostics.json"
 VERIFY_FILE = "verify.json"
 OCCURRENCE_INPUT_COLUMNS = [
@@ -97,15 +97,15 @@ _TOLERANCES: dict[torch.dtype, tuple[float, float]] = {
 
 
 def pred_next_path(paths: RunPaths) -> Path:
-    return paths.reps_dir / PRED_NEXT_FILE
+    return paths.pred_next
 
 
 def diagnostics_path(paths: RunPaths) -> Path:
-    return paths.reps_dir / DIAGNOSTICS_FILE
+    return paths.diagnostics
 
 
 def verify_path(paths: RunPaths) -> Path:
-    return paths.reps_dir / VERIFY_FILE
+    return paths.verify_report
 
 
 def partial_all_layers_path(paths: RunPaths) -> Path:

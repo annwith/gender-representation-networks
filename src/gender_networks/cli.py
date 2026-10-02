@@ -68,9 +68,18 @@ def build_parser() -> argparse.ArgumentParser:
             stage.add_argument(
                 "--verify", action="store_true", help="Só roda as checagens no modelo real"
             )
+        if name == "lens":
+            stage.add_argument(
+                "--device", default=None, help="cpu ou cuda (padrão: GPU quando houver)"
+            )
     everything = sub.add_parser("all", help="Roda todas as etapas em ordem")
     _common_options(everything, suppress=True)
-    everything.add_argument("--force", action="store_true")
+    everything.add_argument(
+        "--force", action="store_true", help="Refaz as etapas da execução (não o corpus)"
+    )
+    everything.add_argument(
+        "--force-corpus", action="store_true", help="Também baixa e limpa o corpus de novo"
+    )
     return parser
 
 
@@ -91,10 +100,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
     if args.stage == "all":
+        # The corpus is shared by every run and costs network requests: --force alone does not
+        # rebuild it.
         for name in PIPELINE:
-            run_stage(name, args.config, args.root, args.force)
+            force = args.force_corpus if name == "corpus" else args.force
+            run_stage(name, args.config, args.root, force)
         return 0
-    options = {"verify_only": True} if getattr(args, "verify", False) else {}
+    options: dict[str, object] = {}
+    if getattr(args, "verify", False):
+        options["verify_only"] = True
+    if getattr(args, "device", None):
+        options["device"] = args.device
     run_stage(args.stage, args.config, args.root, args.force, **options)
     return 0
 
