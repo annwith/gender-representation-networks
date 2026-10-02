@@ -164,6 +164,7 @@ networks:
 
 analysis:
   leiden_runs: 10
+  leiden_iterations: 20
   resolution: 1.0
   resolution_sweep: [0.5, 1.0, 2.0]
   permutations: 20

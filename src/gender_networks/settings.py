@@ -145,6 +145,9 @@ class AnalysisSettings:
     """Metrics, communities and statistics."""
 
     leiden_runs: int = 10
+    # Iterations per Leiden run (-1 = until no improvement). Unbounded runs did not finish on
+    # the 151k-vertex vocabulary graph; a final extra iteration tells whether the run converged.
+    leiden_iterations: int = 20
     resolution: float = 1.0
     resolution_sweep: list[float] = field(default_factory=lambda: [0.5, 1.0, 2.0])
     permutations: int = 20

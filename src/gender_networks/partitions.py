@@ -36,6 +36,8 @@ class Partition:
     stability: float = math.nan
     memberships: np.ndarray | None = None  # every run, [runs, N]
     qualities: list[float] = field(default_factory=list)
+    converged: list[bool] = field(default_factory=list)  # per run (Leiden with an iteration cap)
+    max_iterations: int = -1
 
     @property
     def sizes(self) -> list[int]:
@@ -210,11 +212,19 @@ def mean_pairwise_nmi(memberships: Sequence[Sequence[int]] | np.ndarray) -> floa
     return float(np.mean(values))
 
 
-def leiden(g: ig.Graph, runs: int = 10, resolution: float = 1.0, seed: int = 0) -> Partition:
+def leiden(
+    g: ig.Graph,
+    runs: int = 10,
+    resolution: float = 1.0,
+    seed: int = 0,
+    max_iterations: int = -1,
+) -> Partition:
     """Best of ``runs`` Leiden runs (modularity objective), seeds ``seed .. seed + runs - 1``.
 
     Runs are compared by modularity at ``resolution`` (the optimized objective); the first
-    best run wins ties.
+    best run wins ties. With ``max_iterations > 0`` each run stops after that many iterations
+    and one more iteration from its result tells whether it had converged (unchanged
+    membership); ``-1`` iterates until no further improvement.
     """
 
     if runs < 1:
@@ -222,14 +232,27 @@ def leiden(g: ig.Graph, runs: int = 10, resolution: float = 1.0, seed: int = 0) 
     if g.is_directed():
         raise ValueError("communities are detected on undirected graphs")
     state = random.getstate()
-    memberships, qualities = [], []
+    memberships, qualities, converged = [], [], []
     try:
         for r in range(runs):
             random.seed(seed + r)
             clustering = g.community_leiden(
-                objective_function="modularity", resolution=resolution, n_iterations=-1
+                objective_function="modularity",
+                resolution=resolution,
+                n_iterations=max_iterations,
             )
             membership = canonical_labels(clustering.membership)
+            if max_iterations > 0:
+                again = g.community_leiden(
+                    objective_function="modularity",
+                    resolution=resolution,
+                    n_iterations=1,
+                    initial_membership=membership.tolist(),
+                )
+                same = np.array_equal(canonical_labels(again.membership), membership)
+                converged.append(bool(same))
+            else:
+                converged.append(True)
             memberships.append(membership)
             qualities.append(float(g.modularity(membership.tolist(), resolution=resolution)))
     finally:
@@ -246,6 +269,8 @@ def leiden(g: ig.Graph, runs: int = 10, resolution: float = 1.0, seed: int = 0) 
         stability=mean_pairwise_nmi(stacked),
         memberships=stacked,
         qualities=qualities,
+        converged=converged,
+        max_iterations=max_iterations,
     )
 
 

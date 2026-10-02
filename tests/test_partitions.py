@@ -185,3 +185,19 @@ def test_agreement_rows_skip_missing_labels() -> None:
     assert valid_labels(labels["sense"]).tolist() == [True, False, True, True, False, True]
     with pytest.raises(ValueError):
         agreement(pred, {"bad": np.zeros(3)})
+
+
+def test_leiden_iteration_cap_reports_convergence() -> None:
+    import igraph as ig
+
+    from gender_networks.partitions import leiden
+
+    graph = ig.Graph.Famous("Zachary")
+
+    capped = leiden(graph, runs=3, seed=0, max_iterations=20)
+    unbounded = leiden(graph, runs=3, seed=0)
+
+    assert capped.max_iterations == 20 and len(capped.converged) == 3
+    assert all(capped.converged)  # a 34-vertex graph converges well within 20 iterations
+    assert capped.n_communities >= 2
+    assert unbounded.converged == [True, True, True]

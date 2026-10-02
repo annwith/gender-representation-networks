@@ -122,6 +122,8 @@ COMMUNITY_COLUMNS = [
     "stability",  # mean pairwise NMI between the Leiden runs
     "runs",
     "seed",
+    "max_iterations",  # Leiden iteration cap per run (-1 = until no improvement)
+    "converged_fraction",  # Leiden runs whose membership no longer changed at the cap
     "nmi_vs_leiden",  # Louvain rows: NMI with the Leiden partition of the same graph
 ]
 
@@ -435,6 +437,7 @@ class GraphJob:
     leiden_resolutions: tuple[float, ...] = ()
     louvain_resolutions: tuple[float, ...] = ()
     leiden_runs: int = 10
+    leiden_iterations: int = -1
     community_seed: int = 0
     top_hubs: int = TOP_HUBS
     cost: float = 0.0
@@ -477,7 +480,11 @@ def measure_graph(neighbors: Neighbors, n: int, job: GraphJob) -> GraphResult:
         metrics = graph_metrics(graph, job.distances, job.sample_sources, job.distance_seed)
         for resolution in job.leiden_resolutions:
             partitions[("leiden", resolution)] = leiden(
-                graph, runs=job.leiden_runs, resolution=resolution, seed=job.community_seed
+                graph,
+                runs=job.leiden_runs,
+                resolution=resolution,
+                seed=job.community_seed,
+                max_iterations=job.leiden_iterations,
             )
         for resolution in job.louvain_resolutions:
             partitions[("louvain", resolution)] = louvain(
@@ -603,6 +610,7 @@ def build_plan(
                 leiden_resolutions=leiden_list,
                 louvain_resolutions=louvain_list,
                 leiden_runs=analysis.leiden_runs,
+                leiden_iterations=analysis.leiden_iterations,
                 community_seed=base_seed,
                 cost=float(cost),
             )
@@ -942,6 +950,12 @@ def _write_outputs(
                     "stability": None if method == "louvain" else partition.stability,
                     "runs": len(partition.qualities),
                     "seed": partition.seed,
+                    "max_iterations": None if method == "louvain" else partition.max_iterations,
+                    "converged_fraction": (
+                        None
+                        if method == "louvain" or not partition.converged
+                        else float(np.mean(partition.converged))
+                    ),
                     "nmi_vs_leiden": nmi_vs_leiden,
                 }.items()
             }
