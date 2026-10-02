@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import csv
 import gzip
+import hashlib
 import json
 import platform
 import subprocess
@@ -132,6 +133,15 @@ class RunPaths:
         )
 
     # corpus (shared)
+    @property
+    def corpus_manifest(self) -> Path:
+        return self.corpus_dir / "_manifest.json"
+
+    def manifest(self, stage: str) -> Path:
+        """``_manifest.json`` of a per-run stage directory (sample, reps, knn, metrics, ...)."""
+
+        return self.stage_dir(stage) / "_manifest.json"
+
     @property
     def articles(self) -> Path:
         return self.corpus_dir / "articles.jsonl"
@@ -289,6 +299,60 @@ def library_versions() -> dict[str, str]:
     return versions
 
 
+def file_fingerprint(paths: Iterable[Path]) -> dict[str, list[int] | None]:
+    """Size and modification time of each input (None when missing), keyed by path."""
+
+    out: dict[str, list[int] | None] = {}
+    for path in paths:
+        try:
+            stat = Path(path).stat()
+        except FileNotFoundError:
+            out[str(path)] = None
+            continue
+        out[str(path)] = [stat.st_size, stat.st_mtime_ns]
+    return out
+
+
+def _string_keys(value: Any) -> Any:
+    """Copy with every mapping key as a string (``max_memory`` mixes ``0`` and ``"cpu"``)."""
+
+    if isinstance(value, dict):
+        return {str(key): _string_keys(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_string_keys(item) for item in value]
+    return value
+
+
+def settings_digest(settings: Settings) -> str:
+    """Hash of the run configuration (the source file path does not count)."""
+
+    payload = _string_keys(settings.to_dict())
+    payload.pop("source", None)
+    text = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def stage_is_fresh(
+    stage_dir: Path, settings: Settings, inputs: Iterable[Path], outputs: Iterable[Path]
+) -> bool:
+    """True when the stage's outputs exist and were built from the same inputs and settings.
+
+    Stages skip only when this holds, so rerunning an upstream stage (for example ``sample
+    --force``) makes every downstream stage recompute instead of reusing stale artifacts.
+    """
+
+    manifest = stage_dir / "_manifest.json"
+    if not manifest.exists() or not all(Path(path).exists() for path in outputs):
+        return False
+    try:
+        recorded = read_json(manifest)
+    except (OSError, json.JSONDecodeError):
+        return False
+    return recorded.get("settings_digest") == settings_digest(settings) and recorded.get(
+        "inputs"
+    ) == file_fingerprint(inputs)
+
+
 def write_manifest(
     stage_dir: Path,
     stage: str,
@@ -296,8 +360,13 @@ def write_manifest(
     started: float,
     extra: dict[str, Any] | None = None,
     root: Path = Path("."),
+    inputs: Iterable[Path] | None = None,
 ) -> Path:
-    """Record what produced a stage's artifacts: config, versions, timings and stage facts."""
+    """Record what produced a stage's artifacts: config, inputs, versions, timings and facts.
+
+    ``inputs`` are the upstream files the stage read; their fingerprint lets
+    :func:`stage_is_fresh` notice when an upstream stage was rerun.
+    """
 
     path = stage_dir / "_manifest.json"
     write_json(
@@ -306,6 +375,8 @@ def write_manifest(
             "stage": stage,
             "run": settings.name,
             "config_source": settings.source,
+            "settings_digest": settings_digest(settings),
+            "inputs": file_fingerprint(inputs or []),
             "settings": settings.to_dict(),
             "git": _git_describe(root),
             "versions": library_versions(),

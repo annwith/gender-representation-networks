@@ -38,7 +38,13 @@ from typing import Any
 
 import numpy as np
 
-from gender_networks.artifacts import RunPaths, ensure_dir, write_csv, write_manifest
+from gender_networks.artifacts import (
+    RunPaths,
+    ensure_dir,
+    stage_is_fresh,
+    write_csv,
+    write_manifest,
+)
 from gender_networks.graphs import (
     directed_edges,
     directed_metrics_from_edges,
@@ -749,16 +755,22 @@ def _anomalies(
     return found
 
 
-def _outputs_done(paths: RunPaths) -> bool:
-    directory = paths.metrics_dir
-    return (directory / "_manifest.json").exists() and (directory / "graph_metrics.csv").exists()
+def metrics_inputs(paths: RunPaths) -> list[Path]:
+    """Upstream files whose change makes the metrics stale."""
+
+    return [paths.manifest("knn"), paths.manifest("sample")]
+
+
+def _outputs_done(settings: Settings, paths: RunPaths) -> bool:
+    outputs = [paths.metrics_dir / "graph_metrics.csv"]
+    return stage_is_fresh(paths.metrics_dir, settings, metrics_inputs(paths), outputs)
 
 
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
     """Measure every graph specification whose neighbour file exists in ``paths.knn_dir``."""
 
     out_dir = paths.metrics_dir
-    if _outputs_done(paths) and not force:
+    if not force and _outputs_done(settings, paths):
         LOGGER.info("Métricas já existem em %s; use --force para refazer", out_dir)
         return
     started = time.time()
@@ -837,7 +849,9 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         ],
         **counts,
     )
-    write_manifest(out_dir, "metrics", settings, started, extra, root=paths.root)
+    write_manifest(
+        out_dir, "metrics", settings, started, extra, root=paths.root, inputs=metrics_inputs(paths)
+    )
     LOGGER.info(
         "Métricas: %d grafos (%d calculados) e %d partições em %.1f s",
         len(specs),

@@ -46,6 +46,7 @@ from gender_networks.artifacts import (
     library_versions,
     position_bucket,
     read_jsonl,
+    stage_is_fresh,
     write_json,
     write_manifest,
 )
@@ -1205,7 +1206,8 @@ def run(
     **_: object,
 ) -> None:
     targets = output_paths(settings, paths)
-    if not verify_only and not force and all(path.exists() for path in targets):
+    inputs = [paths.manifest("sample")]
+    if not verify_only and not force and stage_is_fresh(paths.reps_dir, settings, inputs, targets):
         LOGGER.info("Representações já existem em %s; use --force para refazer", paths.reps_dir)
         return
     needed = [paths.sequences] if verify_only else [paths.sequences, paths.occurrences]
@@ -1279,5 +1281,7 @@ def run(
     )
     stats["verify_passed"] = report["passed"]
     stats["verify_warnings"] = report["warnings"]
-    write_manifest(paths.reps_dir, "extract", settings, started, extra=stats, root=paths.root)
+    write_manifest(
+        paths.reps_dir, "extract", settings, started, extra=stats, root=paths.root, inputs=inputs
+    )
     LOGGER.info("Extração: %d vértices, %d tokens", stats["n_vertices"], stats["tokens"])

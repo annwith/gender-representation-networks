@@ -52,7 +52,7 @@ import pandas as pd
 import torch
 from safetensors.torch import load_file
 
-from gender_networks.artifacts import RunPaths, ensure_dir, write_manifest
+from gender_networks.artifacts import RunPaths, ensure_dir, stage_is_fresh, write_manifest
 from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
@@ -896,7 +896,8 @@ def check_settings(settings: Settings) -> None:
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
     net = settings.networks
     targets = output_paths(settings, paths)
-    if not force and all(path.exists() for path in targets):
+    inputs = [paths.manifest("sample"), paths.manifest("reps")]
+    if not force and stage_is_fresh(paths.knn_dir, settings, inputs, targets):
         LOGGER.info("k-NN já existe em %s; use --force para refazer", paths.knn_dir)
         return
     check_settings(settings)
@@ -987,6 +988,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         "knn",
         settings,
         started,
+        inputs=inputs,
         extra={
             "n_occurrences": types.n_occurrences,
             "n_types": types.n_types,

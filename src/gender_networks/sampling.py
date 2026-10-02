@@ -46,6 +46,7 @@ from gender_networks.artifacts import (
     ensure_dir,
     position_bucket,
     read_jsonl,
+    stage_is_fresh,
     write_csv,
     write_jsonl,
     write_manifest,
@@ -1111,10 +1112,16 @@ def _backup_annotations(path: Path) -> None:
         LOGGER.warning("%s tinha anotações; cópia guardada em %s", path, backup)
 
 
+def sample_inputs(paths: RunPaths) -> list[Path]:
+    """Upstream files whose change makes the sample stale."""
+
+    return [paths.paragraphs, paths.corpus_manifest]
+
+
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
-    manifest = paths.sample_dir / "_manifest.json"
-    outputs = [paths.occurrences, paths.sequences, paths.vocab_types, paths.senses, manifest]
-    if all(path.exists() for path in outputs) and not force:
+    outputs = [paths.occurrences, paths.sequences, paths.vocab_types, paths.senses]
+    inputs = sample_inputs(paths)
+    if not force and stage_is_fresh(paths.sample_dir, settings, inputs, outputs):
         LOGGER.info("Amostra já existe em %s; use --force para refazer", paths.sample_dir)
         return
     if not paths.paragraphs.exists():
@@ -1142,5 +1149,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         "in_corpus": sum(row["in_corpus"] for row in vocab),
         "in_sample": sum(row["f_sample"] > 0 for row in vocab),
     }
-    write_manifest(paths.sample_dir, "sample", settings, started, extra, root=paths.root)
+    write_manifest(
+        paths.sample_dir, "sample", settings, started, extra, root=paths.root, inputs=inputs
+    )
     LOGGER.info("Amostra gravada em %s", paths.sample_dir)

@@ -35,7 +35,13 @@ import torch
 import torch.nn.functional as F
 from safetensors.torch import load_file
 
-from gender_networks.artifacts import RunPaths, ensure_dir, write_json, write_manifest
+from gender_networks.artifacts import (
+    RunPaths,
+    ensure_dir,
+    stage_is_fresh,
+    write_json,
+    write_manifest,
+)
 from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
@@ -623,7 +629,9 @@ def run(
     reps = representations(settings)
     pairs = transitions(reps)
     with_curve = layer_curve and paths.all_layers.exists()
-    if not force and all(p.exists() for p in _expected_outputs(out_dir, reps, with_curve)):
+    inputs = [paths.manifest("sample"), paths.manifest("reps")]
+    outputs = _expected_outputs(out_dir, reps, with_curve)
+    if not force and stage_is_fresh(out_dir, settings, inputs, outputs):
         LOGGER.info("Vizinhos no vocabulário já existem em %s; use --force para refazer", out_dir)
         return
 
@@ -734,5 +742,5 @@ def run(
         "layer_curve": curve_info,
         "rep_seconds": timings,
     }
-    write_manifest(out_dir, "lens", settings, started, extra, root=paths.root)
+    write_manifest(out_dir, "lens", settings, started, extra, root=paths.root, inputs=inputs)
     LOGGER.info("Vizinhos no vocabulário gravados em %s", out_dir)
