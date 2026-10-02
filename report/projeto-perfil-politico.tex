@@ -1,0 +1,660 @@
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Pacotes
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{caption}
+
+\geometry{margin=2.2cm}
+\setlist[itemize]{leftmargin=1.5em,itemsep=0.25em,topsep=0.35em}
+\setlist[enumerate]{leftmargin=1.7em,itemsep=0.3em,topsep=0.35em}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=blue!60!black
+}
+
+\newcommand{\hstate}[3]{h_{#1,#2}^{(#3)}}
+\newcommand{\G}[2]{G_{#1}^{(#2)}}
+\newcommand{\cosdist}[2]{1-\cos\!\left(#1,#2\right)}
+\newcommand{\profile}{p}
+\newcommand{\layer}{\ell}
+
+\title{\textbf{Propagação de informações de perfil político em Transformers:}\\
+uma análise contrafactual com Redes Complexas}
+\author{MO438 -- Redes Complexas}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ============================================================
+\section{Título}
+% ============================================================
+
+\textbf{Propagação de informações de perfil político em Transformers: uma análise contrafactual com Redes Complexas.}
+
+% ============================================================
+\section{Breve descrição e motivação}
+% ============================================================
+
+Modelos de linguagem autoregressivos produzem respostas condicionadas não apenas ao conteúdo explícito de uma pergunta, mas também às informações contextuais disponibilizadas no prompt. Entre essas informações podem estar descrições do próprio usuário, por exemplo sua orientação política, idade, profissão ou outros atributos. Embora seja relativamente simples observar se uma informação de perfil altera a resposta final do modelo, é menos claro \emph{como} essa informação modifica as representações internas utilizadas pelo Transformer durante o processamento do mesmo conteúdo.
+
+Este projeto propõe investigar esse processo por meio de um desenho contrafactual controlado. Um mesmo conjunto de afirmações políticas será apresentado ao modelo sob três condições de perfil: \textbf{neutra}, \textbf{esquerda} e \textbf{direita}. Além disso, a informação de perfil será inserida em diferentes posições do contexto, permitindo estudar não apenas se a informação altera a representação interna, mas também \textbf{como sua influência depende da posição textual e se propaga ao longo das camadas do Transformer}.
+
+As representações internas dos tokens serão transformadas em uma sequência de redes complexas. Em cada camada, cada vértice corresponderá a uma ocorrência de token do conteúdo compartilhado entre as condições contrafactuais, e as arestas conectarão representações semelhantes segundo uma regra de $k$ vizinhos mais próximos. Como os mesmos vértices serão preservados entre perfis e camadas, será possível medir diretamente a reorganização das vizinhanças, a formação de hubs, a estabilidade de comunidades e a separação entre condições políticas.
+
+A pergunta central do projeto é:
+
+\begin{quote}
+\textbf{Como uma informação sobre o perfil político do usuário se propaga pelas representações internas de um Transformer e reorganiza a rede de similaridade do mesmo conteúdo ao longo das camadas?}
+\end{quote}
+
+O projeto utiliza Redes Complexas não apenas como ferramenta de visualização, mas como uma forma de quantificar a reorganização estrutural induzida por uma intervenção contrafactual no contexto do usuário.
+
+% ============================================================
+\section{Hipóteses}
+% ============================================================
+
+O estudo parte das seguintes hipóteses:
+
+\begin{enumerate}[label=H\arabic*.]
+    \item \textbf{Efeito crescente ao longo das camadas.} Na camada de embedding, tokens compartilhados entre duas condições contrafactuais possuem representações lexicais equivalentes. À medida que o contexto é incorporado, as representações podem divergir, fazendo com que a distância entre as condições esquerda, direita e neutra aumente em determinadas regiões da rede.
+
+    \item \textbf{Reorganização além da distância vetorial.} A influência do perfil não se limita a deslocar individualmente os vetores: ela pode alterar quais ocorrências são vizinhas, quais vértices se tornam hubs e como comunidades se organizam.
+
+    \item \textbf{Dependência da posição do perfil.} Informações fornecidas no início do contexto podem influenciar todos os tokens subsequentes, enquanto informações fornecidas ao final do conteúdo não podem retroagir sobre estados internos já calculados. Entretanto, ambas podem afetar estados posteriores usados para produzir a resposta.
+
+    \item \textbf{Assimetria esquerda--direita.} Para determinadas afirmações políticas, os perfis esquerda e direita podem induzir magnitudes distintas de reorganização em relação à condição neutra.
+
+    \item \textbf{Relação entre mudança interna e comportamento.} Itens que apresentam maior reorganização representacional entre os perfis podem também apresentar maior mudança na resposta final do modelo.
+\end{enumerate}
+
+% ============================================================
+\section{Objetivo geral}
+% ============================================================
+
+Caracterizar, por meio de Redes Complexas e medidas de similaridade representacional, como informações contrafactuais sobre a orientação política do usuário alteram as representações internas do mesmo conteúdo em um Transformer, identificando \textbf{onde}, \textbf{quanto} e \textbf{de que forma} essa influência emerge ao longo das camadas e como ela depende da posição do perfil no prompt.
+
+% ============================================================
+\section{Objetivos específicos e perguntas de pesquisa}
+% ============================================================
+
+\subsection*{P1. Em que camadas a informação de perfil começa a alterar o conteúdo representado?}
+
+Para cada ocorrência compartilhada entre condições, será medida a distância entre seus estados internos sob os perfis neutro, esquerda e direita. A evolução dessa distância ao longo das camadas permitirá localizar em quais regiões do modelo a informação de perfil passa a produzir maior divergência representacional.
+
+\subsection*{P2. Quanto a rede de similaridade é reorganizada pelo perfil?}
+
+Serão comparadas as vizinhanças de uma mesma ocorrência entre os grafos construídos para diferentes condições de perfil. A reorganização será quantificada localmente por Jaccard de vizinhança e globalmente por distribuição de graus de entrada, reciprocidade, clusterização, conectividade e comunidades.
+
+\subsection*{P3. A reorganização depende da posição da informação de perfil?}
+
+Serão comparadas condições em que o perfil aparece no sistema, no início do conteúdo ou próximo ao final do prompt. O objetivo é determinar se uma informação disponibilizada mais cedo produz um efeito mais distribuído sobre os tokens do conteúdo e se informações tardias afetam principalmente os estados usados para a decisão final.
+
+\subsection*{P4. Como ocorre a separação entre esquerda e direita?}
+
+Será medida a distância direta entre as condições esquerda e direita, tanto no espaço vetorial quanto na topologia das redes. O objetivo é verificar se a divergência cresce de forma gradual, se se concentra em algumas camadas ou se apresenta um pico em regiões intermediárias do Transformer.
+
+\subsection*{P5. O efeito é localizado ou se propaga pelo texto?}
+
+Para perfis inseridos antes do conteúdo, será analisada a relação entre a distância textual até o marcador de perfil e a magnitude da mudança representacional. Isso permitirá investigar se o efeito do perfil decai com a distância, permanece aproximadamente constante ou é reamplificado por camadas posteriores.
+
+\subsection*{P6. Mudanças estruturais internas estão associadas à mudança da resposta final?}
+
+Para cada item, medidas agregadas de reorganização serão comparadas com a mudança comportamental observada na saída do modelo. O objetivo não é estabelecer causalidade a partir de correlação, mas avaliar se itens mais sensíveis internamente também tendem a ser mais sensíveis na resposta final.
+
+% ============================================================
+\section{Dados}
+% ============================================================
+
+O experimento utilizará as afirmações políticas do conjunto de dados já empregado em estudos anteriores do grupo sobre personalização e orientação política. O conjunto contém pares de afirmações politicamente contrastantes e foi projetado para permitir comparações controladas entre diferentes enquadramentos ideológicos.
+
+Nesta proposta, o conjunto será reutilizado principalmente como \textbf{coleção de estímulos textuais}. As respostas previamente coletadas podem ser empregadas como referência comportamental, mas as representações internas deverão ser obtidas novamente em um \textbf{modelo aberto}, uma vez que o experimento exige acesso aos estados ocultos de todas as camadas.
+
+Cada item será processado preservando exatamente o mesmo conteúdo político nas condições contrafactuais. A única intervenção principal será a informação de perfil e sua posição no prompt.
+
+\subsection{Unidade de análise}
+
+A unidade estatística principal será o \textbf{item político}, e não cada token individual. Tokens serão utilizados para construir medidas internas, mas agregações, intervalos de confiança e testes estatísticos serão realizados prioritariamente por item, evitando pseudorreplicação causada pelo grande número de ocorrências de tokens dentro do mesmo texto.
+
+% ============================================================
+\section{Desenho experimental}
+% ============================================================
+
+\subsection{Fatores experimentais}
+
+Serão manipulados dois fatores principais:
+
+\begin{enumerate}
+    \item \textbf{Perfil político}:
+    \begin{itemize}
+        \item neutro;
+        \item esquerda;
+        \item direita.
+    \end{itemize}
+
+    \item \textbf{Posição da informação de perfil}:
+    \begin{itemize}
+        \item \textbf{system}: o perfil é apresentado como informação persistente sobre o usuário no contexto de sistema;
+        \item \textbf{prefix}: o perfil aparece no início da mensagem do usuário, antes do conteúdo político;
+        \item \textbf{late/suffix}: o conteúdo político aparece primeiro e o perfil é apresentado próximo ao final, antes da instrução final de resposta.
+    \end{itemize}
+\end{enumerate}
+
+A condição neutra será implementada também em cada posição, com uma formulação semanticamente neutra, para permitir uma comparação fatorial mais limpa e reduzir o risco de confundir \emph{presença de texto adicional} com \emph{presença de informação ideológica}. Adicionalmente, poderá ser mantida uma condição \textbf{sem qualquer perfil} como baseline externo.
+
+Assim, o desenho principal possui:
+
+\[
+3\ \text{perfis} \times 3\ \text{posições} = 9\ \text{condições},
+\]
+
+além de uma possível condição sem perfil.
+
+\subsection{Templates}
+
+Os templates deverão ser lexicalmente controlados. Por exemplo:
+
+\begin{quote}
+\textbf{Esquerda:} ``Eu me identifico politicamente com a esquerda.''\\
+\textbf{Direita:} ``Eu me identifico politicamente com a direita.''\\
+\textbf{Neutro:} ``Minha orientação política não foi especificada.''
+\end{quote}
+
+As formulações esquerda e direita diferem idealmente apenas no marcador ideológico. Para comparações sensíveis à posição absoluta, poderá ser criado um controle neutro aproximadamente pareado em comprimento e número de tokens.
+
+Todos os prompts devem usar o mesmo chat template, a mesma instrução de resposta e o mesmo conteúdo político. O tokenizador do próprio modelo será usado em todas as condições.
+
+\subsection{Por que a posição é cientificamente importante?}
+
+Em Transformers autoregressivos, a atenção causal impede que um token seja influenciado por tokens que aparecem depois dele. Portanto, se uma informação de perfil for acrescentada após a afirmação política, ela \textbf{não poderá modificar retroativamente os estados já calculados para os tokens anteriores da afirmação}.
+
+Esse fato será utilizado como parte do desenho experimental:
+
+\begin{itemize}
+    \item \textbf{efeito sobre o conteúdo}: analisado principalmente quando o perfil aparece antes do conteúdo;
+    \item \textbf{efeito sobre a decisão final}: analisado em todas as posições, utilizando estados posteriores ao perfil, especialmente a região final do prompt e a distribuição do próximo token;
+    \item \textbf{sanity check causal}: tokens que precedem uma intervenção tardia devem permanecer invariantes, exceto por diferenças introduzidas em partes anteriores do contexto.
+\end{itemize}
+
+Essa assimetria permite distinguir \emph{propagação representacional} de uma simples diferença global entre prompts.
+
+% ============================================================
+\section{Modelo e extração das representações}
+% ============================================================
+
+Será utilizado inicialmente um único Transformer autoregressivo aberto, preferencialmente na faixa de 4B--8B parâmetros, de modo que seja possível extrair todos os estados internos com custo computacional manejável.
+
+Para um prompt $x$ com $n$ tokens e um modelo com $L$ blocos, serão obtidos:
+
+\[
+H^{(\ell)} = \left[h_1^{(\ell)},\ldots,h_n^{(\ell)}\right],
+\qquad \ell = 0,1,\ldots,L,
+\]
+
+onde $H^{(0)}$ corresponde à representação de entrada e $h_i^{(\ell)} \in \mathbb{R}^d$ é o estado interno da ocorrência $i$ após a camada $\ell$.
+
+Ao contrário da versão anterior do projeto, a análise principal considerará \textbf{todas as camadas}. Caso o custo seja excessivo, a extração poderá ser mantida para todas as camadas, mas a construção de redes completas poderá ser restrita a um subconjunto representativo após uma análise inicial das curvas de divergência.
+
+\subsection{Alinhamento entre condições}
+
+A comparação principal será feita apenas sobre ocorrências pertencentes ao \textbf{conteúdo compartilhado} entre os prompts contrafactuais. Cada vértice será identificado por uma chave como:
+
+\[
+(\texttt{item\_id},\ \texttt{posição\_no\_conteúdo},\ \texttt{token\_id}).
+\]
+
+Dessa forma, o mesmo vértice representa exatamente a mesma ocorrência textual em todas as condições comparadas.
+
+O conjunto de vértices será mantido constante entre as redes de uma mesma comparação. Tokens exclusivos da frase de perfil não participarão da rede principal, embora possam ser analisados separadamente.
+
+% ============================================================
+\section{Métricas representacionais}
+% ============================================================
+
+Antes da análise de redes, serão calculadas medidas diretas de deslocamento vetorial. Para uma ocorrência $i$, camada $\ell$, perfil $p$ e baseline neutro $N$:
+
+\[
+\Delta_{i,p}^{(\ell)}
+=
+1-\cos\left(
+\hstate{i}{p}{\ell},
+\hstate{i}{N}{\ell}
+\right).
+\]
+
+A separação direta esquerda--direita será:
+
+\[
+\Delta_{i,L,R}^{(\ell)}
+=
+1-\cos\left(
+\hstate{i}{L}{\ell},
+\hstate{i}{R}{\ell}
+\right).
+\]
+
+Para cada item, será calculada uma média sobre as ocorrências compartilhadas:
+
+\[
+\overline{\Delta}_{q,L,R}^{(\ell)}
+=
+\frac{1}{|V_q|}
+\sum_{i \in V_q}
+\Delta_{i,L,R}^{(\ell)}.
+\]
+
+Essas curvas responderão diretamente onde a separação representacional emerge ao longo das camadas.
+
+\subsection{Propagação em função da distância textual}
+
+Para condições em que o perfil precede o conteúdo, cada ocorrência terá uma distância $r_i$ em tokens até o marcador de perfil. Será analisada a relação:
+
+\[
+\Delta_{i,p}^{(\ell)} = f(r_i,\ell),
+\]
+
+permitindo verificar se a influência do perfil diminui com a distância textual ou se é redistribuída por camadas posteriores.
+
+% ============================================================
+\section{Construção das redes complexas}
+% ============================================================
+
+\subsection{Definição dos vértices}
+
+Para cada condição $c$ e camada $\ell$, será construída uma rede:
+
+\[
+G_c^{(\ell)} = (V,E_c^{(\ell)}),
+\]
+
+onde $V$ é o conjunto fixo de ocorrências alinhadas do conteúdo político e cada ocorrência $i \in V$ possui representação $h_{i,c}^{(\ell)}$.
+
+Os vértices de diferentes itens poderão coexistir na mesma rede de condição, desde que sejam preservados seus metadados de origem. Essa agregação permite atingir a escala exigida pela disciplina e estudar se certas ocorrências se tornam hubs ou se comunidades atravessam diferentes itens.
+
+Como análise complementar, também poderão ser construídas redes por subconjunto temático ou por bloco de itens, evitando que uma única rede global esconda estruturas locais.
+
+\subsection{Arestas por $k$-NN}
+
+A similaridade entre duas ocorrências será calculada por cosseno:
+
+\[
+s_{ij}^{(c,\ell)}
+=
+\frac{
+\left(h_{i,c}^{(\ell)}\right)^\top h_{j,c}^{(\ell)}
+}{
+\|h_{i,c}^{(\ell)}\|\,\|h_{j,c}^{(\ell)}\|
+}.
+\]
+
+Cada vértice $i$ selecionará seus $k$ vizinhos mais similares:
+
+\[
+N_i^{(c,\ell)} = \operatorname{kNN}_k(i;c,\ell).
+\]
+
+A rede principal será direcionada, com aresta $i \rightarrow j$ quando $j \in N_i^{(c,\ell)}$. Como o grau de saída é fixado em $k$, a análise de hubs será baseada principalmente no \textbf{grau de entrada}. Para medidas que exigem rede não direcionada, será utilizada a simetrização por união; $k$-NN mútuo será empregado como robustez.
+
+Serão testados diferentes valores de $k$, por exemplo:
+
+\[
+k \in \{5,10,20,50\},
+\]
+
+ou valores equivalentes ajustados ao tamanho final da rede.
+
+\subsection{Escala}
+
+A meta é construir redes com pelo menos $10^4$ ocorrências alinhadas, agregando tokens de conteúdo provenientes de todos os itens. Caso o conjunto completo exceda substancialmente essa escala, poderá ser empregada uma amostra estratificada que preserve itens, temas e frequências de tokens.
+
+Busca aproximada de vizinhos, por exemplo com FAISS, poderá ser usada para reduzir o custo computacional.
+
+% ============================================================
+\section{Métricas de rede}
+% ============================================================
+
+\subsection{Persistência de vizinhança}
+
+Para a mesma ocorrência $i$ em duas condições $a$ e $b$ na camada $\ell$:
+
+\[
+J_i^{(\ell)}(a,b)
+=
+\frac{
+|N_i^{(a,\ell)} \cap N_i^{(b,\ell)}|
+}{
+|N_i^{(a,\ell)} \cup N_i^{(b,\ell)}|
+}.
+\]
+
+Será utilizada também a taxa de \emph{rewiring}:
+
+\[
+R_i^{(\ell)}(a,b)=1-J_i^{(\ell)}(a,b).
+\]
+
+As comparações principais serão:
+
+\[
+N \leftrightarrow L,
+\qquad
+N \leftrightarrow R,
+\qquad
+L \leftrightarrow R.
+\]
+
+\subsection{Hubs e grau de entrada}
+
+Como cada vértice possui grau de saída fixo, serão comparadas as distribuições de grau de entrada entre perfis. Para cada ocorrência:
+
+\[
+\Delta k_{in,i}^{(\ell)}(L,R)
+=
+k_{in,i}^{(L,\ell)}-k_{in,i}^{(R,\ell)}.
+\]
+
+Isso permitirá identificar tokens cuja representação passa a funcionar como centro de similaridade em uma condição, mas não em outra.
+
+\subsection{Reciprocidade, clusterização e conectividade}
+
+Serão avaliadas:
+
+\begin{itemize}
+    \item reciprocidade na rede direcionada;
+    \item clusterização global e local na versão simetrizada;
+    \item tamanho do maior componente conexo;
+    \item distribuição dos componentes;
+    \item distância média no maior componente;
+    \item assortatividade por atributos de token, item e tema, quando aplicável.
+\end{itemize}
+
+Métricas quase determinadas pela construção $k$-NN, como número total de arestas e grau médio de saída, serão reportadas apenas descritivamente e não tratadas como resultados centrais.
+
+\subsection{Comunidades}
+
+Comunidades serão identificadas com Leiden ou Louvain na rede simetrizada. A estabilidade entre duas condições será medida por NMI e ARI:
+
+\[
+\mathrm{NMI}(\mathcal{C}_a^{(\ell)},\mathcal{C}_b^{(\ell)}),
+\qquad
+\mathrm{ARI}(\mathcal{C}_a^{(\ell)},\mathcal{C}_b^{(\ell)}).
+\]
+
+Também será avaliada a associação das comunidades com metadados como:
+
+\begin{itemize}
+    \item item político;
+    \item tema/eixo político;
+    \item identidade lexical do token;
+    \item posição no texto;
+    \item faixa de frequência do token.
+\end{itemize}
+
+A análise permitirá verificar se o perfil político altera apenas vizinhos locais ou se produz reorganização mesoscópica das comunidades.
+
+% ============================================================
+\section{Métricas específicas para posição do perfil}
+% ============================================================
+
+\subsection{Efeito antecipatório versus efeito tardio}
+
+Para o conteúdo político propriamente dito, espera-se uma diferença estrutural entre intervenções antecipadas e tardias. Quando o perfil está no início, todos os estados subsequentes podem incorporar a informação. Quando o perfil é inserido após parte do conteúdo, os tokens anteriores à intervenção devem permanecer invariantes em um Transformer causal.
+
+Será definida uma função de sensibilidade por posição textual:
+
+\[
+S_r^{(\ell)}
+=
+\mathbb{E}_{i:\,\text{dist}(i,\text{perfil})=r}
+\left[
+\Delta_{i,p}^{(\ell)}
+\right].
+\]
+
+Curvas $S_r^{(\ell)}$ mostrarão como a influência se distribui espacialmente ao longo do contexto.
+
+\subsection{Estado de leitura/decisão}
+
+Como o objetivo final do modelo autoregressivo é prever o próximo token, será analisado também o estado da última posição relevante do prompt:
+
+\[
+z_c^{(\ell)} = h_{\mathrm{last},c}^{(\ell)}.
+\]
+
+Serão calculadas distâncias entre $z_L^{(\ell)}$, $z_R^{(\ell)}$ e $z_N^{(\ell)}$. Essa análise é particularmente importante para a condição tardia, pois, embora ela não altere os estados anteriores, pode modificar fortemente o estado final utilizado para produzir a resposta.
+
+Quando a tarefa final possuir opções de resposta fixas, também poderão ser comparados os logits correspondentes às alternativas, conectando a reorganização interna à decisão efetivamente tomada pelo modelo.
+
+% ============================================================
+\section{Relação entre rede interna e comportamento}
+% ============================================================
+
+Para cada item $q$ e camada $\ell$, será definida uma medida agregada de reorganização, por exemplo:
+
+\[
+\overline{R}_q^{(\ell)}(L,R)
+=
+\frac{1}{|V_q|}
+\sum_{i\in V_q}
+R_i^{(\ell)}(L,R).
+\]
+
+A sensibilidade comportamental poderá ser representada pela diferença entre as respostas do modelo nas condições esquerda e direita, usando a métrica já apropriada ao conjunto de dados original.
+
+Serão então investigadas associações do tipo:
+
+\[
+\overline{R}_q^{(\ell)}(L,R)
+\quad \text{versus} \quad
+\Delta \mathrm{Resposta}_q(L,R).
+\]
+
+Essa análise será feita por item, com correlação e/ou regressão, evitando usar cada token como observação independente.
+
+O objetivo é avaliar se a reorganização interna possui relação sistemática com o comportamento externo do modelo. Uma associação positiva fortaleceria a interpretação de que a sensibilidade ao perfil não está restrita à última camada, mas se manifesta como uma transformação distribuída da representação.
+
+% ============================================================
+\section{Controles e análises de robustez}
+% ============================================================
+
+Para reduzir explicações alternativas, serão realizados os seguintes controles:
+
+\begin{enumerate}
+    \item \textbf{Baseline sem perfil}: prompt idêntico sem informação do usuário.
+
+    \item \textbf{Controle neutro pareado por posição}: informação não ideológica inserida na mesma posição do perfil.
+
+    \item \textbf{Paridade lexical esquerda--direita}: utilizar templates que diferem minimamente entre as duas orientações.
+
+    \item \textbf{Paráfrases}: repetir uma fração dos itens com duas ou mais formulações equivalentes do perfil, verificando se o efeito depende excessivamente de uma frase específica.
+
+    \item \textbf{Valores de $k$}: repetir as principais análises com diferentes tamanhos de vizinhança.
+
+    \item \textbf{Simetrização}: comparar união e $k$-NN mútuo.
+
+    \item \textbf{Permutação de rótulos}: embaralhar esquerda/direita dentro de itens para construir uma distribuição nula para métricas agregadas.
+
+    \item \textbf{Controle causal da condição tardia}: verificar numericamente que tokens anteriores ao ponto de inserção permanecem inalterados quando todo o prefixo anterior é idêntico.
+
+    \item \textbf{Agregação por item}: intervalos de confiança e testes serão calculados por item político, e não por token individual.
+\end{enumerate}
+
+% ============================================================
+\section{Análise estatística}
+% ============================================================
+
+As estatísticas serão tratadas em blocos contrafactuais por item. Para cada camada, poderão ser reportados:
+
+\begin{itemize}
+    \item média e mediana das distâncias representacionais;
+    \item média da taxa de rewiring;
+    \item diferença esquerda--neutro, direita--neutro e esquerda--direita;
+    \item intervalos de confiança por bootstrap de itens;
+    \item testes de permutação pareados, trocando rótulos de perfil dentro do mesmo item;
+    \item correção de múltiplas comparações entre camadas por Benjamini--Hochberg, quando testes por camada forem utilizados.
+\end{itemize}
+
+Para estudar conjuntamente perfil, posição e camada, poderá ser empregado um modelo de efeitos mistos ou uma regressão sobre medidas agregadas por item, com estrutura conceitual:
+
+\[
+Y
+\sim
+\text{perfil}
+\times
+\text{posição}
+\times
+\text{camada}
++
+(1|\text{item}),
+\]
+
+onde $Y$ pode ser distância representacional, rewiring ou outra medida agregada. Caso a dimensão ``camada'' torne o modelo excessivamente complexo, ela poderá ser tratada como curva e resumida por características como pico, camada de maior crescimento e área sob a curva.
+
+% ============================================================
+\section{Principais visualizações}
+% ============================================================
+
+As figuras prioritárias serão:
+
+\begin{enumerate}
+    \item \textbf{Curva de separação por camada}: distância média entre esquerda, direita e neutro ao longo de $\ell$.
+
+    \item \textbf{Curva de rewiring por camada}: $1-J$ entre as redes esquerda e direita.
+
+    \item \textbf{Mapa camada $\times$ posição textual}: magnitude da influência do perfil em função da camada e da distância em tokens.
+
+    \item \textbf{Comparação de posição do perfil}: system, prefix e late/suffix.
+
+    \item \textbf{Trajetória das comunidades}: NMI/ARI entre condições em cada camada.
+
+    \item \textbf{Mudança interna versus mudança comportamental}: dispersão por item entre reorganização da rede e diferença da resposta final.
+
+    \item \textbf{Exemplos de redes}: visualização de poucos itens ou de um subconjunto representativo em camadas selecionadas, apenas para interpretação qualitativa.
+\end{enumerate}
+
+A visualização completa de uma rede com mais de $10^4$ vértices não será tratada como figura principal; as conclusões serão baseadas em métricas quantitativas.
+
+% ============================================================
+\section{Como os resultados serão avaliados?}
+% ============================================================
+
+O projeto será considerado bem-sucedido se permitir responder às seguintes questões de forma quantitativa:
+
+\begin{enumerate}
+    \item \textbf{Existe divergência representacional entre perfis?} Em caso positivo, em quais camadas ela emerge e onde atinge maior magnitude?
+
+    \item \textbf{A divergência altera a topologia da rede?} A mudança vetorial produz substituição sistemática de vizinhos, novos hubs ou reorganização de comunidades?
+
+    \item \textbf{A posição do perfil muda o fenômeno?} Perfis antecipados produzem influência mais distribuída sobre o conteúdo do que perfis tardios?
+
+    \item \textbf{Esquerda e direita são simétricas em relação ao neutro?} Ou uma das orientações produz maior deslocamento para determinados temas ou itens?
+
+    \item \textbf{Há relação com a saída do modelo?} Itens de maior reorganização interna apresentam também maior mudança de resposta?
+\end{enumerate}
+
+Resultados nulos também serão informativos. Por exemplo, se esquerda e direita alterarem fortemente a resposta final, mas produzirem pouca reorganização nos tokens do conteúdo, isso indicaria que o efeito pode estar concentrado em estados tardios ou no mecanismo de decisão. Se as redes se reorganizarem sem mudança comportamental, isso indicaria que parte da sensibilidade interna é absorvida antes da saída.
+
+% ============================================================
+\section{Riscos metodológicos e limitações}
+% ============================================================
+
+\begin{enumerate}
+    \item \textbf{Posição absoluta e comprimento do prompt.} Inserir texto no início desloca as posições de todos os tokens seguintes. Controles neutros pareados por comprimento e posição serão usados para distinguir, tanto quanto possível, o efeito semântico do perfil do efeito meramente posicional.
+
+    \item \textbf{Dependência do template.} Uma frase como ``sou de esquerda'' pode não representar todas as formas pelas quais sistemas reais codificam informações de usuário. O projeto estudará uma intervenção textual controlada, e não reivindicará reproduzir exatamente a memória interna de um produto comercial.
+
+    \item \textbf{Um único modelo.} A análise principal priorizará profundidade mecanística em um modelo aberto. Generalização para outras famílias ficará como extensão ou análise adicional, caso haja tempo.
+
+    \item \textbf{Interpretação causal da rede.} A mudança topológica é consequência das representações produzidas pelo modelo e não prova que determinada aresta ou comunidade cause a resposta. As redes serão interpretadas como descrição estrutural da dinâmica representacional.
+
+    \item \textbf{Correlação com comportamento.} Uma relação entre rewiring e resposta final é associativa. Experimentos de intervenção nas ativações seriam necessários para uma afirmação causal mais forte.
+\end{enumerate}
+
+% ============================================================
+\section{Planejamento e cronograma}
+% ============================================================
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.2cm} p{12.2cm}}
+\toprule
+\textbf{Período} & \textbf{Atividades} \\
+\midrule
+Semanas 1--2 & Preparação dos itens, definição final dos templates neutro/esquerda/direita, implementação das três posições e escolha do modelo aberto. Validação do alinhamento de tokens e dos controles causais. \\
+\addlinespace
+Semanas 2--3 & Execução dos prompts e extração de hidden states de todas as camadas. Construção do conjunto de ocorrências compartilhadas e cálculo das distâncias representacionais. \\
+\addlinespace
+Semanas 3--4 & Construção das redes $k$-NN por condição e camada; cálculo de Jaccard, rewiring, grau de entrada, reciprocidade, clusterização e conectividade. \\
+\addlinespace
+Semanas 4--5 & Detecção e comparação de comunidades; análise de posição do perfil; curvas de propagação por distância textual; controles e testes de robustez. \\
+\addlinespace
+Semanas 5--6 & Associação entre mudança interna e mudança comportamental; análise estatística por item; preparação das figuras e consolidação do relatório. \\
+\bottomrule
+\end{longtable}
+
+% ============================================================
+\section{Resultados esperados e possíveis cenários}
+% ============================================================
+
+O projeto não assume previamente que a influência do perfil aumentará monotonamente ao longo das camadas. Três cenários principais são particularmente informativos:
+
+\begin{enumerate}
+    \item \textbf{Divergência progressiva}: esquerda e direita tornam-se gradualmente mais distintas, sugerindo incorporação cumulativa da informação de perfil.
+
+    \item \textbf{Pico intermediário}: a separação cresce em camadas intermediárias e diminui nas últimas, sugerindo que o perfil é fortemente representado durante o processamento, mas parcialmente comprimido ou reorganizado antes da saída.
+
+    \item \textbf{Efeito tardio}: o conteúdo permanece relativamente estável e a divergência surge apenas nas últimas camadas ou no estado final, sugerindo que a informação de perfil atua principalmente próximo ao mecanismo de decisão.
+\end{enumerate}
+
+Também será investigado se diferentes temas políticos apresentam trajetórias distintas. A contribuição principal não depende de encontrar um cenário específico, mas de caracterizar quantitativamente \textbf{a trajetória interna da sensibilidade ao perfil}.
+
+% ============================================================
+\section{Contribuição esperada}
+% ============================================================
+
+A contribuição do projeto será uma caracterização multiescala da influência de informações de perfil sobre Transformers. Em vez de observar apenas se a saída muda, o estudo conectará quatro níveis:
+
+\[
+\boxed{\text{informação de perfil}}
+\longrightarrow
+\boxed{\text{deslocamento das ativações}}
+\longrightarrow
+\boxed{\text{reorganização da rede}}
+\longrightarrow
+\boxed{\text{mudança comportamental}}.
+\]
+
+Essa formulação permite tratar a personalização como um processo de reorganização representacional. A análise por Redes Complexas complementa distâncias vetoriais individuais ao mostrar se o efeito do perfil modifica relações entre representações, cria ou remove hubs e reorganiza comunidades inteiras.
+
+Além de atender aos objetivos da disciplina, o desenho pode servir como base para um estudo posterior mais amplo sobre como informações de usuário, memórias ou personas são representadas e propagadas internamente em modelos de linguagem.
+
+% ============================================================
+\section{Extensões futuras}
+% ============================================================
+
+\begin{itemize}
+    \item repetir o protocolo para atributos demográficos como idade, gênero ou faixa de renda;
+    \item comparar diferentes famílias de modelos e diferentes tamanhos;
+    \item estudar perfis compostos com múltiplos atributos simultaneamente;
+    \item substituir declarações explícitas por pistas indiretas de perfil;
+    \item utilizar probes ou direções de ativação para verificar se a orientação do usuário pode ser decodificada ao longo das camadas;
+    \item aplicar intervenções de steering para testar causalmente se direções associadas ao perfil alteram a resposta;
+    \item comparar informações fornecidas no system prompt, na mensagem corrente e em contextos recuperados de uma memória externa simulada.
+\end{itemize}
+
+\end{document}

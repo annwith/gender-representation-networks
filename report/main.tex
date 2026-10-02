@@ -1,0 +1,242 @@
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Pacotes
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+% ------------------------------------------------------------
+% Layout
+% ------------------------------------------------------------
+\geometry{
+    top=1.8cm,
+    bottom=1.8cm,
+    left=1.9cm,
+    right=1.9cm
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+
+\setlist[itemize]{
+    leftmargin=1.35em,
+    itemsep=0.8pt,
+    topsep=2pt,
+    parsep=0pt
+}
+
+\setlist[enumerate]{
+    leftmargin=1.55em,
+    itemsep=0.8pt,
+    topsep=2pt,
+    parsep=0pt
+}
+
+\titleformat{\section}
+    {\bfseries\normalsize}
+    {}
+    {0pt}
+    {}
+
+\titlespacing*{\section}
+    {0pt}
+    {7pt}
+    {2pt}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue
+}
+
+% ------------------------------------------------------------
+% Documento
+% ------------------------------------------------------------
+\begin{document}
+
+\begin{center}
+    {\large\bfseries MO438 -- Redes Complexas}\\[2pt]
+    \textbf{Proposta de Projeto}
+\end{center}
+
+\vspace{-2mm}
+
+% ============================================================
+\section*{1. Título}
+
+Da rede lexical à rede contextual: reorganização das representações
+internas de Transformers com Redes Complexas
+
+% ============================================================
+\section*{2. Breve descrição do projeto}
+
+Transformers representam tokens por vetores em espaços de alta dimensão. Na
+entrada do modelo, ocorrências de um mesmo token possuem o mesmo
+\textit{embedding} lexical. À medida que atravessam as camadas do Transformer,
+essas representações incorporam informações do contexto e podem se reorganizar
+no espaço vetorial.
+
+Este projeto propõe representar essa transformação como uma sequência de
+redes complexas. Os vértices corresponderão a tokens ou ocorrências de
+tokens, e as arestas conectarão representações semelhantes. A comparação das
+redes permitirá investigar em que medida a estrutura permanece organizada pela
+identidade lexical e em que medida passa a refletir o
+contexto ao longo das camadas.
+
+A hipótese central não é que a identidade lexical desapareça, mas que exista
+uma reorganização progressiva das vizinhanças e comunidades, cuja intensidade
+possa ser quantificada por ferramentas de Redes Complexas.
+
+% ============================================================
+\section*{3. Objetivo geral do projeto}
+
+Caracterizar, por meio de redes complexas, como a estrutura de
+similaridade entre representações de tokens se transforma entre o espaço
+lexical de entrada e as representações contextuais produzidas pelas diferentes
+camadas de um Transformer.
+
+% ============================================================
+\section*{4. Objetivos específicos do projeto}
+
+\begin{itemize}
+
+    \item Construir uma \textbf{rede lexical de tipos},
+    conectando tokens com embeddings de entrada
+    semelhantes.
+
+    \item Construir uma \textbf{rede lexical por ocorrência} e redes
+    contextuais com aproximadamente $1.5\times10^4$ ocorrências, mantendo os
+    mesmos vértices em todas as redes para permitir comparação direta.
+
+    \item Quantificar quanto a \textbf{identidade lexical} determina a
+    vizinhança de cada ocorrência em diferentes camadas.
+
+    \item Verificar a hipótese de que as vizinhanças se reorganizam ao longo
+    das camadas à medida que as representações incorporam informação
+    contextual.
+
+    \item Identificar e comparar comunidades nas diferentes redes,
+    verificando se sua organização permanece associada aos tipos lexicais ou
+    passa a refletir diferentes contextos.
+
+    \item Analisar tokens com múltiplas ocorrências, especialmente aqueles
+    encontrados em contextos distintos, buscando identificar separações
+    estruturais entre suas representações.
+
+    \item Calcular e comparar as principais propriedades das redes:
+    $|V|$, $|E|$, grau médio, distribuição de graus, densidade,
+    clusterização global e local, distância média, diâmetro, componentes
+    conexos e distribuição de seus tamanhos.
+
+    \item Visualizar a evolução da estrutura das redes ao longo das camadas do
+    Transformer.
+
+\end{itemize}
+
+% ============================================================
+\section*{5. Origem dos dados}
+
+Será utilizada uma amostra de textos reais em português, inicialmente obtida da 
+Wikipédia. Os textos serão processados utilizando o tokenizer do
+próprio Transformer analisado.
+
+A análise principal utilizará aproximadamente $1.5\times10^4$ ocorrências de
+tokens. A frequência por tipo será controlada para impedir que tokens muito
+frequentes dominem artificialmente a topologia. Tokens especiais serão
+excluídos e, quando apropriado, a análise será concentrada em tokens de
+conteúdo.
+
+% ============================================================
+\section*{6. Como os objetivos serão atingidos?}
+
+Será utilizado um Transformer aberto, preferencialmente entre
+4B e 8B parâmetros. Para cada ocorrência $i$, serão extraídos seu
+embedding lexical $e_{t_i}$ e os estados internos $h_i^{(\ell)}$ de camadas
+representativas do início, meio e fim do modelo.
+
+Serão construídos três tipos de rede:
+
+\begin{enumerate}
+
+    \item \textbf{Rede lexical de tipos:} um vértice para cada tipo de token,
+    representado por seu embedding de entrada $e_t$.
+
+    \item \textbf{Rede lexical por ocorrência:} os vértices são as ocorrências
+    analisadas, mas cada ocorrência $i$ é representada por
+    $x_i=e_{t_i}$. Assim, ocorrências de um mesmo token possuem inicialmente
+    representações idênticas.
+
+    \item \textbf{Redes contextuais:} os mesmos vértices são representados
+    pelos estados $x_i=h_i^{(\ell)}$ em cada camada $\ell$ analisada.
+
+\end{enumerate}
+
+A similaridade entre dois vértices será medida pelo cosseno,
+
+\[
+s_{ij} =
+\frac{x_i^\top x_j}
+{\lVert x_i\rVert\,\lVert x_j\rVert},
+\]
+
+e cada vértice será conectado aos seus $k$ vizinhos mais próximos, formando
+redes k-NN esparsas. O mesmo $k$ e a mesma regra de simetrização serão
+utilizados em todas as camadas. Diferentes valores de $k$ serão testados como
+análise de robustez.
+
+A reorganização das vizinhanças será medida pela similaridade de Jaccard entre
+os conjuntos de vizinhos de uma mesma ocorrência em diferentes camadas. A
+dominância lexical será medida pela fração de vizinhos de uma
+ocorrência que correspondem ao mesmo tipo de token.
+
+% ============================================================
+\section*{7. Como os resultados serão avaliados?}
+
+O cumprimento dos objetivos será avaliado em três níveis. Primeiro, será
+verificado se todas as redes propostas puderam ser construídas com escala
+superior a $10^4$ vértices e se as métricas estruturais requeridas pela
+disciplina foram calculadas.
+
+Segundo, serão comparadas quantitativamente as redes entre camadas. A evolução
+da dominância lexical indicará quanto a identidade do token continua
+determinando sua vizinhança, enquanto a similaridade de Jaccard permitirá medir
+a intensidade da reorganização local. As comunidades e métricas globais
+mostrarão se essa transformação também ocorre em escalas maiores da rede.
+
+Por fim, serão analisados tokens individuais com múltiplas ocorrências para
+verificar se representações inicialmente equivalentes passam a ocupar regiões
+distintas da rede em função do contexto. Os resultados serão testados para
+diferentes valores de $k$ e limites de frequência.
+
+% ============================================================
+\section*{8. Planejamento e cronograma}
+
+\begin{itemize}
+
+    \item \textbf{Semanas 1--2:} seleção do modelo e corpus, definição da
+    amostragem e extração dos embeddings e estados internos.
+
+    \item \textbf{Semanas 2--3:} construção da rede lexical de tipos, da rede
+    lexical por ocorrência e das redes contextuais.
+
+    \item \textbf{Semanas 3--4:} cálculo das métricas estruturais, persistência
+    de vizinhança e dominância lexical.
+
+    \item \textbf{Semanas 4--5:} detecção de comunidades, análise intra-token,
+    visualizações e testes de robustez.
+
+    \item \textbf{Semanas 5--6:} consolidação dos resultados e redação do
+    relatório final.
+
+\end{itemize}
+
+\end{document}

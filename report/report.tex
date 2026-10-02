@@ -1,0 +1,455 @@
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Pacotes
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+
+% ------------------------------------------------------------
+% Layout
+% ------------------------------------------------------------
+\geometry{
+    top=1.8cm,
+    bottom=1.8cm,
+    left=1.9cm,
+    right=1.9cm
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+
+\setlist[itemize]{
+    leftmargin=1.35em,
+    itemsep=0.8pt,
+    topsep=2pt,
+    parsep=0pt
+}
+
+\setlist[enumerate]{
+    leftmargin=1.55em,
+    itemsep=0.8pt,
+    topsep=2pt,
+    parsep=0pt
+}
+
+\titleformat{\section}
+    {\bfseries\normalsize}
+    {}
+    {0pt}
+    {}
+
+\titlespacing*{\section}
+    {0pt}
+    {7pt}
+    {2pt}
+
+\titleformat{\subsection}
+    {\bfseries\itshape\normalsize}
+    {}
+    {0pt}
+    {}
+
+\titlespacing*{\subsection}
+    {0pt}
+    {5pt}
+    {1pt}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue
+}
+
+% ------------------------------------------------------------
+% Documento
+% ------------------------------------------------------------
+\begin{document}
+
+\begin{center}
+    {\large\bfseries MO438 -- Redes Complexas}\\[2pt]
+    \textbf{Proposta de Projeto (versão revisada)}
+\end{center}
+
+\vspace{-2mm}
+
+% ============================================================
+\section*{1. Título}
+
+Da rede lexical à rede contextual: reorganização das representações
+internas de Transformers com Redes Complexas
+
+% ============================================================
+\section*{2. Breve descrição do projeto}
+
+Transformers representam tokens por vetores em espaços de alta dimensão. Na
+entrada do modelo, todas as ocorrências de um mesmo tipo de token possuem o
+mesmo \textit{embedding} lexical. À medida que atravessam as camadas do
+Transformer, essas representações incorporam informações do contexto e podem se
+reorganizar no espaço vetorial.
+
+Este projeto propõe representar essa transformação como uma sequência de
+redes complexas. Os vértices corresponderão a tipos de token ou a ocorrências
+de tokens (Seção~5), e as arestas conectarão representações semelhantes. A
+comparação das redes permitirá investigar em que medida a estrutura permanece
+organizada pela identidade lexical e em que medida passa a refletir o
+contexto ao longo das camadas.
+
+A hipótese central não é que a identidade lexical desapareça, mas que exista
+uma reorganização progressiva das vizinhanças e comunidades, cuja intensidade
+possa ser quantificada por ferramentas de Redes Complexas.
+
+% ============================================================
+\section*{3. Objetivo geral do projeto}
+
+Caracterizar, por meio de redes complexas, quanto e de que forma a estrutura
+de similaridade entre representações de tokens se transforma entre o espaço
+lexical de entrada e as representações contextuais produzidas pelas camadas
+inicial, intermediária e final de um Transformer.
+
+% ============================================================
+\section*{4. Objetivos específicos do projeto}
+
+O projeto buscará responder às seguintes perguntas:
+
+\begin{enumerate}[label=\textbf{P\arabic*.}, leftmargin=2.1em]
+
+    \item \textbf{Quanto e de que forma a organização da rede muda?}
+    Quantificar a reorganização local, pela similaridade de Jaccard entre as
+    vizinhanças de uma mesma ocorrência e pela dominância lexical, e a
+    reorganização global, pela distribuição de graus de entrada (surgimento ou
+    desaparecimento de \textit{hubs}), pela clusterização, pelas distâncias e
+    pelas comunidades. Isso permitirá distinguir uma mudança que apenas troca
+    vizinhos locais de uma mudança que altera a organização em escala maior.
+
+    \item \textbf{As mudanças concentram-se em determinadas camadas?}
+    Comparar as transições lexical $\to$ inicial, inicial $\to$ intermediária
+    e intermediária $\to$ final, identificando qual delas concentra a maior
+    queda de Jaccard e de dominância lexical, e verificar se essa resposta
+    depende da faixa de frequência do token e de ele ser uma palavra inteira
+    ou uma subpalavra.
+
+    \item \textbf{Surgem comunidades associadas a contextos semelhantes?}
+    Verificar se as comunidades deixam de ser explicadas pelo tipo de token e
+    passam a ser explicadas pelo contexto de origem (documento, sentença ou
+    tema), usando medidas de concordância entre partições e inspeção
+    qualitativa das comunidades.
+
+    \item \textbf{Ocorrências de um mesmo token separam-se conforme o
+    contexto?}
+    Para tipos com múltiplas ocorrências, especialmente os encontrados em
+    contextos distintos, verificar se representações inicialmente idênticas
+    passam a ocupar comunidades ou regiões diferentes da rede.
+
+\end{enumerate}
+
+Para responder a essas perguntas, serão realizadas as seguintes etapas:
+
+\begin{itemize}
+
+    \item Construir uma \textbf{rede lexical de tipos}, uma \textbf{rede
+    lexical por ocorrência} e \textbf{redes contextuais} com aproximadamente
+    $1.5\times10^4$ ocorrências, mantendo os mesmos vértices em todas as redes
+    por ocorrência para permitir comparação direta.
+
+    \item Calcular e comparar as principais propriedades das redes:
+    $|V|$, $|E|$, grau médio, distribuição de graus (de entrada e de saída na
+    versão direcionada), densidade, clusterização global e local, distância
+    média, diâmetro, componentes conexos e distribuição de seus tamanhos.
+
+    \item Reportar os resultados por faixa de frequência e por categoria de
+    token (palavra inteira ou subpalavra), avaliando sua robustez ao tratamento
+    de empates, ao valor de $k$ e à regra de simetrização.
+
+    \item Visualizar a evolução da estrutura das redes ao longo das camadas.
+
+\end{itemize}
+
+% ============================================================
+\section*{5. Terminologia: palavras, tokens e ocorrências}
+
+Para permitir a interpretação dos resultados, serão distinguidos:
+
+\begin{itemize}
+
+    \item \textbf{Palavra:} unidade do texto delimitada por espaços e
+    pontuação, antes da tokenização.
+
+    \item \textbf{Token:} unidade produzida pelo tokenizer do modelo, que
+    pode corresponder a uma palavra inteira, a um fragmento de palavra
+    (subpalavra) ou a um sinal de pontuação. No piloto, por exemplo, a palavra
+    ``praca'' foi dividida nos tokens ``pra'' e ``ca''.
+
+    \item \textbf{Tipo de token:} um elemento do vocabulário (\texttt{token\_id}),
+    denotado por $t$. Seu número de ocorrências na amostra é $f_t$.
+
+    \item \textbf{Ocorrência:} uma instância posicional de um tipo de token em
+    um texto, denotada por $i$, com tipo $t_i$.
+
+\end{itemize}
+
+Cada ocorrência será rotulada como \textit{palavra inteira} (a palavra
+corresponde a um único token), \textit{início de palavra fragmentada},
+\textit{continuação de palavra} ou \textit{pontuação}. As interpretações
+semânticas e contextuais serão feitas preferencialmente sobre tokens que são
+palavras inteiras de conteúdo, pois um fragmento como ``ca'' não tem
+significado próprio. As métricas serão reportadas separadamente para cada
+categoria.
+
+% ============================================================
+\section*{6. Origem dos dados}
+
+Será utilizada uma amostra de textos reais em português, inicialmente obtida da
+Wikipédia. Os textos serão processados utilizando o tokenizer do
+próprio Transformer analisado. Tokens especiais serão excluídos.
+
+Para cada ocorrência serão mantidos o token, o \texttt{token\_id}, a posição,
+o documento, a sentença, a palavra de origem, a posição do token dentro da
+palavra e o contexto textual. Esses metadados são necessários para rotular as
+ocorrências (Seção~5) e para associar comunidades a contextos (P3).
+
+A análise principal utilizará aproximadamente $1.5\times10^4$ ocorrências de
+tokens. Para impedir que tokens muito frequentes dominem artificialmente a
+topologia, será imposto um limite máximo $f_{\max}$ de ocorrências por tipo.
+Os tipos serão agrupados em \textbf{faixas de frequência} na amostra,
+inicialmente $f_t \in \{1\text{--}2\}$ (raros), $\{3\text{--}9\}$,
+$\{10\text{--}49\}$ e $\{\ge 50\}$ (até $f_{\max}$), ajustadas à distribuição
+observada.
+
+Tokens raros permanecem como vértices, para que o conjunto de vértices seja o
+mesmo em todas as redes, mas serão excluídos das análises por tipo. Para
+$f_t=1$ a dominância lexical é nula por definição, e para $f_t=2$ ela não
+passa de $1/k$. Por isso, dominância lexical e análise intra-token serão
+calculadas apenas para $f_t\ge 3$, com a análise de separação em comunidades
+(P4) concentrada em $f_t\ge 10$. Como análise complementar, poderá ser
+selecionado um subconjunto controlado de palavras utilizadas em contextos
+distintos.
+
+% ============================================================
+\section*{7. Como os objetivos serão atingidos?}
+
+\subsection*{7.1 Representações e redes}
+
+Será utilizado um Transformer aberto, preferencialmente entre
+4B e 8B parâmetros, com $L$ blocos. Para cada ocorrência $i$, serão extraídos
+seu embedding lexical $e_{t_i}$, lido diretamente da matriz de embeddings de
+entrada, e os estados internos $h_i^{(\ell)}$ na saída de três camadas
+representativas: o primeiro bloco ($\ell=1$), um bloco intermediário
+($\ell=\lfloor L/2\rfloor$) e o último bloco ($\ell=L$).
+
+Serão construídos três tipos de rede:
+
+\begin{enumerate}
+
+    \item \textbf{Rede lexical de tipos:} um vértice para cada tipo de token,
+    representado por seu embedding de entrada $e_t$ e com a frequência $f_t$
+    como atributo.
+
+    \item \textbf{Rede lexical por ocorrência:} os vértices são as ocorrências
+    analisadas, mas cada ocorrência $i$ é representada por
+    $x_i=e_{t_i}$. Assim, ocorrências de um mesmo tipo possuem inicialmente
+    representações idênticas.
+
+    \item \textbf{Redes contextuais:} os mesmos vértices são representados
+    pelos estados $x_i=h_i^{(\ell)}$ em cada camada $\ell$ analisada.
+
+\end{enumerate}
+
+A similaridade entre dois vértices será medida pelo cosseno,
+\[
+s_{ij} =
+\frac{x_i^\top x_j}
+{\lVert x_i\rVert\,\lVert x_j\rVert},
+\]
+e cada vértice $i$ escolherá o conjunto $N_i$ de seus $k$ vizinhos mais
+próximos (excluindo o próprio vértice). O mesmo $k$ e as mesmas regras serão
+utilizados em todas as redes, e diferentes valores de $k$ serão testados como
+análise de robustez. Busca aproximada com FAISS poderá ser utilizada para
+reduzir o custo computacional.
+
+\subsection*{7.2 Direcionalidade}
+
+A relação de $k$ vizinhos mais próximos não é simétrica: $j\in N_i$ não
+implica $i\in N_j$. O objeto produzido pelo k-NN é, portanto, uma
+\textbf{rede direcionada} com arestas $i\to j$ para $j\in N_i$, na qual todo
+vértice tem grau de saída exatamente $k$. Essa versão direcionada será usada
+para:
+
+\begin{itemize}
+    \item as medidas de vizinhança (Jaccard e dominância lexical), que
+    dependem dos conjuntos $N_i$ de tamanho fixo $k$;
+    \item a distribuição de graus de entrada, que revela \textit{hubs}
+    (vértices escolhidos como vizinhos por muitos outros), e a reciprocidade.
+\end{itemize}
+
+Para clusterização, distâncias, diâmetro, componentes conexos e comunidades,
+será usada a \textbf{versão não direcionada por união}, na qual existe a
+aresta $\{i,j\}$ se $j\in N_i$ ou $i\in N_j$; nela, o grau de cada vértice é
+pelo menos $k$. A versão por k-NN mútuo ($j\in N_i$ e $i\in N_j$) será usada
+como análise de robustez. Distância média e diâmetro serão calculados no maior
+componente conexo.
+
+\subsection*{7.3 Tratamento de empates}
+
+Na rede lexical por ocorrência, as $f_{t_i}-1$ outras ocorrências do mesmo
+tipo têm similaridade $s_{ij}=1$ com $i$. Se $f_{t_i}-1>k$, a escolha de quais
+delas entram em $N_i$ depende de um desempate arbitrário. Se $f_{t_i}-1<k$, as
+vagas restantes são ocupadas por ocorrências do tipo mais próximo, que também
+são idênticas entre si e, portanto, também empatam. Como os resultados das
+redes contextuais são comparados com essa rede inicial, os empates serão
+tratados explicitamente de três formas:
+
+\begin{enumerate}[label=(\alph*)]
+
+    \item \textbf{Desempate aleatório com sementes (principal):} entre
+    candidatos empatados na fronteira do $k$-ésimo vizinho, a escolha será
+    uniforme ao acaso. A construção será repetida com $R$ sementes (por
+    exemplo, $R=20$), e todas as métricas serão reportadas como média $\pm$
+    desvio padrão. O Jaccard entre as redes lexicais de duas sementes
+    distintas servirá como nível de referência: uma mudança lexical $\to$
+    contextual só será interpretada como reorganização se for maior que a
+    variação produzida pelo próprio desempate. O desempate pela menor posição
+    no texto, usado no piloto, será mantido como caso determinístico de
+    referência.
+
+    \item \textbf{Inclusão de todos os empatados:} cada vértice se conecta a
+    todos os candidatos com similaridade maior ou igual à do $k$-ésimo
+    vizinho. Essa variante elimina a arbitrariedade, ao custo de um grau de
+    saída variável, e será usada como análise de robustez.
+
+    \item \textbf{Vizinhos de tipos distintos:} as ocorrências do próprio tipo
+    são ignoradas, e cada ocorrência $i$ passa a ter como vizinhança o conjunto
+    $T_i$ dos $k$ tipos distintos ($t\neq t_i$) mais próximos, considerando,
+    para cada tipo, sua ocorrência mais similar a $i$. Na etapa lexical, $T_i$
+    é simplesmente o conjunto dos $k$ tipos mais próximos de $t_i$, o que
+    coincide com a rede lexical de tipos, com $f_t$ como atributo, e não possui
+    empates. Nas camadas contextuais, $T_i$ indica \emph{de quais outros
+    tokens} a ocorrência se aproxima em seu contexto. Essa variante
+    complementa a dominância lexical, que continua sendo calculada nas
+    variantes (a) e (b).
+
+\end{enumerate}
+
+Nas camadas contextuais, empates exatos são praticamente inexistentes;
+similaridades que diferirem por menos de uma tolerância numérica $\varepsilon$
+(por exemplo, $10^{-6}$) serão tratadas como empates, pela mesma regra.
+
+\subsection*{7.4 Medidas}
+
+A reorganização da vizinhança de uma ocorrência entre as redes $a$ e $b$ será
+medida pela similaridade de Jaccard
+\[
+J_i(a,b)=\frac{|N_i^{(a)}\cap N_i^{(b)}|}{|N_i^{(a)}\cup N_i^{(b)}|},
+\]
+calculada também sobre os conjuntos de tipos $T_i$ na variante (c). A
+dominância lexical será a fração de vizinhos do mesmo tipo,
+$D_i^{(\ell)}=|\{j\in N_i^{(\ell)}: t_j=t_i\}|/k$. Comunidades serão
+identificadas com Leiden ou Louvain na rede não direcionada e comparadas entre
+camadas por NMI e ARI. Para responder a P3, as partições também serão
+comparadas com as partições por tipo de token e por documento/sentença, e
+será medida a pureza de cada comunidade em relação a esses rótulos.
+
+% ============================================================
+\section*{8. Como os resultados serão avaliados?}
+
+O cumprimento dos objetivos será avaliado em três níveis. Primeiro, será
+verificado se todas as redes propostas puderam ser construídas com escala
+superior a $10^4$ vértices e se as métricas estruturais requeridas pela
+disciplina foram calculadas.
+
+Segundo, as perguntas P1--P3 serão respondidas comparando as redes entre
+camadas. Para P1, a distribuição de $J_i$ e de $D_i$ indicará quanto a
+identidade lexical continua determinando a vizinhança, e as métricas globais e
+a distribuição de graus de entrada mostrarão se a transformação também ocorre
+em escala maior. Para P2, a transição com a maior queda de Jaccard e de
+dominância indicará onde a reorganização se concentra. Para P3, a organização
+será considerada contextual se a concordância das comunidades com o tipo de
+token diminuir e a concordância com documento/sentença aumentar ao longo das
+camadas.
+
+Por fim, para P4, serão analisados tipos com múltiplas ocorrências
+($f_t\ge 10$), verificando em quantas comunidades suas ocorrências se
+distribuem e como a similaridade média entre elas evolui.
+
+Todos os resultados serão reportados por faixa de frequência e por categoria
+de token, como média $\pm$ desvio entre as $R$ sementes de desempate, e
+repetidos para diferentes valores de $k$, para as três variantes de tratamento
+de empates e para as simetrizações por união e mútua. Isso reduz a
+dependência das conclusões de uma única parametrização.
+
+% ============================================================
+\section*{9. Planejamento e cronograma}
+
+\begin{itemize}
+
+    \item \textbf{Semanas 1--2:} seleção do modelo e corpus, definição da
+    amostragem e das faixas de frequência, rotulagem palavra/subpalavra e
+    extração dos embeddings e estados internos.
+
+    \item \textbf{Semanas 2--3:} construção das redes direcionadas e não
+    direcionadas, com as três variantes de tratamento de empates e as $R$
+    sementes.
+
+    \item \textbf{Semanas 3--4:} cálculo das métricas estruturais, persistência
+    de vizinhança e dominância lexical, por faixa de frequência e categoria.
+
+    \item \textbf{Semanas 4--5:} detecção de comunidades, associação com
+    contextos, análise intra-token, visualizações e testes de robustez.
+
+    \item \textbf{Semanas 5--6:} consolidação dos resultados e redação do
+    relatório final.
+
+\end{itemize}
+
+% ============================================================
+\section*{10. Trabalhos futuros}
+
+\begin{itemize}
+
+    \item Estender a análise para todas as camadas do modelo, comparando cada
+    camada com a seguinte ($\ell\to\ell+1$), para localizar com mais precisão
+    onde a reorganização ocorre.
+
+    \item Construir redes no nível de palavras, agregando as representações
+    das subpalavras que compõem cada palavra.
+
+\end{itemize}
+
+% ============================================================
+\section*{11. Resposta às observações da avaliação}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Observação} & \textbf{Onde foi tratada} \\
+\midrule
+Objetivos além de ``medir'' e ``comparar'' &
+Seção 4: perguntas P1--P4 e forma de respondê-las na Seção 8. \\
+(1) Rede direcionada ou não &
+Seção 7.2: k-NN direcionado para vizinhanças e graus de entrada;
+não direcionado por união para as demais métricas; k-NN mútuo como robustez. \\
+(2) Faixas de frequência e tokens raros &
+Seção 6: faixas de frequência, limite $f_{\max}$ e exclusão de
+tokens com $f_t\le 2$ das análises por tipo. \\
+(3) Empates na rede inicial &
+Seção 7.3: desempate aleatório com $R$ sementes, inclusão de empatados e
+vizinhos de tipos distintos. \\
+(4) Palavras e tokens &
+Seção 5: definições e rotulagem de cada ocorrência como palavra inteira ou
+subpalavra. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\end{document}
