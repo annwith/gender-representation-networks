@@ -1,8 +1,12 @@
+import gzip
+import http.client
 import json
 import urllib.parse
 from pathlib import Path
 
-from gender_networks.wiki import WikiClient
+import pytest
+
+from gender_networks.wiki import ApiError, CacheMiss, WikiClient
 
 
 class FakeApi:
@@ -16,7 +20,8 @@ class FakeApi:
         params = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
         self.calls.append(params)
         status, body, response_headers = self.handler(params, len(self.calls))
-        return status, response_headers, json.dumps(body).encode("utf-8")
+        payload = body if isinstance(body, bytes) else json.dumps(body).encode("utf-8")
+        return status, response_headers, payload
 
 
 def client(tmp_path: Path, api: FakeApi, sleeps: list[float]) -> WikiClient:
@@ -37,17 +42,19 @@ def test_request_is_cached_on_disk(tmp_path: Path) -> None:
     assert sleeps == [0.5]  # polite spacing only before network requests
 
 
-def test_http_429_honors_retry_after(tmp_path: Path) -> None:
+def test_http_429_waits_for_the_longer_of_retry_after_and_backoff(tmp_path: Path) -> None:
     def handler(params, n):
         if n == 1:
-            return 429, {}, {"Retry-After": "7"}
+            return 429, {}, {"Retry-After": "90"}
+        if n == 2:
+            return 429, {}, {"Retry-After": "1"}  # a short value must not cut the backoff
         return 200, {"query": {}}, {}
 
     sleeps: list[float] = []
     wiki = client(tmp_path, FakeApi(handler), sleeps)
 
     assert wiki.request(action="query") == {"query": {}}
-    assert sleeps == [0.5, 7.0, 0.5]
+    assert sleeps == [0.5, 90.0, 0.5, 60.0, 0.5]
 
 
 def test_repeated_429_without_retry_after_backs_off_exponentially(tmp_path: Path) -> None:
@@ -128,3 +135,164 @@ def test_fetch_pages_maps_redirects_back_to_requested_titles(tmp_path: Path) -> 
         10,
         "Física",
     )
+
+
+def test_5xx_and_maxlag_are_retried(tmp_path: Path) -> None:
+    def handler(params, n):
+        if n == 1:
+            return 503, b"<html>down</html>", {}
+        if n == 2:
+            return 200, {"error": {"code": "maxlag", "info": "lag"}}, {}
+        return 200, {"query": {"ok": True}}, {}
+
+    sleeps: list[float] = []
+    wiki = client(tmp_path, FakeApi(handler), sleeps)
+
+    assert wiki.request(action="query") == {"query": {"ok": True}}
+    assert sleeps == [0.5, 30.0, 0.5, 10.0, 0.5]
+
+
+def test_incomplete_read_and_non_json_bodies_are_retried(tmp_path: Path) -> None:
+    def handler(params, n):
+        if n == 1:
+            raise http.client.IncompleteRead(b"partial")
+        if n == 2:
+            return 200, b"<html>not json</html>", {}
+        return 200, {"query": {}}, {}
+
+    sleeps: list[float] = []
+    wiki = client(tmp_path, FakeApi(handler), sleeps)
+
+    assert wiki.request(action="query") == {"query": {}}
+    assert sleeps == [0.5, 5.0, 0.5, 10.0, 0.5]
+
+
+def test_transient_api_error_is_retried_not_raised(tmp_path: Path) -> None:
+    def handler(params, n):
+        if n == 1:
+            return 200, {"error": {"code": "ratelimited", "info": "slow down"}}, {}
+        return 200, {"query": {"ok": True}}, {}
+
+    sleeps: list[float] = []
+    wiki = client(tmp_path, FakeApi(handler), sleeps)
+
+    assert wiki.request(action="query") == {"query": {"ok": True}}
+    assert sleeps == [0.5, 30.0, 0.5]
+
+
+def test_persistent_rate_limit_propagates_out_of_crawl(tmp_path: Path) -> None:
+    api = FakeApi(lambda params, n: (429, {}, {}))
+    wiki = WikiClient(
+        tmp_path, "test-agent", delay_s=0.0, transport=api, sleep=lambda s: None, max_attempts=3
+    )
+
+    with pytest.raises(RuntimeError, match="Giving up"):
+        wiki.crawl(["Categoria:R"], depth=1, max_titles=10)
+    assert len(api.calls) == 3 and wiki.skipped_categories == []
+
+
+def test_rate_limit_api_error_propagates_out_of_crawl(tmp_path: Path) -> None:
+    api = FakeApi(lambda params, n: (200, {"error": {"code": "ratelimited"}}, {}))
+    wiki = WikiClient(
+        tmp_path, "test-agent", delay_s=0.0, transport=api, sleep=lambda s: None, max_attempts=2
+    )
+
+    with pytest.raises(RuntimeError, match="Giving up"):
+        wiki.crawl(["Categoria:R"], depth=1, max_titles=10)
+
+
+def test_permanent_api_error_skips_category_and_is_cached(tmp_path: Path) -> None:
+    def handler(params, n):
+        if params["cmtitle"] == "Categoria:Ruim":
+            return 200, {"error": {"code": "invalidtitle", "info": "bad"}}, {}
+        return 200, {"query": {"categorymembers": [{"ns": 0, "title": "A"}]}}, {}
+
+    api = FakeApi(handler)
+    wiki = client(tmp_path, api, [])
+
+    assert wiki.crawl(["Categoria:Ruim", "Categoria:Boa"], 0, 10) == {"A": ("Categoria:Boa", 0)}
+    assert wiki.skipped_categories == ["Categoria:Ruim"]
+
+    offline = WikiClient(tmp_path, "test-agent", offline=True, transport=api)
+    assert offline.crawl(["Categoria:Ruim", "Categoria:Boa"], 0, 10) == {"A": ("Categoria:Boa", 0)}
+    assert len(api.calls) == 2  # the error response came from the cache
+    with pytest.raises(ApiError):
+        offline.request(
+            action="query",
+            list="categorymembers",
+            cmtitle="Categoria:Ruim",
+            cmlimit="500",
+            cmtype="page|subcat",
+        )
+
+
+def test_offline_mode_raises_on_cache_miss(tmp_path: Path) -> None:
+    api = FakeApi(lambda params, n: (200, {"query": {}}, {}))
+    client(tmp_path, api, []).request(action="query", titles="A")
+    offline = WikiClient(tmp_path, "test-agent", offline=True, transport=api)
+
+    assert offline.request(action="query", titles="A") == {"query": {}}
+    with pytest.raises(CacheMiss):
+        offline.request(action="query", titles="B")
+    assert len(api.calls) == 1
+
+
+def test_truncated_cache_file_is_refetched_and_writes_are_atomic(tmp_path: Path) -> None:
+    api = FakeApi(lambda params, n: (200, {"query": {"n": n}}, {}))
+    wiki = client(tmp_path, api, [])
+    wiki.request(action="query", titles="A")
+    [path] = list(tmp_path.rglob("*.json.gz"))
+    path.write_bytes(gzip.compress(b'{"query": {"n": 1}}')[:10])  # interrupted write
+
+    assert wiki.request(action="query", titles="A") == {"query": {"n": 2}}
+    assert [p.name for p in tmp_path.rglob("*") if p.is_file()] == [path.name]
+
+
+def page_json(pageid: int, title: str, **extra) -> dict:
+    revision = {"revid": pageid * 10, "slots": {"main": {"content": f"texto {title}"}}}
+    return {"pageid": pageid, "title": title, "revisions": [revision], **extra}
+
+
+def test_fetch_pages_assigns_page_to_every_requested_alias(tmp_path: Path) -> None:
+    def handler(params, n):
+        body = {
+            "query": {
+                "normalized": [{"from": "física", "to": "Física"}],
+                "redirects": [{"from": "Fisica", "to": "Física"}],
+                "pages": [page_json(1, "Física")],
+            }
+        }
+        return 200, body, {}
+
+    wiki = client(tmp_path, FakeApi(handler), [])
+
+    pages = wiki.fetch_pages(["Física", "Fisica", "física"])
+
+    assert sorted(pages) == ["Fisica", "Física", "física"]
+    assert {page.pageid for page in pages.values()} == {1}
+
+
+def test_fetch_pages_follows_continuation_and_reads_disambiguation(tmp_path: Path) -> None:
+    def handler(params, n):
+        if "rvcontinue" not in params:
+            pages = [page_json(1, "Longo"), {"pageid": 2, "title": "Cortado"}]
+            return (
+                200,
+                {"query": {"pages": pages}, "continue": {"rvcontinue": "2|20", "continue": "||"}},
+                {},
+            )
+        pages = [
+            {"pageid": 1, "title": "Longo"},
+            page_json(2, "Cortado", pageprops={"disambiguation": ""}),
+        ]
+        return 200, {"query": {"pages": pages}}, {}
+
+    api = FakeApi(handler)
+    wiki = client(tmp_path, api, [])
+
+    pages = wiki.fetch_pages(["Longo", "Cortado"])
+
+    assert sorted(pages) == ["Cortado", "Longo"]
+    assert pages["Cortado"].disambiguation and not pages["Longo"].disambiguation
+    assert pages["Longo"].wikitext == "texto Longo"
+    assert api.calls[1]["rvcontinue"] == "2|20" and api.calls[1]["titles"] == "Longo|Cortado"

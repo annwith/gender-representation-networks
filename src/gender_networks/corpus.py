@@ -8,6 +8,7 @@ labels used in P3 and as a proxy for sense in P4). Biographies are dropped for t
 from __future__ import annotations
 
 import logging
+import os
 import random
 import time
 from collections import Counter
@@ -31,6 +32,7 @@ from gender_networks.textclean import (
 from gender_networks.wiki import WikiClient
 
 LOGGER = logging.getLogger(__name__)
+OFFLINE_ENV = "GENDER_NETWORKS_OFFLINE"
 MANIFEST_FIELDS = ["pageid", "revid", "title", "theme", "source_category", "kept", "dropped_reason"]
 
 
@@ -47,6 +49,7 @@ class Candidate:
 class CorpusResult:
     articles: list[dict[str, Any]] = field(default_factory=list)
     paragraphs: list[dict[str, Any]] = field(default_factory=list)
+    fetch_batches: int = 0
 
 
 def collect_candidates(
@@ -88,10 +91,23 @@ def collect_candidates(
     return groups, reached
 
 
+def group_order(candidates: list[Candidate], seed: int, group: str) -> list[Candidate]:
+    """Fixed random order of a group's candidates, independent of every other group.
+
+    Each group has its own generator and shuffles its full candidate list (sorted by title),
+    so the order, and therefore the fetch batches, depend only on the crawl and the seed, never
+    on how earlier groups were cleaned. A cleaning fix then reuses the cached batches instead of
+    requesting new ones (and newer revisions). ``str`` seeds are hashed deterministically.
+    """
+
+    order = sorted(candidates, key=lambda c: c.title)
+    random.Random(f"{seed}:{group}").shuffle(order)
+    return order
+
+
 def build_corpus(client: WikiClient, settings: CorpusSettings) -> CorpusResult:
     """Choose, fetch and clean articles; deterministic given the seed and the API responses."""
 
-    rng = random.Random(settings.seed)
     groups, reached = collect_candidates(client, settings)
     result = CorpusResult()
     seen_titles: set[str] = set()
@@ -105,26 +121,29 @@ def build_corpus(client: WikiClient, settings: CorpusSettings) -> CorpusResult:
             else settings.articles_per_extra_category
         )
         pool: list[Candidate] = []
-        for candidate in sorted(candidates, key=lambda c: c.title):
-            if candidate.title in seen_titles:
-                continue
+        for candidate in group_order(candidates, settings.seed, group):
             themes = reached.get(candidate.title, {candidate.theme})
             if settings.drop_multi_theme and len(themes) > 1:
-                seen_titles.add(candidate.title)
-                result.articles.append(_record(candidate, None, themes, "multi_theme"))
+                if candidate.title not in seen_titles:
+                    seen_titles.add(candidate.title)
+                    result.articles.append(_record(candidate, None, themes, "multi_theme"))
                 continue
+            # Titles already handled by an earlier group stay in the pool so that the batches
+            # (and their cache keys) do not depend on earlier groups; they are skipped below.
             pool.append(candidate)
-        rng.shuffle(pool)
         kept = 0
         position = 0
         while kept < quota and position < len(pool):
             chunk = pool[position : position + settings.batch_titles]
             position += len(chunk)
+            result.fetch_batches += 1
             pages = client.fetch_pages([c.title for c in chunk], settings.batch_titles)
             for candidate in chunk:
-                seen_titles.add(candidate.title)
                 if kept >= quota:
                     break
+                if candidate.title in seen_titles:
+                    continue
+                seen_titles.add(candidate.title)
                 themes = reached.get(candidate.title, {candidate.theme})
                 page = pages.get(candidate.title)
                 if page is None:
@@ -134,7 +153,7 @@ def build_corpus(client: WikiClient, settings: CorpusSettings) -> CorpusResult:
                     result.articles.append(_record(candidate, page, themes, "duplicate"))
                     continue
                 seen_pageids.add(page.pageid)
-                if is_disambiguation(page.wikitext):
+                if page.disambiguation or is_disambiguation(page.wikitext, page.title):
                     result.articles.append(_record(candidate, page, themes, "disambiguation"))
                     continue
                 if has_excluded_infobox(page.wikitext, settings.exclude_infobox_patterns):
@@ -173,7 +192,8 @@ def build_corpus(client: WikiClient, settings: CorpusSettings) -> CorpusResult:
                         }
                     )
                 kept += 1
-        LOGGER.info("Grupo %s: %d artigos mantidos (cota %d)", group, kept, quota)
+        log = LOGGER.warning if kept < quota else LOGGER.info
+        log("Grupo %s: %d artigos mantidos (cota %d)", group, kept, quota)
     return result
 
 
@@ -210,13 +230,29 @@ def summarize(result: CorpusResult) -> dict[str, Any]:
     }
 
 
-def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
+def run(
+    settings: Settings,
+    paths: RunPaths,
+    force: bool = False,
+    offline: bool | None = None,
+    **_: object,
+) -> None:
+    """Download (or rebuild from the cache) and clean the corpus.
+
+    ``offline`` (default: environment variable ``GENDER_NETWORKS_OFFLINE=1``) forbids network
+    requests, so a re-clean after a cleaning fix fails loudly instead of fetching new revisions.
+    """
+
     if paths.paragraphs.exists() and not force:
         LOGGER.info("Corpus já existe em %s; use --force para refazer", paths.corpus_dir)
         return
+    if offline is None:
+        offline = os.environ.get(OFFLINE_ENV, "").strip().lower() in {"1", "true", "yes"}
     started = time.time()
     ensure_dir(paths.corpus_dir)
-    client = WikiClient(paths.raw_dir, settings.corpus.user_agent, settings.corpus.delay_s)
+    client = WikiClient(
+        paths.raw_dir, settings.corpus.user_agent, settings.corpus.delay_s, offline=offline
+    )
     result = build_corpus(client, settings.corpus)
     write_jsonl(paths.articles, result.articles)
     write_jsonl(paths.paragraphs, result.paragraphs)
@@ -238,6 +274,12 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         MANIFEST_FIELDS,
     )
     stats = summarize(result)
-    stats.update(network_requests=client.network_requests, cache_hits=client.cache_hits)
+    stats.update(
+        offline=offline,
+        fetch_batches=result.fetch_batches,
+        network_requests=client.network_requests,
+        cache_hits=client.cache_hits,
+        skipped_categories=list(client.skipped_categories),
+    )
     write_manifest(paths.corpus_dir, "corpus", settings, started, stats)
     LOGGER.info("Corpus: %s", stats)
