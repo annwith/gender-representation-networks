@@ -154,6 +154,8 @@ class AnalysisSettings:
     distance_sample_sources: int = 500
     workers: int = 12
     exact_distances_vocab: bool = True
+    # Layer-by-layer J(l-1, l) and D(l) over the 36 blocks in the analyze stage (P2).
+    layer_sweep: bool = True
 
 
 @dataclass(frozen=True)
