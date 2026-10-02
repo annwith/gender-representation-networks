@@ -43,7 +43,8 @@ src/gender_networks/
   graphs.py, metrics.py, partitions.py   etapa metrics (métricas estruturais, Leiden, NMI/ARI)
   neighborhood.py                    medidas de vizinhança (Jaccard, dominância, J^w, piso de ruído)
   vocab_lens.py                      extensão opcional "vizinhos no vocabulário" (etapa lens)
-  analysis.py, report.py             etapas analyze e report (ainda não implementadas)
+  analysis.py                        etapa analyze (tabelas de P1–P4)
+  report.py                          etapa report (ainda não implementada)
   network_pilot.py, network_analysis.py, tokenization.py
                                      piloto congelado (não alterar)
   modeling.py, config.py             utilitários herdados de carregamento do modelo
@@ -80,7 +81,7 @@ uv run gender-networks extract --config configs/experiment.yaml --verify  # chec
 uv run gender-networks extract --config configs/experiment.yaml  # representações
 uv run gender-networks knn     --config configs/experiment.yaml  # candidatos e vizinhos k-NN
 uv run gender-networks metrics --config configs/experiment.yaml  # métricas e comunidades
-uv run gender-networks analyze --config configs/experiment.yaml  # análises de P1–P4 (ainda não implementada)
+uv run gender-networks analyze --config configs/experiment.yaml  # análises de P1–P4
 uv run gender-networks report  --config configs/experiment.yaml  # figuras, tabelas e números (ainda não implementada)
 uv run gender-networks lens    --config configs/experiment.yaml  # extensão opcional
 uv run gender-networks all     --config configs/experiment.yaml  # corpus → report, em ordem (depende de analyze e report)
