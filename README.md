@@ -18,12 +18,9 @@ As perguntas de pesquisa (P1–P4) estão na proposta (`report/report.tex`). As 
 e o cronograma estão no plano de execução (`report/plano-de-execucao.md`). O relatório técnico,
 escrito junto com a implementação, fica em `report/relatorio/`.
 
-> Estado: os módulos das etapas `corpus`, `sample`, `extract`, `knn`, `metrics` e `lens` existem
-> (os das últimas ainda em revisão). As etapas `analyze` e `report` ainda **não estão
-> implementadas** (`gender_networks.analysis` e `gender_networks.report` não existem), então
-> `analyze`, `report` e `all` ainda falham com `ModuleNotFoundError` (`all`, depois de
-> `metrics`). Ainda não há resultados; o relatório marca como *[pendente]* tudo o que depende
-> de uma execução.
+> Estado: todas as etapas estão implementadas e testadas. O corpus foi baixado e o ensaio
+> `configs/mini.yaml` já rodou `sample` e `extract` no modelo real; a execução principal ainda
+> não. Até lá, o relatório marca como *[pendente]* tudo o que depende de uma execução.
 
 ## Estrutura
 
@@ -44,7 +41,7 @@ src/gender_networks/
   neighborhood.py                    medidas de vizinhança (Jaccard, dominância, J^w, piso de ruído)
   vocab_lens.py                      extensão opcional "vizinhos no vocabulário" (etapa lens)
   analysis.py                        etapa analyze (tabelas de P1–P4)
-  report.py                          etapa report (ainda não implementada)
+  report.py, plots.py                etapa report (figuras, tabelas e números do relatório)
   network_pilot.py, network_analysis.py, tokenization.py
                                      piloto congelado (não alterar)
   modeling.py, config.py             utilitários herdados de carregamento do modelo
@@ -82,9 +79,9 @@ uv run gender-networks extract --config configs/experiment.yaml  # representaç�
 uv run gender-networks knn     --config configs/experiment.yaml  # candidatos e vizinhos k-NN
 uv run gender-networks metrics --config configs/experiment.yaml  # métricas e comunidades
 uv run gender-networks analyze --config configs/experiment.yaml  # análises de P1–P4
-uv run gender-networks report  --config configs/experiment.yaml  # figuras, tabelas e números (ainda não implementada)
+uv run gender-networks report  --config configs/experiment.yaml  # figuras, tabelas e números
 uv run gender-networks lens    --config configs/experiment.yaml  # extensão opcional
-uv run gender-networks all     --config configs/experiment.yaml  # corpus → report, em ordem (depende de analyze e report)
+uv run gender-networks all     --config configs/experiment.yaml  # corpus → report, em ordem (o corpus só é refeito com --force-corpus)
 ```
 
 `--config configs/experiment.yaml` é o padrão. Para o ensaio de ponta a ponta (2 temas, cerca de
@@ -116,7 +113,7 @@ ainda não foi gerado aparece como um quadro "pendente", e o documento compila a
 execução:
 
 ```bash
-uv run gender-networks report --config configs/experiment.yaml   # (ainda não implementada)
+uv run gender-networks report --config configs/experiment.yaml
 cd report/relatorio && latexmk -pdf relatorio.tex
 ```
 
