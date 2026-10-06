@@ -1,0 +1,19 @@
+% Gerado pela etapa `report` (gender_networks.report). Não editar à mão.
+\footnotesize
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X l l >{\raggedright\arraybackslash}p{0.25\linewidth}}
+\toprule
+Checagem & Resultado & Maior dif. absoluta & Critério \\
+\midrule
+\texttt{len(hidden\_states)} $=$ blocos $+1$ & ok & 37 (esperado 37) & igualdade \\
+\texttt{hidden\_states[0]} $=$ \texttt{embed\_tokens(ids)} & ok & 0 & bit a bit \\
+\textit{hook} em \texttt{layers[0]} $=$ \texttt{hidden\_states[1]} & ok & 0 & bit a bit \\
+\textit{hook} em \texttt{layers[17]} $=$ \texttt{hidden\_states[18]} & ok & 0 & bit a bit \\
+\textit{hook} em \texttt{layers[34]} $=$ \texttt{hidden\_states[35]} & ok & 0 & bit a bit \\
+bloco final bruto $\neq$ \texttt{hidden\_states[L]} & ok & 1.232,8 & fora da tolerância \\
+\texttt{norm(bloco final)} $\approx$ \texttt{hidden\_states[L]} & ok & 0 & rtol 0,016, atol $1{,}0\times10^{-5}$ \\
+\textit{hook} em \texttt{norm} $=$ \texttt{hidden\_states[L]} & ok & 0 & bit a bit \\
+duas execuções (idênticas) & ok & 0 & rtol 0,016, atol $1{,}0\times10^{-5}$ (só aviso) \\
+\bottomrule
+\end{tabularx}
+
+\par\smallskip{\footnotesize\raggedright 8 sequências, 1.072 tokens, 36 blocos, \texttt{bfloat16}; resultado geral: ok. Modelo \texttt{Qwen/Qwen3-{}4B-{}Base}, revisão \texttt{906bfd4b4dc7}.\par}
