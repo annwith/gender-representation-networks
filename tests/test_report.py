@@ -431,3 +431,13 @@ def test_manifest_lists_inputs(reported) -> None:
     assert manifest["latex"]["compiled"] is False
     assert json.dumps(manifest)  # serializable
     assert np.isfinite(manifest["elapsed_s"])
+
+
+def test_compile_report_tolerates_latin1_output(tmp_path: Path, monkeypatch) -> None:
+    # pdfTeX prints accented words as Latin-1 bytes; decoding them must not crash the stage.
+    fake = tmp_path / "latexmk"
+    fake.write_bytes(b"#!/bin/sh\nprintf 'Se\\363es\\n'\nexit 0\n")
+    fake.chmod(0o755)
+    (tmp_path / "relatorio.tex").write_text("", encoding="utf-8")
+    monkeypatch.setattr(report.shutil, "which", lambda name: str(fake))
+    assert report.compile_report(tmp_path)["compiled"] is True

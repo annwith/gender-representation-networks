@@ -2514,6 +2514,9 @@ def compile_report(report_dir: Path) -> dict[str, Any]:
             cwd=report_dir,
             capture_output=True,
             text=True,
+            # pdfTeX writes 8-bit (Latin-1) bytes for accented words in its messages.
+            encoding="utf-8",
+            errors="replace",
             timeout=600,
             check=False,
         )
