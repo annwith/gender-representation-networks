@@ -53,7 +53,10 @@ atualizada a cada etapa.
     diferenças de cosseno menores que esse ruído são, na prática, empates. Mitigações: a cópia
     por grupo de prefixo (que torna exatos os empates que deveriam ser exatos), o diagnóstico da
     maior diferença dentro dos grupos (\difMaxPrefixo) e o teste de sensibilidade com
-    $\eps=10^{-4}$. Rodar o modelo em \emph{float32} não cabe na GPU disponível.
+    $\eps=10^{-4}$. Na GPU da execução (RTX A5500, 24 GiB), o modelo caberia em
+    \emph{float32}, mas isso não foi adotado: o bf16 é o tipo nativo do modelo, os vetores
+    continuam guardados em bf16, e o passo de arredondamento do bf16 nas magnitudes do bloco 36
+    já é da ordem da diferença medida dentro dos grupos de prefixo.
 
     \item[A Wikipédia provavelmente está no pré-treino.] O Qwen3 foi pré-treinado em cerca de 36
     trilhões de tokens de fontes não detalhadas~\cite{qwen3}, e a Wikipédia em português quase
