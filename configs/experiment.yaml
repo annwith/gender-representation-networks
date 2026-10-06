@@ -13,9 +13,10 @@ model:
   revision: 906bfd4b4dc7f14ee4320094d8b41684abff8539
   dtype: bfloat16
   device_map: auto
-  # Os pesos (~7,5 GiB) não cabem inteiros nos 8 GiB da RTX 4070; o resto vai para a CPU.
+  # Execução numa RTX A5500 (24 GiB), a única GPU visível (CUDA_VISIBLE_DEVICES): os pesos
+  # (~7,5 GiB) cabem inteiros. Numa GPU de 8 GiB, use 0: 6GiB (parte dos blocos vai para a CPU).
   max_memory:
-    0: 6GiB
+    0: 20GiB
     cpu: 10GiB
   prefix_token: "<|endoftext|>"
   layers: {L01: 1, L18: 18, L36: 36}
