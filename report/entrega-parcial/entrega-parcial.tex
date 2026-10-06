@@ -1,0 +1,210 @@
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Pacotes (mesmo preâmbulo da proposta, report/report.tex)
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{hyperref}
+
+% ------------------------------------------------------------
+% Layout
+% ------------------------------------------------------------
+\geometry{top=1.8cm, bottom=1.8cm, left=1.9cm, right=1.9cm}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist[itemize]{leftmargin=1.35em, itemsep=0.8pt, topsep=2pt, parsep=0pt}
+\setlist[enumerate]{leftmargin=1.55em, itemsep=0.8pt, topsep=2pt, parsep=0pt}
+
+\titleformat{\section}{\bfseries\normalsize}{}{0pt}{}
+\titlespacing*{\section}{0pt}{7pt}{2pt}
+
+\captionsetup{font=small, labelfont=bf, skip=3pt}
+\setlength{\textfloatsep}{8pt}
+\setlength{\floatsep}{6pt}
+
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue}
+
+\newcommand{\repo}{https://github.com/annwith/gender-representation-networks}
+\newcommand{\dados}{\repo/tree/main-run-results/data/graphml}
+
+% ------------------------------------------------------------
+% Documento
+% ------------------------------------------------------------
+\begin{document}
+
+\begin{center}
+    {\large\bfseries MO438 -- Redes Complexas: Entrega Parcial}\\[2pt]
+    Da rede lexical à rede contextual: reorganização das representações
+    internas de Transformers com Redes Complexas\\[2pt]
+    Juliana Midlej do Espirito Santo (RA 200208)
+\end{center}
+
+\vspace{-2mm}
+
+% ============================================================
+\section*{1. Introdução}
+
+Na entrada de um Transformer, todas as ocorrências de um mesmo token têm o mesmo
+\textit{embedding}; ao atravessar as camadas, essas representações incorporam o
+contexto e se reorganizam. O projeto descreve essa transformação como uma sequência de
+redes complexas sobre \textbf{os mesmos vértices}: cada vértice é uma
+\textit{ocorrência} de um token em um texto, e cada ocorrência se liga às $k$ ocorrências
+mais semelhantes a ela. Comparando as redes camada a camada, queremos medir quanto a
+vizinhança deixa de ser determinada pela identidade do token e passa a refletir o
+contexto (perguntas P1--P4 da proposta: reorganização local e global, camadas em que ela
+se concentra, comunidades contextuais e separação das ocorrências de um mesmo token).
+
+\textbf{Dados do projeto:} \url{\repo}. As quatro redes analisadas aqui estão em
+GraphML em \href{\dados}{\texttt{data/graphml/}} (ramo \texttt{main-run-results}); o
+script que as gera, junto com esta análise, é
+\texttt{scripts/partial\_delivery/export\_networks.py}.
+
+% ============================================================
+\section*{2. Origem dos dados e construção das redes}
+
+As redes são originais, construídas por nós; não foram baixadas de um repositório de
+redes. As duas fontes usadas são públicas:
+\begin{itemize}
+    \item \textbf{Textos:} Wikipédia em português (\url{https://pt.wikipedia.org}, licença
+    CC BY-SA), obtida pela API MediaWiki a partir de 8 categorias temáticas (física,
+    biologia, economia, política, computação, música, futebol, geografia). A identificação
+    e a revisão de cada artigo estão em \texttt{data/corpus/manifest.csv}, o que permite
+    baixar de novo exatamente o mesmo texto.
+    \item \textbf{Modelo:} \href{https://huggingface.co/Qwen/Qwen3-4B-Base}{Qwen3-4B-Base}
+    (Hugging Face, 36 blocos, revisão \texttt{906bfd4}), cujo \textit{tokenizer} também
+    define os tokens.
+\end{itemize}
+
+\textbf{Vértices.} 13.606 ocorrências de 2.864 tipos de token, sorteadas em 3.230
+parágrafos de 1.172 artigos, com no máximo 50 ocorrências por tipo. São 6.583 palavras
+inteiras, 6.345 fragmentos de palavra (início ou continuação), 351 números e 327 sinais
+de pontuação.
+
+\textbf{Arestas.} Cada ocorrência $i$ recebe um vetor $x_i$ e escolhe os $k=10$ vizinhos
+de maior similaridade de cosseno (calculada em \texttt{float64}). As quatro redes diferem
+apenas em $x_i$: \textbf{lex}, o \textit{embedding} de entrada do token (ocorrências do
+mesmo token são idênticas, e os empates são desfeitos ao acaso, semente 0); \textbf{L01},
+\textbf{L18} e \textbf{L36}, a saída dos blocos 1, 18 e 36 (inicial, intermediário e
+final). A relação k-NN é direcionada; as redes entregues e analisadas são as versões
+\textbf{não direcionadas por união}, com aresta $\{i,j\}$ quando $j$ está entre os vizinhos
+de $i$ ou $i$ entre os de $j$. Por isso todo vértice tem grau $\ge k$.
+
+\textbf{Arquivos.} \texttt{\textit{rede}\_k10\_union.graphml}, com \textit{rede} em
+\texttt{lex}, \texttt{L01}, \texttt{L18} e \texttt{L36} (cerca de 16\,MB cada). Cada vértice traz o token, a palavra de origem, o tema, o artigo, o contexto
+textual e as medidas desta análise (grau, clusterização local, componente e comunidade
+Leiden). Todas as métricas abaixo foram calculadas com \texttt{igraph} a partir dos
+próprios arquivos GraphML relidos do disco.
+
+% ============================================================
+\section*{3. Análise inicial}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Métricas das quatro redes ($k=10$, união).
+$^\ast$Calculadas de forma exata sobre todos os pares de vértices da maior componente.}
+\label{tab:metricas}
+\input{tabelas/metricas.tex}
+\end{table}
+
+\textbf{Tamanho, grau e densidade (itens 1 e 6).} As redes têm os mesmos 13.606 vértices
+e entre 94,7 mil e 106,3 mil arestas, com grau médio entre 13,9 e 15,6. Esse valor
+fica acima de $k=10$ porque um vértice também ganha arestas de quem o escolheu como
+vizinho. As redes são muito esparsas: densidade
+$\rho = 2|E|/(|V|(|V|-1)) \approx 10^{-3}$.
+
+\textbf{Clusterização global (item 2).} Reportamos os dois coeficientes:
+\begin{itemize}
+    \item a \textbf{transitividade}, $C = 3 \times (\text{nº de triângulos}) /
+    (\text{nº de triplas conexas})$;
+    \item a \textbf{clusterização local média}, $\bar C = \frac{1}{|V|}\sum_i C_i$, com
+    $C_i = 2T_i / (d_i(d_i-1))$, em que $T_i$ é o número de triângulos que passam por $i$
+    e $d_i$ é o grau de $i$. Vértices de grau menor que 2 contariam como $C_i=0$, mas
+    aqui não há nenhum, pois o grau mínimo é 10.
+\end{itemize}
+Os dois coeficientes são altos nas redes lexical e inicial (0,53--0,62) e caem pela
+metade nas camadas intermediária e final (0,23--0,37). Ainda assim, ficam duas ordens de
+grandeza acima da densidade, que é a clusterização esperada em um grafo aleatório com o
+mesmo número de vértices e de arestas. Na rede lex, as ocorrências de um mesmo token
+são idênticas e tendem a formar grupos quase completos, o que eleva a clusterização.
+
+\begin{figure}[h]
+\centering
+\includegraphics{figuras/graus.pdf}\hfill
+\includegraphics{figuras/clusterizacao_local.pdf}
+\caption{À esquerda, a distribuição de graus em escala log-log, como distribuição
+acumulada complementar $P(K \ge d)$ (item 7). À direita, a distribuição do coeficiente
+de clusterização local $C_i$ (item 3), em 40 faixas de largura 0,025.}
+\label{fig:graus-clust}
+\end{figure}
+
+\textbf{Clusterização local (item 3, Fig.~\ref{fig:graus-clust}).} Em lex e L01 a
+distribuição de $C_i$ se concentra entre 0,5 e 0,85, com um excesso em $C_i=1$ (vértices
+cuja vizinhança é um grupo completo). Em L18 e L36 ela se desloca para um pico perto de
+0,2 e uma cauda longa. A mudança atinge a maioria dos vértices; não é efeito de um grupo
+pequeno.
+
+\textbf{Distribuição de graus (item 7, Fig.~\ref{fig:graus-clust}).} O grau mínimo é sempre
+$k=10$. Em lex a cauda é curta (máximo 37); em L01 e L18 ela se alonga (máximos 60 e 55);
+em L36 ela se torna pesada, com máximo 247. Esse é o fenômeno de \textit{hubness}: na
+camada final, poucas ocorrências são escolhidas como vizinhas por muitas outras. O
+fenômeno será estudado na rede direcionada (grau de entrada) no restante do projeto.
+
+\begin{figure}[h]
+\centering
+\includegraphics{figuras/componentes.pdf}
+\caption{Distribuição dos tamanhos das componentes conexas (item 8). Os rótulos dão o
+tamanho da maior componente; os dois eixos estão em escala logarítmica.}
+\label{fig:componentes}
+\end{figure}
+
+\textbf{Componentes (item 8, Fig.~\ref{fig:componentes}).} As redes lex e L01 têm 44 e 40
+componentes. Além da gigante (91\% e 93\% dos vértices), há dezenas de componentes de 10
+a 50 vértices, cada uma formada por ocorrências de 1 a 5 tipos de token: por exemplo, as
+50 ocorrências de ``ão'' em lex e as 50 de ``para'' em L01. Nelas a identidade lexical
+isola grupos inteiros de ocorrências. Em L18 e L36 restam só 2 componentes: a gigante
+(99,6\%) e uma de cerca de 50 vértices formada pelas ocorrências na primeira posição da
+sequência, cuja representação nessas camadas é muito diferente das demais.
+
+\begin{figure}[h]
+\centering
+\begin{minipage}[c]{0.49\textwidth}
+\includegraphics{figuras/distancias.pdf}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.47\textwidth}
+\caption{Distribuição das distâncias entre os pares de vértices da maior componente
+(itens 4 e 5). A distância média é a média dessa distribuição, e o diâmetro é o maior
+valor com frequência positiva.}
+\label{fig:distancias}
+\end{minipage}
+\end{figure}
+
+\textbf{Distância média e diâmetro (itens 4 e 5, Fig.~\ref{fig:distancias}).} Como lex e
+L01 não são conexas, as distâncias são calculadas na maior componente, sobre todos os
+pares, por busca em largura a partir de cada vértice. A distância média cai de 7,6 (lex)
+e 7,1 (L01) para 5,1--5,3 (L18 e L36), e o diâmetro cai de 18 para 11. Para comparação,
+um grafo aleatório com o mesmo tamanho e grau médio teria distância média em torno de
+$\ln|V|/\ln\langle d\rangle \approx 3{,}5$. As redes contextuais combinam, portanto,
+clusterização muito acima da aleatória com distâncias mais curtas que as da rede lexical.
+
+\textbf{Síntese.} Já nas métricas globais, a passagem lex/L01 $\to$ L18/L36 aparece
+como uma reorganização: a clusterização cai, as distâncias encolhem, as componentes
+isoladas por token se fundem na componente gigante e surgem \textit{hubs}. Lex e L01 são
+muito parecidas, o que sugere que a mudança se concentra entre os blocos 1 e 18. Essa
+hipótese será testada no restante do projeto com as medidas por vértice (Jaccard das
+vizinhanças, dominância lexical), com as comunidades (NMI com tipo de token e com
+contexto) e com a robustez a $k$, à simetrização e ao desempate.
+
+\end{document}
