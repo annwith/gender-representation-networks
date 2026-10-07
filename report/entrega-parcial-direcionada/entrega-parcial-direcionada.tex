@@ -108,9 +108,11 @@ $\rho=|A|/(|V|(|V|-1)) = k/(|V|-1)$ é fixada pela construção e é igual nas q
 dirigidos que passam por $i$ é $t_i=\tfrac12(S^3)_{ii}$, e o máximo possível é
 $D_i=d_i^{\text{tot}}(d_i^{\text{tot}}-1)-2d_i^{\leftrightarrow}$, em que
 $d_i^{\text{tot}}=d_i^{\text{in}}+d_i^{\text{out}}$ e $d_i^{\leftrightarrow}$ é o número
-de vizinhos recíprocos. A clusterização local é $C_i^{\rightarrow}=t_i/D_i$; os dois
-coeficientes globais são a média $\bar C^{\rightarrow}$ e a transitividade dirigida
-$T^{\rightarrow}=\sum_i t_i/\sum_i D_i$. Se $A$ for simétrica, elas se reduzem às
+de vizinhos recíprocos. A clusterização local é $C_i^{\rightarrow}=t_i/D_i$, definida só
+quando $D_i>0$, isto é, quando $i$ tem ao menos 2 vizinhos distintos. Os dois coeficientes
+globais são a média $\bar C^{\rightarrow}$ sobre esses vértices e a transitividade dirigida
+$T^{\rightarrow}=\sum_i t_i/\sum_i D_i$. Aqui todos entram na média, pois o grau de saída é
+$k=10$. Se $A$ for simétrica, elas se reduzem às
 definições não direcionadas. Conferimos os valores com \texttt{networkx.clustering}.
 
 \textbf{Componentes.} Há duas noções: \textit{fracas}, ignorando o sentido dos arcos (são

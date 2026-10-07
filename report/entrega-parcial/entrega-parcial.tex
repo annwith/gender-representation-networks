@@ -144,10 +144,11 @@ $\rho = 2|E|/(|V|(|V|-1)) \approx 10^{-3}$.
 \begin{itemize}
     \item a \textbf{transitividade}, $C = 3 \times (\text{nº de triângulos}) /
     (\text{nº de triplas conexas})$;
-    \item a \textbf{clusterização local média}, $\bar C = \frac{1}{|V|}\sum_i C_i$, com
-    $C_i = 2T_i / (d_i(d_i-1))$, em que $T_i$ é o número de triângulos que passam por $i$
-    e $d_i$ é o grau de $i$. Vértices de grau menor que 2 contariam como $C_i=0$, mas
-    aqui não há nenhum, pois o grau mínimo é 10.
+    \item a \textbf{clusterização local média}, $\bar C = \frac{1}{|V_{\ge2}|}\sum_{i\in
+    V_{\ge2}} C_i$, com $C_i = 2T_i / (d_i(d_i-1))$, em que $T_i$ é o número de triângulos
+    que passam por $i$ e $d_i$ é o grau de $i$. $C_i$ não é definido quando $d_i<2$, então
+    a média (e a distribuição de $C_i$) usa só o conjunto $V_{\ge2}$ dos vértices de grau
+    $\ge 2$. Aqui $V_{\ge2}=V$, pois o grau mínimo é 10.
 \end{itemize}
 Os dois coeficientes são altos nas redes lexical e inicial (0,53--0,62) e caem pela
 metade nas camadas intermediária e final (0,23--0,37). Ainda assim, ficam duas ordens de

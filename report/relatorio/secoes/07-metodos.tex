@@ -25,10 +25,11 @@ $m=|E|$ e $k_i$ o grau do vértice $i$.
     \item[Clusterização.] Global (transitividade),
     $C=3\times(\text{triângulos})/(\text{trios conexos})$, e local média,
     \begin{equation}
-        \bar C=\frac1n\sum_i C_i,\qquad C_i=\frac{2\,e_i}{k_i(k_i-1)},
+        \bar C=\frac{1}{|V_{\ge2}|}\sum_{i\in V_{\ge2}} C_i,\qquad C_i=\frac{2\,e_i}{k_i(k_i-1)},
     \end{equation}
-    onde $e_i$ é o número de arestas entre os vizinhos de $i$ e $C_i=0$ quando $k_i<2$ (o que
-    não acontece na rede por união, em que $k_i\ge k$).
+    onde $e_i$ é o número de arestas entre os vizinhos de $i$. $C_i$ não é definido quando
+    $k_i<2$, e esses vértices ficam fora da média: $V_{\ge2}$ é o conjunto dos vértices de
+    grau $\ge 2$ (na rede por união $k_i\ge k$, então $V_{\ge2}=V$).
     \item[Distâncias.] Distância média $\langle\ell\rangle$ entre pares do maior componente
     conexo, diâmetro e histograma das distâncias, por busca em largura exata a partir de todos
     os vértices.
