@@ -264,6 +264,29 @@ um grafo aleatório com o mesmo tamanho e grau médio teria distância média em
 $\ln|V|/\ln\langle d\rangle \approx 3{,}5$. As redes contextuais combinam, portanto,
 clusterização muito acima da aleatória com distâncias mais curtas que as da rede lexical.
 
+\begin{figure}[h]
+\centering
+\includegraphics{figuras/redes.pdf}
+\caption{As quatro redes (item 9), cada uma com o seu layout UMAP (\texttt{igraph}, semente
+438), com os vértices coloridos pelo tema do artigo. O recorte é o disco que contém 99\% dos
+vértices; os 137 restantes de cada rede, grupos pequenos empurrados para a periferia, ficam
+de fora. Versão interativa, com todos os vértices, busca por palavra e a lista de
+vizinhos de cada ocorrência: \url{https://annwith.github.io/gender-representation-networks/redes/}.}
+\label{fig:redes}
+\end{figure}
+
+\textbf{Visualização (item 9, Fig.~\ref{fig:redes}).} Em lex e L01, a rede se espalha em
+centenas de grupos pequenos, em geral as ocorrências de um mesmo token, com temas misturados:
+em lex, 68\% das arestas ligam ocorrências do mesmo token e só 20\% ligam ocorrências do
+mesmo tema. Em L18, os grupos se fundem num bloco central com regiões dominadas por um tema,
+e as arestas entre ocorrências do mesmo tema sobem para 52\% (a assortatividade por tema
+passa de 0,09 em lex para 0,45). Em L36 elas caem para 44\%, e a rede se divide em dois
+blocos, ligados por só 1,1\% das arestas. O bloco menor (3.984 vértices) é quase todo de
+posições no meio de uma palavra, isto é, tokens que ainda não a terminam (94\% dos seus
+vértices), e reúne 94\% dessas posições. A última camada, que prepara a previsão do próximo
+token, separa as ocorrências também pelo que deve vir depois, e não só pelo contexto
+anterior.
+
 \textbf{Síntese.} Já nas métricas globais, a passagem lex/L01 $\to$ L18/L36 aparece
 como uma reorganização: a clusterização cai, as distâncias encolhem, as componentes
 isoladas por token se fundem na componente gigante e surgem \textit{hubs}. Lex e L01 são
