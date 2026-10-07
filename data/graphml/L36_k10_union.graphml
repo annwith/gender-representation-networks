@@ -446499,7 +446499,7 @@
     <data key="d4">união: {i, j} quando j está entre os k vizinhos de i ou i entre os de j</data>
     <data key="d5">cosseno em float64</data>
     <data key="d6">aleatório, semente 0</data>
-    <data key="d7">Leiden (modularidade, resolução 1,0), melhor de 10 execuções</data>
+    <data key="d7">Leiden (modularidade, resolução 1,0) na rede de união, melhor de 10 execuções</data>
     <data key="d8">Qwen/Qwen3-4B-Base@906bfd4b4dc7f14ee4320094d8b41684abff8539</data>
     <data key="d9">Wikipédia em português (revisões em data/corpus/manifest.csv)</data>
     <data key="d10">9ce6e29db9b57ae22385436df61e4a5c9ff758a5</data>
