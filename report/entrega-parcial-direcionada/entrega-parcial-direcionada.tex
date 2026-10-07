@@ -45,7 +45,7 @@
 \begin{document}
 
 \begin{center}
-    {\large\bfseries MO438 -- Redes Complexas: Entrega Parcial (redes direcionadas)}\\[2pt]
+    {\large\bfseries MO438 -- Redes Complexas: Entrega Parcial (Redes Direcionadas)}\\[2pt]
     Da rede lexical à rede contextual: reorganização das representações
     internas de Transformers com Redes Complexas\\[2pt]
     Juliana Midlej do Espirito Santo (RA 200208)
@@ -79,6 +79,14 @@ API MediaWiki a partir de 8 categorias temáticas, com a revisão de cada artigo
 \texttt{data/corpus/manifest.csv}; e o modelo
 \href{https://huggingface.co/Qwen/Qwen3-4B-Base}{\textbf{Qwen3-4B-Base}} (36 blocos,
 revisão \texttt{906bfd4}), cujo \textit{tokenizer} também define os tokens.
+
+\textbf{Coleta:} em cada tema, uma busca em largura percorre as subcategorias até a
+profundidade 2 e para em 600 títulos, entre os quais são sorteados 150 artigos. Como a API
+lista as subcategorias em ordem alfabética, o corte não é aleatório: os oito temas atingiram
+o limite tendo aberto só parte das subcategorias (de 7 de 79 em computação a 98 de 439 em
+música), e, nas listas de subcategorias por país de música e futebol, só as do começo do
+alfabeto foram abertas. Os temas são, portanto, ``artigos próximos da categoria raiz'', e não
+a área inteira, o que basta para o uso que fazemos deles (temas bem separados).
 
 \textbf{Vértices:} 13.606 ocorrências de 2.864 tipos de token, sorteadas em 3.230
 parágrafos de 1.172 artigos (no máximo 50 ocorrências por tipo). \textbf{Arcos:} cada

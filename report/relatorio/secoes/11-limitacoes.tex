@@ -38,12 +38,27 @@ atualizada a cada etapa.
     \item[A busca por categorias é truncada.] A árvore de categorias da Wikipédia em português
     não é uma taxonomia limpa: em poucos níveis, uma categoria de ciência chega a pessoas,
     lugares e obras. Por isso a busca vai só até a profundidade 2 e para em 600 títulos por
-    tema, na ordem da busca em largura. Os temas representam, portanto, a parte da árvore mais
-    próxima da raiz, e não o tema inteiro; subáreas com muitos artigos diretos na raiz podem
-    ficar super-representadas. Como o objetivo é ter temas bem separados, e não estimar o
-    vocabulário de cada área, isso é aceitável, mas os nomes dos temas devem ser lidos como
-    ``artigos próximos da categoria raiz''. O descarte de páginas multitema e de biografias
-    reduz a mistura, ao custo de excluir páginas de fronteira entre temas.
+    tema. O corte não é aleatório. A API lista os membros de cada categoria na ordem da chave de
+    ordenação (em geral, alfabética), e a busca em largura abre as subcategorias nessa ordem,
+    nível por nível; quando o limite é atingido, as subcategorias que ainda estão na fila nunca
+    são abertas. O embaralhamento com semente (Seção~\ref{sec:corpus}) vem depois e só escolhe
+    os 150 artigos de cada tema entre esses 600 títulos. Na execução principal, os oito temas
+    atingiram o limite, e a busca abriu só uma parte das subcategorias que encontrou: de 7 de
+    79 (Computação) a 98 de 439 (Música); em Política, 23 de 443. Em Biologia, Política e
+    Computação, o corte veio antes de terminar a profundidade 1, e nenhum título veio da
+    profundidade 2; em Computação, 494 dos 600 títulos são membros diretos da raiz. Em Música e
+    Futebol, a busca parou no meio de uma lista de subcategorias por país (em ``Música da
+    Austrália'' e ``Futebol das Bahamas''), de modo que, dessa lista, só os países do começo do
+    alfabeto foram abertos. (Números obtidos refazendo a busca a partir do cache da etapa
+    \etapa{corpus}, sem rede; a busca refeita reproduz a categoria e a profundidade de todos os
+    artigos examinados.) Os temas representam, portanto, as subcategorias mais próximas da raiz
+    e alfabeticamente primeiras, e não a área inteira. Como o objetivo é ter temas bem
+    separados, e não estimar o vocabulário de cada área, isso é aceitável, mas os nomes dos
+    temas devem ser lidos como ``artigos próximos da categoria raiz''. O mesmo corte limita o
+    descarte de páginas multitema: um título só é reconhecido como multitema se estiver na
+    lista truncada de mais de um tema, e um artigo que também pertence à parte não aberta de
+    outra árvore passa como se fosse de um tema só. O descarte de páginas multitema e de
+    biografias reduz a mistura, ao custo de excluir páginas de fronteira entre temas.
 
     \item[Precisão \emph{bfloat16}.] O modelo roda em bf16 (8 bits de mantissa), e os vetores
     são guardados em bf16. O cosseno em \emph{float64} é exato \emph{para os vetores
