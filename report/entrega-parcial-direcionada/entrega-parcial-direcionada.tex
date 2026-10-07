@@ -91,8 +91,37 @@ reforçar sentidos raros dos alvos (\textit{nota} como cédula, \textit{banco} d
 entram também 16 categorias extras ligadas a temas (profundidade 1, até 60 artigos cada;
 \texttt{configs/experiment.yaml}), com 475 dos 1.172 artigos e 38\% dos vértices.
 
-\textbf{Vértices:} 13.606 ocorrências de 2.864 tipos de token, sorteadas em 3.230
-parágrafos de 1.172 artigos (no máximo 50 ocorrências por tipo).
+\textbf{Vértices:} Cada vértice é uma \textit{ocorrência}: um token do \textit{tokenizer} do Qwen3, que pode
+ser só um pedaço de palavra, numa posição de um parágrafo. A rede não cobre o corpus inteiro
+(17.066 parágrafos de 2.153 artigos). São 13.606 ocorrências de 2.864 tipos de token, em
+3.230 parágrafos de 1.172 artigos, escolhidas em quatro estratos com no máximo 50
+ocorrências por tipo (\texttt{configs/experiment.yaml}, semente 438):
+\begin{itemize}
+    \item \textbf{Núcleo} (10.020 vértices, 74\%): em cada um dos 8 temas, sorteamos 5
+    artigos e 2 parágrafos de cada um, 80 parágrafos ao todo (0,5\% do corpus). Nesses
+    parágrafos \emph{todos} os tokens são vértices: palavras, fragmentos, números e
+    pontuação. Das 11.935 ocorrências, o teto retira ao acaso 1.915, de 25 tipos frequentes
+    (vírgula, ponto, \textit{de}, \textit{que}, \textit{-ão}\ldots).
+    \item \textbf{Alvos} (477): 11 palavras polissêmicas (\textit{banco}, \textit{campo},
+    \textit{nota}\ldots), com uma cota por tema de sentido (\textit{banco} em economia,
+    computação e geografia). \textit{Planta} saiu da amostra por não chegar a 10
+    ocorrências em dois temas.
+    \item \textbf{Controles} (277): 6 palavras frequentes sem ambiguidade forte
+    (\textit{ano}, \textit{água}\ldots), com cotas iguais às dos alvos.
+    \item \textbf{Multitemáticas} (2.832): 150 palavras de conteúdo presentes em ao menos
+    3 temas, até 20 ocorrências cada.
+\end{itemize}
+Os três últimos estratos sorteiam palavras inteiras nos demais parágrafos, no máximo uma
+ocorrência da mesma palavra por parágrafo e três por artigo. Nesses 3.150 parágrafos, só as
+posições sorteadas são vértices, e o resto do texto serve apenas de contexto (2.762 deles
+têm um único vértice). O núcleo dá uma amostra de texto corrido. Os demais estratos existem
+porque 80 parágrafos quase não repetem palavras de conteúdo, e sem repetição não há como
+comparar a mesma palavra em contextos diferentes. Por construção, todos os fragmentos,
+números, sinais de pontuação e palavras funcionais vêm do núcleo. No total são 6.583
+palavras inteiras, 6.345 fragmentos de palavra (início ou continuação), 351 números e 327
+sinais de pontuação. Como o núcleo reúne três quartos dos vértices, as medidas globais
+descrevem sobretudo texto corrido. O sorteio de 10 parágrafos por tema, feito com uma única
+semente, pesa no vocabulário: 2.780 dos 2.864 tipos aparecem no núcleo.
 
 \textbf{Extração dos vetores:} cada parágrafo é tokenizado, recebe na frente o separador de documentos
 \texttt{<|endoftext|>} e passa sozinho pelo Qwen3, numa chamada própria e sem \textit{cache}:
@@ -107,13 +136,14 @@ chamada por \textit{hooks} do PyTorch nos blocos 1, 18 e 36: quando o bloco term
 \textit{hook} recebe a sua saída bruta (antes da normalização final), com uma linha por
 posição, e guarda só as linhas das posições sorteadas. Assim, as ocorrências de um mesmo
 parágrafo saem da mesma chamada, cada uma lida na sua posição, com o mesmo resultado que
-teriam em chamadas separadas. Nos 80 parágrafos do núcleo todos os tokens são vértices; nos
-outros 3.150, o parágrafo quase sempre só dá contexto a uma ocorrência sorteada. As linhas
+teriam em chamadas separadas. As linhas
 são reunidas numa matriz $13.606\times2560$ por representação.
 
 \textbf{Arcos:} cada
-ocorrência $i$ recebe um vetor $x_i$ e aponta para os $k=10$ vizinhos $N_i$ de maior
-cosseno ($i\to j$ para $j\in N_i$). As redes diferem só em $x_i$: \textbf{lex}, o
+ocorrência $i$ recebe um vetor $x_i$ e aponta, entre as outras 13.605 ocorrências (de qualquer parágrafo,
+artigo ou tema), para os $k=10$ vizinhos $N_i$ de maior cosseno ($i\to j$ para
+$j\in N_i$). O modelo nunca processa dois parágrafos juntos: a comparação entre
+ocorrências de parágrafos diferentes acontece só no espaço dos vetores. As redes diferem só em $x_i$: \textbf{lex}, o
 \textit{embedding} de entrada (ocorrências do mesmo token são idênticas; empates desfeitos ao
 acaso, semente 0), e \textbf{L01}, \textbf{L18} e \textbf{L36}, a saída dos blocos 1, 18 e
 36. \textbf{Arquivos:} \texttt{\textit{rede}\_k10\_directed.graphml} (cerca de 17,5\,MB
