@@ -73,12 +73,16 @@ def graph_metrics(graph: nx.Graph) -> dict[str, int | float]:
     else:
         average_distance = float(nx.average_shortest_path_length(largest))
         diameter = int(nx.diameter(largest))
+    # C_i is undefined for degree < 2, so those nodes are left out of the mean.
+    defined = [node for node, degree in graph.degree() if degree >= 2]
+    local = nx.clustering(graph, defined)
+    average_clustering = float(np.mean(list(local.values()))) if defined else float("nan")
     return {
         "vertices": n,
         "edges": graph.number_of_edges(),
         "average_degree": float(sum(dict(graph.degree()).values()) / n) if n else 0.0,
         "density": float(nx.density(graph)),
-        "average_clustering": float(nx.average_clustering(graph)),
+        "average_clustering": average_clustering,
         "global_clustering": float(nx.transitivity(graph)),
         "connected_components": len(components),
         "largest_component_size": len(largest_nodes),

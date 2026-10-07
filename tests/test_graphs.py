@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
 import math
 import random
+from pathlib import Path
 
 import igraph as ig
 import networkx as nx
@@ -38,6 +40,21 @@ def _nx_from_igraph(g: ig.Graph) -> nx.Graph:
     graph.add_nodes_from(range(g.vcount()))
     graph.add_edges_from(g.get_edgelist())
     return graph
+
+
+def _nx_avg_clustering(graph: nx.Graph) -> float:
+    """Mean local clustering over the vertices of degree >= 2, where C_i is defined."""
+
+    defined = [v for v, d in graph.degree() if d >= 2]
+    return float(np.mean([nx.clustering(graph, v) for v in defined]))
+
+
+def _load_export_networks():
+    path = Path(__file__).parents[1] / "scripts" / "partial_delivery" / "export_networks.py"
+    spec = importlib.util.spec_from_file_location("export_networks", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _edge_set(g: ig.Graph) -> set[tuple[int, int]]:
@@ -77,7 +94,7 @@ def test_undirected_metrics_match_networkx(graph_nx: nx.Graph) -> None:
     assert metrics["density"] == pytest.approx(nx.density(graph_nx))
     assert metrics["mean_degree"] == pytest.approx(2 * graph_nx.number_of_edges() / n)
     assert metrics["transitivity"] == pytest.approx(nx.transitivity(graph_nx))
-    assert metrics["avg_local_clustering"] == pytest.approx(nx.average_clustering(graph_nx))
+    assert metrics["avg_local_clustering"] == pytest.approx(_nx_avg_clustering(graph_nx))
 
     components = sorted((len(c) for c in nx.connected_components(graph_nx)), reverse=True)
     assert metrics["n_components"] == len(components)
@@ -112,10 +129,34 @@ def test_knn_union_graph_metrics_match_networkx() -> None:
     reference = _nx_from_igraph(g)
     metrics = graph_metrics(g)
     assert metrics["transitivity"] == pytest.approx(nx.transitivity(reference))
-    assert metrics["avg_local_clustering"] == pytest.approx(nx.average_clustering(reference))
+    assert metrics["avg_local_clustering"] == pytest.approx(_nx_avg_clustering(reference))
     lcc = reference.subgraph(max(nx.connected_components(reference), key=len))
     assert metrics["mean_distance"] == pytest.approx(nx.average_shortest_path_length(lcc))
     assert metrics["diameter"] == nx.diameter(lcc)
+
+
+def test_avg_local_clustering_excludes_degree_below_two() -> None:
+    # Triangle 0-1-2 plus the pendant vertex 3 on 2 and the isolated vertex 4:
+    # C = 1, 1, 1/3 and undefined for 3 and 4, so the mean is 7/9 (not 7/15 with zeros).
+    g = to_igraph(np.array([[0, 1], [1, 2], [0, 2], [2, 3]], dtype=np.int64), 5, directed=False)
+    assert graph_metrics(g, distances="none")["avg_local_clustering"] == pytest.approx(7 / 9)
+    leaves = to_igraph(np.array([[0, 1]], dtype=np.int64), 2, directed=False)
+    assert math.isnan(graph_metrics(leaves, distances="none")["avg_local_clustering"])
+
+
+def test_directed_clustering_is_undefined_below_two_neighbours() -> None:
+    export = _load_export_networks()
+    # Triangle 0 -> 1 -> 2 -> 0, plus 3 <-> 0 (one reciprocal neighbour) and 4 -> 1.
+    edges = [(0, 1), (1, 2), (2, 0), (3, 0), (0, 3), (4, 1)]
+    g = ig.Graph(n=5, edges=edges, directed=True)
+    local, _ = export.directed_clustering(g)
+    assert np.isnan(local[3]) and np.isnan(local[4])
+    reference = nx.clustering(_nx_from_igraph(g))
+    defined = [0, 1, 2]
+    assert local[defined] == pytest.approx([reference[i] for i in defined])
+    assert reference[3] == reference[4] == 0
+    mean = export.measure_directed(g)["avg_local_clustering"]
+    assert mean == pytest.approx(np.mean([reference[i] for i in defined]))
 
 
 def test_sampled_distances_close_to_exact_on_small_world() -> None:

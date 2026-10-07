@@ -19,12 +19,16 @@ igraph), so the delivered files are exactly what was measured:
 4. mean distance and 5. diameter;
 6. density; 7. degree distribution; 8. components and their size distribution.
 
+Local clustering is undefined (NaN) for a vertex with fewer than two neighbours, and such
+vertices are left out of the mean, the median and the distribution of item 3.
+
 In the union graph, distances are exact over all pairs of the largest component. In the
 directed graph, ``d(i, j)`` is the length of the shortest directed path and is infinite when
 ``j`` cannot be reached from ``i``; the script reports the fraction of reachable ordered pairs,
 the mean and maximum over the reachable pairs, the same two inside the largest strongly
 connected component and the global efficiency (mean of ``1/d``, with ``1/inf = 0``). Directed
-clustering follows Fagiolo (2007) and is checked against ``networkx.clustering``.
+clustering follows Fagiolo (2007) and is checked against ``networkx.clustering`` (which gives 0
+where it is undefined).
 
 Usage::
 
@@ -193,8 +197,9 @@ def directed_clustering(g: ig.Graph) -> tuple[np.ndarray, float]:
 
     ``t_i = (S^3)_ii / 2`` counts the directed triangles through ``i`` (every arc pattern of the
     triangle counts) and ``d_i^tot (d_i^tot - 1) - 2 d_i^<->`` the triangles that could exist
-    given the in-, out- and reciprocal degrees of ``i``. The local coefficient is their ratio
-    (0 when the denominator is 0, as in ``networkx.clustering``) and the global one, the
+    given the in-, out- and reciprocal degrees of ``i``. The local coefficient is their ratio,
+    undefined (NaN) when the denominator is 0, which happens exactly when ``i`` has fewer than
+    two distinct neighbours (``networkx.clustering`` gives 0 there). The global one, the
     directed transitivity, is the ratio of their sums. On a symmetric graph both reduce to the
     undirected coefficients.
     """
@@ -220,7 +225,7 @@ def directed_clustering(g: ig.Graph) -> tuple[np.ndarray, float]:
                     closed += wj * wh * wjh
         triangles[i] = closed / 2
     possible = total * (total - 1) - 2 * reciprocal
-    local = np.divide(triangles, possible, out=np.zeros(n), where=possible > 0)
+    local = np.divide(triangles, possible, out=np.full(n, np.nan), where=possible > 0)
     return local, float(triangles.sum() / possible.sum())
 
 
@@ -242,7 +247,7 @@ def add_vertex_measures(g: nx.Graph) -> None:
             g.nodes[i]["weak_component"] = int(weak[i])
             g.nodes[i]["strong_component"] = int(strong[i])
         return
-    clustering = ig_graph.transitivity_local_undirected(mode="zero")
+    clustering = ig_graph.transitivity_local_undirected(mode="nan")
     component = _size_rank(ig_graph.connected_components())
     for i, (deg, cc) in enumerate(zip(ig_graph.degree(), clustering, strict=True)):
         g.nodes[i]["degree"] = int(deg)
@@ -267,7 +272,7 @@ def _distance_summary(hist: ig.Histogram, prefix: str) -> dict[str, Any]:
 def measure_union(g: ig.Graph) -> dict[str, Any]:
     result = graph_metrics(g, distances="exact")
     result["local_clustering"] = np.asarray(
-        g.transitivity_local_undirected(mode="zero"), dtype=float
+        g.transitivity_local_undirected(mode="nan"), dtype=float
     )
     result["degrees"] = np.asarray(g.degree(), dtype=np.int64)
     return result
@@ -291,7 +296,7 @@ def measure_directed(g: ig.Graph) -> dict[str, Any]:
         "in_degree_max": int(in_degree.max()),
         "in_degree_zero_fraction": float(np.mean(in_degree == 0)),
         "transitivity": transitivity,
-        "avg_local_clustering": float(local.mean()),
+        "avg_local_clustering": float(np.nanmean(local)),
         "local_clustering": local,
         "n_components": len(weak),
         "largest_component": max(weak.sizes()),
@@ -353,11 +358,18 @@ def check_against_reference(
 
 
 def check_clustering_with_networkx(rep: str, path: Path, local: np.ndarray) -> None:
-    """Directed local clustering against the reference implementation of NetworkX."""
+    """Directed local clustering against the reference implementation of NetworkX.
+
+    Where ours is undefined (NaN), NetworkX gives 0.
+    """
 
     reference = nx.clustering(nx.read_graphml(path, node_type=int))
     expected = np.array([reference[i] for i in range(local.size)])
-    if not np.allclose(local, expected, rtol=1e-12, atol=1e-12):
+    defined = np.isfinite(local)
+    if not (
+        np.allclose(local[defined], expected[defined], rtol=1e-12, atol=1e-12)
+        and np.all(expected[~defined] == 0)
+    ):
         raise ValueError(f"{rep}: directed clustering differs from networkx.clustering")
 
 
@@ -425,7 +437,8 @@ def figure_clustering(
     bins = np.linspace(0, 1, 41)
     centers = (bins[:-1] + bins[1:]) / 2
     for rep, result in results.items():
-        counts, _ = np.histogram(result["local_clustering"], bins=bins)
+        local = result["local_clustering"]
+        counts, _ = np.histogram(local[np.isfinite(local)], bins=bins)
         share = counts / counts.sum()
         style = styles[rep]
         ax.step(bins, np.append(share, share[-1]), where="post", color=style.color, linewidth=1.2)
@@ -604,7 +617,7 @@ def metrics_table(results: Mapping[str, Mapping[str, Any]], sym: str) -> pd.Data
             "densidade": r["density"],
             "transitividade": r["transitivity"],
             "clusterizacao_local_media": r["avg_local_clustering"],
-            "clusterizacao_local_mediana": float(np.median(r["local_clustering"])),
+            "clusterizacao_local_mediana": float(np.nanmedian(r["local_clustering"])),
             "componentes": r["n_components"],
             "maior_componente": r["largest_component"],
             "fracao_maior_componente": r["largest_component"] / r["n_vertices"],

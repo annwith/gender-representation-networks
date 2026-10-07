@@ -200,7 +200,9 @@ def test_union_row_matches_networkx(tiny_run) -> None:
     assert row["n_vertices"] == info["n"]
     assert row["n_edges"] == reference.number_of_edges()
     assert row["transitivity"] == pytest.approx(nx.transitivity(reference))
-    assert row["avg_local_clustering"] == pytest.approx(nx.average_clustering(reference))
+    defined = [v for v, d in reference.degree() if d >= 2]
+    expected = np.mean([nx.clustering(reference, v) for v in defined])
+    assert row["avg_local_clustering"] == pytest.approx(expected)
     components = list(nx.connected_components(reference))
     assert row["n_components"] == len(components)
     lcc = reference.subgraph(max(components, key=len))

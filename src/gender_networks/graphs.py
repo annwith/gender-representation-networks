@@ -242,8 +242,10 @@ def graph_metrics(
         transitivity = g.transitivity_undirected()
         # igraph returns NaN without connected triples; NetworkX (the reference) returns 0.
         out["transitivity"] = 0.0 if math.isnan(transitivity) else float(transitivity)
+        # C_i is undefined for degree < 2, so those vertices are left out of the mean
+        # (NetworkX's average_clustering would count them as 0).
         out["avg_local_clustering"] = (
-            float(g.transitivity_avglocal_undirected(mode="zero")) if n else math.nan
+            float(g.transitivity_avglocal_undirected(mode="nan")) if n else math.nan
         )
         out["degree_hist"] = {"undirected": histogram(g.degree())}
 
