@@ -1,0 +1,16 @@
+2026-10-05 15:45:41,118 | INFO | gender_networks.cli | Etapa lens (execução mini)
+2026-10-05 15:45:41,743 | INFO | gender_networks.vocab_lens | Vizinhos no vocabulário: 2128 ocorrências, V = 151669, d = 2560, k = 10, dispositivo cuda
+2026-10-05 15:45:42,011 | INFO | gender_networks.vocab_lens | lex: posto mediano do próprio token 0, do próximo 72504 (0.3 s)
+2026-10-05 15:45:42,182 | INFO | gender_networks.vocab_lens | L01: posto mediano do próprio token 0, do próximo 68205 (0.2 s)
+2026-10-05 15:45:42,326 | INFO | gender_networks.vocab_lens | L18: posto mediano do próprio token 55160, do próximo 62278 (0.1 s)
+2026-10-05 15:45:42,472 | INFO | gender_networks.vocab_lens | L36: posto mediano do próprio token 2726, do próximo 5 (0.1 s)
+2026-10-05 15:45:42,749 | INFO | gender_networks.vocab_lens | L36n: posto mediano do próprio token 551, do próximo 1 (0.3 s)
+2026-10-05 15:45:42,750 | INFO | gender_networks.vocab_lens | Concordância com pred_next: 2128 de 2128
+2026-10-05 15:45:43,682 | INFO | gender_networks.vocab_lens | Curva camada a camada: 6/36 camadas
+2026-10-05 15:45:44,650 | INFO | gender_networks.vocab_lens | Curva camada a camada: 12/36 camadas
+2026-10-05 15:45:45,472 | INFO | gender_networks.vocab_lens | Curva camada a camada: 18/36 camadas
+2026-10-05 15:45:46,441 | INFO | gender_networks.vocab_lens | Curva camada a camada: 24/36 camadas
+2026-10-05 15:45:47,401 | INFO | gender_networks.vocab_lens | Curva camada a camada: 30/36 camadas
+2026-10-05 15:45:48,223 | INFO | gender_networks.vocab_lens | Curva camada a camada: 36/36 camadas
+2026-10-05 15:45:49,994 | INFO | gender_networks.vocab_lens | Vizinhos no vocabulário gravados em outputs/experiment/mini/lens
+2026-10-05 15:45:49,994 | INFO | gender_networks.cli | Etapa lens concluída em 8.9 s

@@ -1,0 +1,55 @@
+2026-10-05 15:48:24,756 | INFO | gender_networks.cli | Etapa corpus (execução main)
+2026-10-05 15:48:24,756 | INFO | gender_networks.corpus | Corpus já existe em data/corpus; use --force para refazer
+2026-10-05 15:48:24,756 | INFO | gender_networks.cli | Etapa corpus concluída em 0.0 s
+2026-10-05 15:48:24,841 | INFO | gender_networks.cli | Etapa sample (execução main)
+2026-10-05 15:48:24,843 | INFO | gender_networks.sampling | Amostra já existe em outputs/experiment/main/sample; use --force para refazer
+2026-10-05 15:48:24,844 | INFO | gender_networks.cli | Etapa sample concluída em 0.0 s
+2026-10-05 15:48:29,906 | INFO | gender_networks.cli | Etapa extract (execução main)
+2026-10-05 15:48:30,541 | INFO | gender_networks.extract | Entrada: 13606 vértices em 3230 sequências (vocabulário 151669)
+2026-10-05 15:48:30,542 | INFO | gender_networks.extract | Carregando Qwen/Qwen3-4B-Base (revisão 906bfd4b4dc7f14ee4320094d8b41684abff8539, bfloat16)
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights:   0%|          | 1/398 [00:00<01:14,  5.30it/s]Loading weights:   4%|▍         | 15/398 [00:00<00:06, 58.81it/s]Loading weights:   7%|▋         | 28/398 [00:00<00:04, 84.60it/s]Loading weights:  12%|█▏        | 46/398 [00:00<00:03, 112.05it/s]Loading weights:  15%|█▌        | 60/398 [00:00<00:02, 114.07it/s]Loading weights:  20%|██        | 80/398 [00:00<00:02, 133.25it/s]Loading weights:  24%|██▎       | 94/398 [00:00<00:02, 129.30it/s]Loading weights:  28%|██▊       | 113/398 [00:00<00:02, 139.57it/s]Loading weights:  32%|███▏      | 128/398 [00:01<00:02, 134.52it/s]Loading weights:  36%|███▌      | 144/398 [00:01<00:01, 141.24it/s]Loading weights:  40%|███▉      | 159/398 [00:01<00:01, 128.76it/s]Loading weights:  44%|████▍     | 177/398 [00:01<00:01, 141.97it/s]Loading weights:  48%|████▊     | 192/398 [00:01<00:01, 130.10it/s]Loading weights:  53%|█████▎    | 210/398 [00:01<00:01, 142.86it/s]Loading weights:  57%|█████▋    | 225/398 [00:01<00:01, 130.72it/s]Loading weights:  61%|██████    | 243/398 [00:01<00:01, 143.25it/s]Loading weights:  65%|██████▍   | 258/398 [00:02<00:01, 130.87it/s]Loading weights:  70%|██████▉   | 278/398 [00:02<00:00, 143.35it/s]Loading weights:  74%|███████▎  | 293/398 [00:02<00:00, 138.20it/s]Loading weights:  78%|███████▊  | 311/398 [00:02<00:00, 142.07it/s]Loading weights:  82%|████████▏ | 326/398 [00:02<00:00, 139.24it/s]Loading weights:  86%|████████▋ | 344/398 [00:02<00:00, 142.71it/s]Loading weights:  90%|█████████ | 359/398 [00:02<00:00, 137.32it/s]Loading weights:  95%|█████████▍| 377/398 [00:02<00:00, 141.64it/s]Loading weights:  98%|█████████▊| 392/398 [00:03<00:00, 136.45it/s]Loading weights: 100%|██████████| 398/398 [00:03<00:00, 130.99it/s]
+2026-10-05 15:48:53,707 | INFO | gender_networks.extract | Verificação hidden_states_count: ok
+2026-10-05 15:48:53,707 | INFO | gender_networks.extract | Verificação embedding_input: ok
+2026-10-05 15:48:53,707 | INFO | gender_networks.extract | Verificação hooks_match_hidden_states: ok
+2026-10-05 15:48:53,708 | INFO | gender_networks.extract | Verificação final_norm: ok
+2026-10-05 15:48:53,708 | INFO | gender_networks.extract | Verificação determinism: ok
+2026-10-05 15:48:54,163 | INFO | gender_networks.extract | Memmap de todas as camadas: outputs/experiment/main/reps/all_layers.npy (2.51 GB)
+2026-10-05 15:49:03,758 | INFO | gender_networks.extract | Extração: 100/3230 sequências, 14491 tokens, 2022 tokens/s, faltam ~300 s
+2026-10-05 15:49:09,765 | INFO | gender_networks.extract | Extração: 200/3230 sequências, 25079 tokens, 1912 tokens/s, faltam ~236 s
+2026-10-05 15:49:15,672 | INFO | gender_networks.extract | Extração: 300/3230 sequências, 37251 tokens, 1964 tokens/s, faltam ~210 s
+2026-10-05 15:49:21,370 | INFO | gender_networks.extract | Extração: 400/3230 sequências, 47825 tokens, 1944 tokens/s, faltam ~192 s
+2026-10-05 15:49:27,487 | INFO | gender_networks.extract | Extração: 500/3230 sequências, 57876 tokens, 1897 tokens/s, faltam ~182 s
+2026-10-05 15:49:33,265 | INFO | gender_networks.extract | Extração: 600/3230 sequências, 67493 tokens, 1865 tokens/s, faltam ~171 s
+2026-10-05 15:49:39,137 | INFO | gender_networks.extract | Extração: 700/3230 sequências, 77504 tokens, 1848 tokens/s, faltam ~163 s
+2026-10-05 15:49:44,934 | INFO | gender_networks.extract | Extração: 800/3230 sequências, 87616 tokens, 1838 tokens/s, faltam ~154 s
+2026-10-05 15:49:50,747 | INFO | gender_networks.extract | Extração: 900/3230 sequências, 97374 tokens, 1822 tokens/s, faltam ~146 s
+2026-10-05 15:49:56,662 | INFO | gender_networks.extract | Extração: 1000/3230 sequências, 108881 tokens, 1837 tokens/s, faltam ~139 s
+2026-10-05 15:50:02,501 | INFO | gender_networks.extract | Extração: 1100/3230 sequências, 119384 tokens, 1835 tokens/s, faltam ~132 s
+2026-10-05 15:50:08,253 | INFO | gender_networks.extract | Extração: 1200/3230 sequências, 127593 tokens, 1803 tokens/s, faltam ~125 s
+2026-10-05 15:50:13,988 | INFO | gender_networks.extract | Extração: 1300/3230 sequências, 136196 tokens, 1782 tokens/s, faltam ~119 s
+2026-10-05 15:50:19,769 | INFO | gender_networks.extract | Extração: 1400/3230 sequências, 145743 tokens, 1774 tokens/s, faltam ~112 s
+2026-10-05 15:50:25,592 | INFO | gender_networks.extract | Extração: 1500/3230 sequências, 156017 tokens, 1775 tokens/s, faltam ~105 s
+2026-10-05 15:50:31,467 | INFO | gender_networks.extract | Extração: 1600/3230 sequências, 166746 tokens, 1780 tokens/s, faltam ~99 s
+2026-10-05 15:50:37,880 | INFO | gender_networks.extract | Extração: 1700/3230 sequências, 178101 tokens, 1790 tokens/s, faltam ~93 s
+2026-10-05 15:50:43,645 | INFO | gender_networks.extract | Extração: 1800/3230 sequências, 186643 tokens, 1774 tokens/s, faltam ~87 s
+2026-10-05 15:50:49,967 | INFO | gender_networks.extract | Extração: 1900/3230 sequências, 203383 tokens, 1825 tokens/s, faltam ~81 s
+2026-10-05 15:50:56,569 | INFO | gender_networks.extract | Extração: 2000/3230 sequências, 212214 tokens, 1812 tokens/s, faltam ~75 s
+2026-10-05 15:51:02,315 | INFO | gender_networks.extract | Extração: 2100/3230 sequências, 220566 tokens, 1796 tokens/s, faltam ~69 s
+2026-10-05 15:51:08,059 | INFO | gender_networks.extract | Extração: 2200/3230 sequências, 228484 tokens, 1778 tokens/s, faltam ~63 s
+2026-10-05 15:51:13,799 | INFO | gender_networks.extract | Extração: 2300/3230 sequências, 236631 tokens, 1764 tokens/s, faltam ~56 s
+2026-10-05 15:51:19,469 | INFO | gender_networks.extract | Extração: 2400/3230 sequências, 243968 tokens, 1746 tokens/s, faltam ~50 s
+2026-10-05 15:51:25,235 | INFO | gender_networks.extract | Extração: 2500/3230 sequências, 252753 tokens, 1737 tokens/s, faltam ~44 s
+2026-10-05 15:51:30,997 | INFO | gender_networks.extract | Extração: 2600/3230 sequências, 261531 tokens, 1730 tokens/s, faltam ~38 s
+2026-10-05 15:51:36,820 | INFO | gender_networks.extract | Extração: 2700/3230 sequências, 271456 tokens, 1730 tokens/s, faltam ~32 s
+2026-10-05 15:51:42,661 | INFO | gender_networks.extract | Extração: 2800/3230 sequências, 281457 tokens, 1730 tokens/s, faltam ~26 s
+2026-10-05 15:51:48,505 | INFO | gender_networks.extract | Extração: 2900/3230 sequências, 291452 tokens, 1730 tokens/s, faltam ~20 s
+2026-10-05 15:51:54,248 | INFO | gender_networks.extract | Extração: 3000/3230 sequências, 300121 tokens, 1724 tokens/s, faltam ~14 s
+2026-10-05 15:52:00,037 | INFO | gender_networks.extract | Extração: 3100/3230 sequências, 310182 tokens, 1725 tokens/s, faltam ~8 s
+2026-10-05 15:52:06,227 | INFO | gender_networks.extract | Extração: 3200/3230 sequências, 321298 tokens, 1731 tokens/s, faltam ~2 s
+2026-10-05 15:52:07,971 | INFO | gender_networks.extract | Extração: 3230/3230 sequências, 324356 tokens, 1731 tokens/s, faltam ~0 s
+2026-10-05 15:52:08,009 | INFO | gender_networks.extract | Grupos de prefixo: 24 grupos, 59 linhas copiadas, maior diferença {'L01': 0.03125, 'L18': 448.0, 'L36': 80.0, 'L36n': 4.1875, 'all_layers': 448.0}
+2026-10-05 15:52:43,305 | INFO | gender_networks.extract | Extração: 13606 vértices, 324356 tokens
+2026-10-05 15:52:43,388 | INFO | gender_networks.cli | Etapa extract concluída em 253.5 s
+2026-10-05 15:52:43,405 | INFO | gender_networks.cli | Etapa knn (execução main)
+2026-10-05 15:52:43,448 | INFO | gender_networks.knn | k-NN: 13606 ocorrências, 2864 tipos, 8 representações
+2026-10-05 15:52:59,263 | INFO | gender_networks.knn | lex: candidatos 1.2 s, vizinhos 14.6 s; k=10: 11948 linhas com empate (maior bloco 50), 0 linhas recalculadas

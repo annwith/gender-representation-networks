@@ -1,0 +1,17 @@
+2026-10-05 15:24:30,988 | INFO | gender_networks.cli | Etapa sample (execução main)
+2026-10-05 15:24:37,395 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-4B-Base/tree/906bfd4b4dc7f14ee4320094d8b41684abff8539/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-10-05 15:24:37,551 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-4B-Base/tree/906bfd4b4dc7f14ee4320094d8b41684abff8539?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-10-05 15:24:37,701 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/Qwen/Qwen3-4B-Base/resolve/906bfd4b4dc7f14ee4320094d8b41684abff8539/added_tokens.json "HTTP/1.1 404 Not Found"
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-10-05 15:24:37,701 | WARNING | huggingface_hub.utils._http | Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-10-05 15:24:37,847 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/Qwen/Qwen3-4B-Base/resolve/906bfd4b4dc7f14ee4320094d8b41684abff8539/special_tokens_map.json "HTTP/1.1 404 Not Found"
+2026-10-05 15:24:37,994 | INFO | httpx | HTTP Request: HEAD https://huggingface.co/Qwen/Qwen3-4B-Base/resolve/906bfd4b4dc7f14ee4320094d8b41684abff8539/chat_template.jinja "HTTP/1.1 404 Not Found"
+2026-10-05 15:24:38,540 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-4B-Base "HTTP/1.1 200 OK"
+2026-10-05 15:24:38,951 | INFO | gender_networks.sampling | Lidos 17066 parágrafos de data/corpus/paragraphs.jsonl
+2026-10-05 15:24:51,433 | INFO | gender_networks.sampling | Corpus tokenizado: 17066 parágrafos, 2657592 tokens em 12.5 s
+2026-10-05 15:24:51,856 | INFO | gender_networks.sampling | Núcleo: 80 parágrafos, 10020 vértices (25 tipos acima de f_max, 1915 ocorrências cortadas)
+2026-10-05 15:24:52,475 | WARNING | gender_networks.sampling | target planta descartada: só 1 tema(s) com ≥ 10 ocorrências
+2026-10-05 15:24:55,206 | INFO | gender_networks.sampling | Multitema: 571 elegíveis, 150 sorteados, 0 já saturados, 2832 ocorrências
+2026-10-05 15:25:01,272 | INFO | gender_networks.sampling | Amostra: 13606 vértices, 2864 tipos, 3230 sequências, 324356 tokens a processar; estratos {'control': 277, 'core': 10020, 'multitheme': 2832, 'target': 477}
+2026-10-05 15:25:06,061 | INFO | gender_networks.sampling | Amostra gravada em outputs/experiment/main/sample
+2026-10-05 15:25:06,191 | INFO | gender_networks.cli | Etapa sample concluída em 35.2 s

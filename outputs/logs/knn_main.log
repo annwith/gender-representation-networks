@@ -1,0 +1,24 @@
+2026-10-05 15:53:20,855 | INFO | gender_networks.cli | Etapa knn (execução main)
+2026-10-05 15:53:20,905 | INFO | gender_networks.knn | k-NN: 13606 ocorrências, 2864 tipos, 8 representações
+2026-10-05 15:53:37,547 | INFO | gender_networks.knn | lex: candidatos 1.4 s, vizinhos 15.2 s; k=10: 11948 linhas com empate (maior bloco 50), 0 linhas recalculadas
+2026-10-05 15:54:06,518 | INFO | gender_networks.knn | L01: candidatos 17.6 s, vizinhos 11.3 s; k=10: 58 linhas com empate (maior bloco 15), 0 linhas recalculadas
+2026-10-05 15:54:36,202 | INFO | gender_networks.knn | L18: candidatos 16.1 s, vizinhos 13.5 s; k=10: 124 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-10-05 15:55:06,009 | INFO | gender_networks.knn | L36: candidatos 16.8 s, vizinhos 13.0 s; k=10: 99 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-10-05 15:55:35,955 | INFO | gender_networks.knn | L36n: candidatos 16.7 s, vizinhos 13.2 s; k=10: 90 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-10-05 15:56:07,445 | INFO | gender_networks.knn | L01c: candidatos 14.8 s, vizinhos 11.3 s; k=10: 48 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-10-05 15:56:34,276 | INFO | gender_networks.knn | L18c: candidatos 13.9 s, vizinhos 12.9 s; k=10: 100 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-10-05 15:57:00,563 | INFO | gender_networks.knn | L36c: candidatos 13.4 s, vizinhos 12.8 s; k=10: 73 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-10-05 15:57:00,773 | INFO | gender_networks.knn | Rede do vocabulário: 151643 linhas (26 tokens especiais excluídos)
+2026-10-05 15:58:24,843 | INFO | gender_networks.knn | vocab: bloco 34/344 (81.4 s)
+2026-10-05 15:59:44,407 | INFO | gender_networks.knn | vocab: bloco 68/344 (161.0 s)
+2026-10-05 16:01:02,794 | INFO | gender_networks.knn | vocab: bloco 102/344 (239.3 s)
+2026-10-05 16:02:24,996 | INFO | gender_networks.knn | vocab: bloco 136/344 (321.5 s)
+2026-10-05 16:03:48,094 | INFO | gender_networks.knn | vocab: bloco 170/344 (404.6 s)
+2026-10-05 16:05:09,995 | INFO | gender_networks.knn | vocab: bloco 204/344 (486.5 s)
+2026-10-05 16:06:32,879 | INFO | gender_networks.knn | vocab: bloco 238/344 (569.4 s)
+2026-10-05 16:07:55,454 | INFO | gender_networks.knn | vocab: bloco 272/344 (652.0 s)
+2026-10-05 16:09:24,677 | INFO | gender_networks.knn | vocab: bloco 306/344 (741.2 s)
+2026-10-05 16:10:51,918 | INFO | gender_networks.knn | vocab: bloco 340/344 (828.5 s)
+2026-10-05 16:10:59,791 | INFO | gender_networks.knn | vocab: bloco 344/344 (836.3 s)
+2026-10-05 16:11:15,303 | INFO | gender_networks.knn | Rede do vocabulário em 854.7 s
+2026-10-05 16:11:16,971 | INFO | gender_networks.cli | Etapa knn concluída em 1076.1 s
