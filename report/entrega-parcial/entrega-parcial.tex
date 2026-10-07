@@ -99,7 +99,14 @@ mesmo token são idênticas, e os empates são desfeitos ao acaso, semente 0); \
 \textbf{L18} e \textbf{L36}, a saída dos blocos 1, 18 e 36 (inicial, intermediário e
 final). A relação k-NN é direcionada; as redes entregues e analisadas são as versões
 \textbf{não direcionadas por união}, com aresta $\{i,j\}$ quando $j$ está entre os vizinhos
-de $i$ ou $i$ entre os de $j$. Por isso todo vértice tem grau $\ge k$.
+de $i$ ou $i$ entre os de $j$. Por isso todo vértice tem grau $\ge k$. Usamos a união por
+dois motivos. Primeiro, clusterização, distâncias, componentes e comunidades são definidas
+para grafos não direcionados; na versão direcionada, a maioria dos pares não tem caminho
+(82\% dos pares ordenados em lex), e a distância média fica infinita. Segundo, a união
+preserva todas as relações de vizinhança, enquanto a versão mútua (aresta só quando $i$ e
+$j$ se escolhem) descartaria de 39\% a 56\% dos arcos e fragmentaria lex em 1.497
+componentes. A versão direcionada continua sendo usada para os graus de entrada
+(\textit{hubs}) e a reciprocidade.
 
 \textbf{Arquivos.} \texttt{\textit{rede}\_k10\_union.graphml}, com \textit{rede} em
 \texttt{lex}, \texttt{L01}, \texttt{L18} e \texttt{L36} (cerca de 16\,MB cada). Cada vértice traz o token, a palavra de origem, o tema, o artigo, o contexto

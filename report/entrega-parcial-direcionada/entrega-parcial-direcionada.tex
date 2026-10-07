@@ -1,0 +1,204 @@
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Pacotes (mesmo preâmbulo da proposta, report/report.tex)
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{hyperref}
+
+% ------------------------------------------------------------
+% Layout
+% ------------------------------------------------------------
+\geometry{top=1.8cm, bottom=1.8cm, left=1.9cm, right=1.9cm}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist[itemize]{leftmargin=1.35em, itemsep=0.8pt, topsep=2pt, parsep=0pt}
+\setlist[enumerate]{leftmargin=1.55em, itemsep=0.8pt, topsep=2pt, parsep=0pt}
+
+\titleformat{\section}{\bfseries\normalsize}{}{0pt}{}
+\titlespacing*{\section}{0pt}{7pt}{2pt}
+
+\captionsetup{font=small, labelfont=bf, skip=3pt}
+\setlength{\textfloatsep}{8pt}
+\setlength{\floatsep}{6pt}
+
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue}
+
+\newcommand{\repo}{https://github.com/annwith/gender-representation-networks}
+\newcommand{\dados}{\repo/tree/main-run-results/data/graphml}
+
+% ------------------------------------------------------------
+% Documento
+% ------------------------------------------------------------
+\begin{document}
+
+\begin{center}
+    {\large\bfseries MO438 -- Redes Complexas: Entrega Parcial (redes direcionadas)}\\[2pt]
+    Da rede lexical à rede contextual: reorganização das representações
+    internas de Transformers com Redes Complexas\\[2pt]
+    Juliana Midlej do Espirito Santo (RA 200208)
+\end{center}
+
+\vspace{-2mm}
+
+% ============================================================
+\section*{1. Introdução}
+
+Na entrada de um Transformer, todas as ocorrências de um mesmo token têm o mesmo
+\textit{embedding}; ao atravessar as camadas, essas representações incorporam o contexto e
+se reorganizam. O projeto descreve essa transformação como uma sequência de redes complexas
+sobre \textbf{os mesmos vértices}: cada vértice é uma \textit{ocorrência} de um token em um
+texto, e cada ocorrência aponta para as $k$ ocorrências mais semelhantes a ela. Comparando as
+redes camada a camada, medimos quanto a vizinhança deixa de ser determinada pela identidade
+do token e passa a refletir o contexto. Esta versão analisa as redes \textbf{direcionadas},
+que são o objeto produzido diretamente pelo k-NN.
+
+\textbf{Dados do projeto:} \url{\repo}. As redes estão em GraphML em
+\href{\dados}{\texttt{data/graphml/}} (ramo \texttt{main-run-results}), geradas pelo script
+\texttt{export\_networks.py} (em \texttt{scripts/partial\_delivery/}) com a opção
+\texttt{--sym directed}.
+
+% ============================================================
+\section*{2. Origem dos dados e construção das redes}
+
+As redes são originais, construídas por nós a partir de duas fontes públicas: a
+\textbf{Wikipédia em português} (\url{https://pt.wikipedia.org}, CC BY-SA), obtida pela
+API MediaWiki a partir de 8 categorias temáticas, com a revisão de cada artigo em
+\texttt{data/corpus/manifest.csv}; e o modelo
+\href{https://huggingface.co/Qwen/Qwen3-4B-Base}{\textbf{Qwen3-4B-Base}} (36 blocos,
+revisão \texttt{906bfd4}), cujo \textit{tokenizer} também define os tokens.
+
+\textbf{Vértices:} 13.606 ocorrências de 2.864 tipos de token, sorteadas em 3.230
+parágrafos de 1.172 artigos (no máximo 50 ocorrências por tipo). \textbf{Arcos:} cada
+ocorrência $i$ recebe um vetor $x_i$ e aponta para os $k=10$ vizinhos $N_i$ de maior
+cosseno ($i\to j$ para $j\in N_i$). As redes diferem só em $x_i$: \textbf{lex}, o
+\textit{embedding} de entrada (ocorrências do mesmo token são idênticas; empates desfeitos ao
+acaso, semente 0), e \textbf{L01}, \textbf{L18} e \textbf{L36}, a saída dos blocos 1, 18 e
+36. \textbf{Arquivos:} \texttt{\textit{rede}\_k10\_directed.graphml} (cerca de 17,5\,MB
+cada); cada vértice traz token, palavra, tema, artigo, contexto textual e as medidas abaixo.
+
+% ============================================================
+\section*{3. Definições para a rede direcionada}
+
+\textbf{Graus e densidade.} Todo vértice tem grau de saída exatamente $k$, então a
+informação está no grau de entrada $d_i^{\text{in}}$ (quantos escolheram $i$). A densidade
+$\rho=|A|/(|V|(|V|-1)) = k/(|V|-1)$ é fixada pela construção e é igual nas quatro redes.
+
+\textbf{Clusterização (Fagiolo, 2007).} Com $S=A+A^\top$, o número de triângulos
+dirigidos que passam por $i$ é $t_i=\tfrac12(S^3)_{ii}$, e o máximo possível é
+$D_i=d_i^{\text{tot}}(d_i^{\text{tot}}-1)-2d_i^{\leftrightarrow}$, em que
+$d_i^{\text{tot}}=d_i^{\text{in}}+d_i^{\text{out}}$ e $d_i^{\leftrightarrow}$ é o número
+de vizinhos recíprocos. A clusterização local é $C_i^{\rightarrow}=t_i/D_i$; os dois
+coeficientes globais são a média $\bar C^{\rightarrow}$ e a transitividade dirigida
+$T^{\rightarrow}=\sum_i t_i/\sum_i D_i$. Se $A$ for simétrica, elas se reduzem às
+definições não direcionadas. Conferimos os valores com \texttt{networkx.clustering}.
+
+\textbf{Componentes.} Há duas noções: \textit{fracas}, ignorando o sentido dos arcos (são
+as componentes da rede não direcionada), e \textit{fortes}, em que há caminho de $i$ para
+$j$ \textbf{e} de $j$ para $i$.
+
+\textbf{Distâncias.} $d(i,j)$ é o número de arcos do menor caminho dirigido de $i$ a $j$.
+Ela não é simétrica e vale $\infty$ quando não há caminho. Como nenhuma das quatro redes é
+fortemente conexa, a média sobre todos os pares e o diâmetro são $\infty$. Reportamos três
+substitutos finitos, que respondem a perguntas diferentes, junto com a fração de pares
+ordenados que têm caminho: (a) média e máximo só sobre os pares com caminho;
+(b) média e diâmetro dentro da maior componente forte; (c) a eficiência global
+$E=\frac{1}{|V|(|V|-1)}\sum_{i\neq j}1/d(i,j)$, com $1/\infty=0$, e sua inversa $1/E$
+(distância harmônica).
+
+% ============================================================
+\section*{4. Análise inicial}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Métricas das quatro redes direcionadas ($k=10$). Distâncias exatas, por busca em
+largura a partir de cada vértice.}
+\label{tab:metricas}
+\input{tabelas/metricas.tex}
+\end{table}
+
+\textbf{Tamanho, grau e densidade (itens 1, 6 e 7).} As quatro redes têm 13.606 vértices,
+136.060 arcos, grau médio de entrada e de saída igual a 10 e densidade
+$7{,}35\times10^{-4}$. A distribuição dos graus de entrada (Fig.~\ref{fig:graus-clust})
+diferencia as redes: em lex o máximo é 29; em L36 ele chega a 247, e 5,4\% dos vértices não
+são escolhidos por ninguém (\textit{hubness}).
+
+\begin{figure}[h]
+\centering
+\includegraphics{figuras/graus.pdf}\hfill
+\includegraphics{figuras/clusterizacao_local.pdf}
+\caption{À esquerda, a distribuição dos graus de entrada, como $P(K\ge d)$ em escala
+log-log (item 7; o grau de saída é 10 para todos). À direita, a distribuição da
+clusterização local dirigida $C_i^{\rightarrow}$ (item 3), em faixas de largura 0,025.}
+\label{fig:graus-clust}
+\end{figure}
+
+\textbf{Clusterização (itens 2 e 3).} $T^{\rightarrow}$ e $\bar C^{\rightarrow}$ seguem a
+mesma tendência da rede não direcionada: altas em lex e L01 (0,44--0,53) e menores em L18
+e L36 (0,23--0,33). A distribuição de $C_i^{\rightarrow}$ em L18 e L36 se concentra perto de
+0,2. Em lex ela tem dois picos (perto de 0,18 e de 0,45).
+
+\begin{figure}[h]
+\centering
+\includegraphics{figuras/componentes.pdf}
+\caption{Distribuição dos tamanhos das componentes fortes (item 8; o título dá o número
+de componentes e o rótulo, o tamanho da maior). As componentes fracas são 44, 40, 2 e 2.}
+\label{fig:componentes}
+\end{figure}
+
+\textbf{Componentes (item 8, Fig.~\ref{fig:componentes}).} As componentes fracas são as
+mesmas da rede não direcionada (44, 40, 2 e 2), mas as fortes são muito mais numerosas:
+1.059 em lex, 1.768 em L01, 173 em L18 e 1.517 em L36. A maior componente forte reúne 19\%
+dos vértices em lex e 95\% em L18. Em lex, 58\% das ocorrências têm os 10 vizinhos do
+próprio token: os grupos de ocorrências de um token frequente apontam só para dentro e
+formam ``ralos'' de onde nenhum arco sai (388 componentes, 64\% dos vértices). Em L36, os
+tamanhos-1 vêm sobretudo dos vértices que ninguém escolhe.
+
+\begin{figure}[h]
+\centering
+\includegraphics{figuras/distancias.pdf}
+\caption{Distâncias dirigidas (itens 4 e 5). À esquerda, a fração de \emph{todos} os pares
+ordenados a cada distância finita (a área sob cada curva é a fração de pares com caminho);
+à direita, a fração de pares sem caminho, para os quais $d=\infty$.}
+\label{fig:distancias}
+\end{figure}
+
+\textbf{Distâncias (itens 4 e 5, Fig.~\ref{fig:distancias}).} Os pares sem caminho são
+82\% em lex, 75\% em L01, 5\% em L18 e 20\% em L36. Por isso os três substitutos não
+concordam, e cada um distorce a comparação de um jeito:
+\begin{itemize}
+    \item \textbf{(a) Só pares com caminho.} Lex fica com 10,4 e L18 com 7,0, mas as médias
+    são tomadas sobre 18\% e 95\% dos pares, ou seja, sobre populações diferentes. Essa
+    medida não é monótona: remover um arco pode \emph{diminuir} a média, se ele desconectar
+    pares distantes.
+    \item \textbf{(b) Maior componente forte.} Em lex ela tem só 19\% dos vértices; a
+    comparação vira entre subconjuntos de vértices diferentes em cada rede.
+    \item \textbf{(c) Eficiência.} Ela é bem definida e monótona, mas mistura alcance com
+    distância: $1/E$ dá 49 em lex contra 6,8 em L18, sobretudo porque lex tem muitos pares
+    sem caminho, e não porque seus caminhos sejam longos.
+\end{itemize}
+Também há efeitos que a versão não direcionada não mostra: em L36 a maior distância finita
+é 50 (11 na rede de união), e a média (a) sobe de 7,0 em L18 para 10,0 em L36, ao passo que
+na rede de união as duas camadas ficam próximas (5,1 e 5,3).
+
+\textbf{Síntese.} A versão direcionada confirma a reorganização lex/L01 $\to$ L18/L36
+(clusterização menor, componente forte gigante, \textit{hubs} em L36), mas suas distâncias
+medem sobretudo \emph{alcançabilidade}: os grupos fechados por token em lex e os vértices
+não escolhidos em L36 tornam a maioria ou uma parte grande dos pares inalcançável. Por isso,
+no restante do projeto, as distâncias serão comparadas na rede não direcionada por união, e
+a versão direcionada será usada para grau de entrada, reciprocidade e alcançabilidade.
+
+\end{document}
