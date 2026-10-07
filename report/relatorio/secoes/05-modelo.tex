@@ -85,11 +85,12 @@ capturadas por \emph{hooks} de \emph{forward} em \cod{layers[0]}, \cod{layers[17
 \paragraph{Carregamento.} O modelo é carregado com \cod{AutoModel} (o decodificador sem a cabeça
 de linguagem, desnecessária porque a matriz de saída é a própria $E$), com
 \cod{dtype=torch.bfloat16} (o argumento \cod{torch\_dtype} está obsoleto no transformers 5),
-\cod{device\_map="auto"} e \cod{max\_memory} de 6 GiB na GPU e 10 GiB na CPU. Os pesos
-(7,5 GiB) não cabem inteiros nos 8 GiB da GPU junto com as ativações, então o
-\cod{accelerate} deixa parte dos blocos na CPU e os transfere para a GPU durante o
-\emph{forward}. Isso deixa a extração mais lenta, mas não muda o resultado: cada bloco faz as
-mesmas contas em bf16.
+\cod{device\_map="auto"} e atenção \cod{sdpa}. A execução principal usou uma única RTX A5500
+(24 GiB), com \cod{max\_memory} de 20 GiB na GPU: os pesos (7,5 GiB) cabem inteiros e nenhum
+bloco fica na CPU (pico de 7,6 GiB alocados, segundo o manifesto da etapa). Numa GPU de 8 GiB,
+como a RTX 4070 usada no desenvolvimento, o limite de 6 GiB faz o \cod{accelerate} deixar
+parte dos blocos na CPU e transferi-los para a GPU durante o \emph{forward}; isso deixa a
+extração mais lenta, mas não muda o resultado, porque cada bloco faz as mesmas contas em bf16.
 
 % ------------------------------------------------------------
 \subsection{Sequências, prefixo e grupos de prefixo}\label{sec:mod-sequencias}
