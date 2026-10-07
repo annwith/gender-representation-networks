@@ -122,6 +122,85 @@ grupos). Com a cópia, esses vértices ficam exatamente empatados e recebem o me
 de empates que a rede lexical, em vez de uma ordem decidida por ruído.
 
 % ------------------------------------------------------------
+\subsection{Do parágrafo aos vetores, passo a passo}\label{sec:mod-extracao}
+
+Esta subseção junta as peças anteriores e descreve o caminho de uma ocorrência até os seus
+quatro vetores principais (\cod{lex}, \cod{L01}, \cod{L18} e \cod{L36}).
+
+\paragraph{O fluxo residual.} Cada posição $p$ da sequência carrega um vetor de dimensão
+$d=2560$, o \emph{fluxo residual}, que cada bloco lê e atualiza. Na entrada,
+$h^{(0)}_p=e_{t_p}$ é só a linha da matriz de \emph{embeddings} do token. O Qwen3 normaliza
+antes de cada sub-camada (\emph{pre-norm}), e o bloco $\ell$ faz
+\begin{equation}
+    u_p = h^{(\ell-1)}_p + \mathrm{Atenção}_\ell\bigl(\mathrm{norm}(h^{(\ell-1)})\bigr)_p,
+    \qquad
+    h^{(\ell)}_p = u_p + \mathrm{MLP}_\ell\bigl(\mathrm{norm}(u_p)\bigr).
+\end{equation}
+A atenção é causal: a posição $p$ só lê as posições $0,\ldots,p$. Por isso, $h^{(\ell)}_p$
+depende só do token em $p$ e dos tokens anteriores a ele na sequência, em qualquer bloco. A
+saída bruta do bloco $\ell$ na posição da ocorrência $i$ é o vetor $h^{(\ell)}_i$ que entra nas
+redes contextuais; a RMSNorm final só é aplicada depois de $h^{(36)}$.
+
+\paragraph{1. A sequência.} O parágrafo é tokenizado e recebe o prefixo
+\tok{<|endoftext|>} (Seção~\ref{sec:mod-sequencias}). Por exemplo, um parágrafo de Economia
+com \emph{banco} sorteado vira
+\begin{center}
+\small
+\begin{tabular}{@{}l c c c c c@{}}
+    posição & 0 & 1 & 2 & 3 & \ldots \\
+    token & \tok{<|endoftext|>} & \tok{O} & \tok{\textvisiblespace banco}
+          & \tok{\textvisiblespace central} & \ldots
+\end{tabular}
+\end{center}
+e é cortado logo depois da última posição sorteada no parágrafo. O modelo não recebe o título
+do artigo nem os outros parágrafos, e nada é compartilhado entre parágrafos ou artigos: cada
+sequência é uma chamada independente, sem \emph{cache} de chaves e valores. O contexto de
+cada ocorrência é, portanto, exatamente o texto anterior a ela no seu parágrafo. O tema do
+artigo é um rótulo externo, usado na análise; o modelo não o vê.
+
+\paragraph{2. O vetor lexical não passa pelo modelo.} $x^{\cod{lex}}_i=e_{t_i}$ é a linha
+\cod{token\_id} da matriz de \emph{embeddings}, e não depende da sequência. A matriz inteira é
+gravada uma vez (\cod{reps/embeddings.safetensors}, $151.669\times2560$ em bf16), e a etapa
+\etapa{knn} lê a linha de cada ocorrência pelo seu \cod{token\_id}. Por isso todas as
+ocorrências de um mesmo token têm o mesmo vetor lexical, o que gera os empates da
+Seção~\ref{sec:red-empates}.
+
+\paragraph{3. O \emph{forward pass}.} A sequência passa pelo modelo uma vez, em lote 1, com
+máscara de atenção só de uns, sem \emph{cache} (\cod{use\_cache=False}) e em modo de
+inferência. A cabeça de linguagem não é carregada (parágrafo ``Carregamento'', acima).
+
+\paragraph{4. Os \emph{hooks} capturam as saídas dos blocos.} Antes da chamada, um
+\emph{forward hook} do PyTorch é registrado em \cod{layers[0]}, \cod{layers[17]} e
+\cod{layers[35]} (os blocos 1, 18 e 36; os índices do código começam em 0), outro em
+\cod{norm} (para \cod{L36n}) e, para a curva da P2, um em cada um dos 36 blocos. Quando um bloco
+termina, o seu \emph{hook} recebe a saída, um tensor $[1, n, d]$ com as $n$ posições da
+sequência, guarda só as linhas das posições sorteadas nela, passa essas linhas para a CPU em
+bf16 e descarta o resto. No exemplo, o \emph{hook} do bloco 18 pega a linha da posição 2:
+esse é o vetor \cod{L18} de \emph{banco}. Os \emph{hooks} são necessários porque a saída bruta
+do bloco 36 não aparece em \cod{hidden\_states} (parágrafo ``A pegadinha do
+\texttt{hidden\_states[36]}'', acima, e Seção~\ref{sec:prob-hidden}).
+
+\paragraph{5. Várias ocorrências no mesmo parágrafo.} Todas as ocorrências sorteadas num
+parágrafo saem da mesma chamada, cada uma lida na sua posição. Pela causalidade, o vetor de
+uma ocorrência na posição $p$ é o mesmo que sairia de uma chamada própria cortada em $p$: os
+tokens posteriores, inclusive outras ocorrências sorteadas, não o afetam (a menos do ruído do
+bf16 discutido na Seção~\ref{sec:limitacoes}). Uma ocorrência posterior tem as anteriores no
+seu contexto, mas só porque elas fazem parte do texto que a precede. Na prática, há dois
+regimes: os \nParagrafosNucleo{} parágrafos do núcleo, em que todos os tokens são vértices
+(\nVerticesNucleo{} vértices, mais de cem por chamada), e os parágrafos dos estratos esparsos,
+quase sempre com um único vértice; neles o parágrafo é só contexto. Ao todo são
+\nSequencias{} chamadas, uma por parágrafo.
+
+\paragraph{6. Montagem e arquivos.} As linhas de todas as chamadas são reunidas na ordem de
+\cod{occurrence\_id}, os vetores dos grupos de prefixo são copiados do primeiro membro
+(Seção~\ref{sec:mod-sequencias}), e cada representação é gravada como uma matriz
+$[\nVertices\times2560]$ em bf16: \cod{reps/L01.safetensors}, \cod{L18}, \cod{L36} e
+\cod{L36n}. Os 36 blocos ficam em \cod{reps/all\_layers.npy} ($[36, N, d]$, \emph{memmap}) e a
+previsão do próximo token em \cod{reps/pred\_next.npy}. A linha $i$ de cada matriz é o vetor
+da ocorrência $i$ de \cod{occurrences.csv}, e é dessas matrizes que a etapa \etapa{knn} parte
+(Seção~\ref{sec:redes}).
+
+% ------------------------------------------------------------
 \subsection{Verificações antes da extração}\label{sec:mod-verificacao}
 
 Antes da extração completa, \cod{gender-networks extract --verify} roda o modelo real em 8

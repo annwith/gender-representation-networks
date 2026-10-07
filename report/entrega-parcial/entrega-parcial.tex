@@ -100,6 +100,23 @@ parágrafos de 1.172 artigos, com no máximo 50 ocorrências por tipo. São 6.58
 inteiras, 6.345 fragmentos de palavra (início ou continuação), 351 números e 327 sinais
 de pontuação.
 
+\textbf{Extração dos vetores.} Cada parágrafo é tokenizado, recebe na frente o separador de documentos
+\texttt{<|endoftext|>} e passa sozinho pelo Qwen3, numa chamada própria e sem \textit{cache}:
+o modelo não vê o título nem os outros parágrafos do artigo, e não há contexto compartilhado
+entre parágrafos ou artigos. A sequência é cortada logo depois da última ocorrência sorteada
+no parágrafo. Dentro do modelo, cada posição carrega um vetor de dimensão 2560 (o fluxo
+residual), que cada um dos 36 blocos atualiza com atenção e MLP; como a atenção é causal, o
+vetor de uma posição depende só do seu token e dos anteriores. O vetor \textbf{lex} não passa
+pelo modelo: é a linha do token na matriz de \textit{embeddings}, igual para todas as
+ocorrências do token. \textbf{L01}, \textbf{L18} e \textbf{L36} são capturados durante a
+chamada por \textit{hooks} do PyTorch nos blocos 1, 18 e 36: quando o bloco termina, o
+\textit{hook} recebe a sua saída bruta (antes da normalização final), com uma linha por
+posição, e guarda só as linhas das posições sorteadas. Assim, as ocorrências de um mesmo
+parágrafo saem da mesma chamada, cada uma lida na sua posição, com o mesmo resultado que
+teriam em chamadas separadas. Nos 80 parágrafos do núcleo todos os tokens são vértices; nos
+outros 3.150, o parágrafo quase sempre só dá contexto a uma ocorrência sorteada. As linhas
+são reunidas numa matriz $13.606\times2560$ por representação.
+
 \textbf{Arestas.} Cada ocorrência $i$ recebe um vetor $x_i$ e escolhe os $k=10$ vizinhos
 de maior similaridade de cosseno (calculada em \texttt{float64}). As quatro redes diferem
 apenas em $x_i$: \textbf{lex}, o \textit{embedding} de entrada do token (ocorrências do
