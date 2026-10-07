@@ -1,0 +1,572 @@
+<title>Rede da coleta da Wikipédia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen tool. Sidebar of controls and the selected node beside a full-height graph
+   canvas; on phones the canvas comes first and the sidebar stacks under it. */
+:root {
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --fg: #15171c;
+  --muted: #5a606c;
+  --line: #dcdfe5;
+  --accent: #2459a8;
+  --edge: rgba(72, 80, 96, 0.20);
+  --cross: rgba(198, 52, 46, 0.30);
+  --dim: #dfe2e7;
+  --multi: #15171c;
+  --tip-bg: #ffffff;
+  --tip-line: #c9cdd5;
+  --t-fisica: #2a78d6;
+  --t-biologia: #eb6834;
+  --t-economia: #1baf7a;
+  --t-politica: #eda100;
+  --t-computacao: #e87ba4;
+  --t-musica: #008300;
+  --t-esporte: #4a3aa7;
+  --t-geografia: #e34948;
+  --font-display: "Crimson Pro", "Linux Libertine", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111318; --panel: #181b21; --fg: #e8eaee; --muted: #9aa1ad; --line: #2b2f38;
+    --accent: #7fb0f2; --edge: rgba(170, 178, 192, 0.18); --cross: rgba(240, 110, 100, 0.32);
+    --dim: #2a2e36; --multi: #f2f3f5; --tip-bg: #1f232b; --tip-line: #3a3f4a;
+    --t-fisica: #6aa6ec; --t-biologia: #f08a5d; --t-economia: #3cc795; --t-politica: #f2b937;
+    --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111318; --panel: #181b21; --fg: #e8eaee; --muted: #9aa1ad; --line: #2b2f38;
+  --accent: #7fb0f2; --edge: rgba(170, 178, 192, 0.18); --cross: rgba(240, 110, 100, 0.32);
+  --dim: #2a2e36; --multi: #f2f3f5; --tip-bg: #1f232b; --tip-line: #3a3f4a;
+  --t-fisica: #6aa6ec; --t-biologia: #f08a5d; --t-economia: #3cc795; --t-politica: #f2b937;
+  --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px;
+  line-height: 1.45;
+}
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+.side {
+  background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto;
+  padding-block: 18px 24px; padding-inline: 18px; display: flex; flex-direction: column; gap: 18px;
+  min-width: 0;
+}
+.stage { position: relative; min-width: 0; min-height: 0; }
+#graph { position: absolute; inset: 0; }
+
+h1 {
+  font-family: var(--font-display); font-weight: 600; font-size: 1.75rem; line-height: 1.1;
+  margin: 0; text-wrap: balance;
+}
+.lede { margin: 6px 0 0; color: var(--muted); }
+.stats {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-family: var(--font-data);
+  font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.stats b { font-weight: 500; }
+h2 {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 8px;
+}
+section { min-width: 0; }
+
+.search { position: relative; }
+.search input {
+  width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+}
+.search input:focus-visible, button:focus-visible, input[type="checkbox"]:focus-visible,
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.results { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; }
+.results button, .linklist button {
+  all: unset; box-sizing: border-box; width: 100%; cursor: pointer; padding: 4px 6px;
+  border-radius: 4px; display: flex; gap: 8px; align-items: baseline; overflow-wrap: anywhere;
+}
+.results button:hover, .linklist button:hover { background: var(--bg); }
+.results small, .linklist small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.themes label, .toggles label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.toggles { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+.row-buttons { display: flex; gap: 8px; margin-top: 8px; }
+.row-buttons button {
+  font: inherit; font-size: 12px; padding: 4px 9px; border-radius: 5px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+}
+
+.legend { display: grid; grid-template-columns: 22px 1fr; gap: 6px 8px; align-items: center; }
+.legend .dot { justify-self: center; border-radius: 50%; background: var(--muted); }
+.legend .line { height: 0; border-top: 2px solid; width: 20px; }
+.legend span { color: var(--fg); }
+
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--bg); }
+.card h3 {
+  font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.15;
+  margin: 2px 0 6px; overflow-wrap: anywhere; text-wrap: balance;
+}
+.kind { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.chip {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--panel);
+}
+.chip.warn { border-color: var(--fg); font-weight: 600; }
+dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 8px 0; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.card a { color: var(--accent); }
+.linklist { list-style: none; margin: 4px 0 8px; padding: 0; max-height: 220px; overflow-y: auto; }
+.card h4 { font-size: 12px; font-weight: 600; margin: 10px 0 2px; }
+.empty { color: var(--muted); margin: 0; }
+
+.walks { overflow-x: auto; }
+.walks table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.walks th, .walks td { text-align: left; padding: 3px 6px 3px 0; border-bottom: 1px solid var(--line); }
+.walks th { color: var(--muted); font-weight: 500; }
+.walks td.n { font-family: var(--font-data); text-align: right; font-variant-numeric: tabular-nums; }
+.walks tr[data-root] { cursor: pointer; }
+.walks tr[data-root]:hover td { background: var(--bg); }
+.walks .cut { color: var(--muted); }
+
+.hint {
+  position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: var(--muted);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px;
+  max-width: calc(100% - 24px); box-sizing: border-box;
+}
+.zoom { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.zoom button {
+  width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--fg); font: 600 16px/1 var(--font-body); cursor: pointer;
+}
+.error { padding: 24px; color: var(--fg); }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 62vh auto; height: auto; }
+  .stage { order: -1; border-bottom: 1px solid var(--line); }
+  .side { border-right: 0; overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <aside class="side">
+    <header>
+      <h1>Rede da coleta da Wikipédia</h1>
+      <p class="lede">As 24 buscas em largura da etapa <code>corpus</code>, refeitas a partir do
+        cache: cada círculo é uma busca, cada anel uma profundidade e a ordem em volta do círculo
+        é a ordem em que a busca abriu categorias e registrou títulos. Só a listagem de títulos;
+        download e filtragem ficam de fora.</p>
+      <div class="stats" id="stats"></div>
+    </header>
+
+    <section class="search" aria-label="Busca">
+      <h2><label for="q">Procurar artigo ou categoria</label></h2>
+      <input id="q" type="search" autocomplete="off" placeholder="ex.: Música da Austrália">
+      <ul class="results" id="results"></ul>
+    </section>
+
+    <section>
+      <h2>Temas</h2>
+      <div class="themes" id="themes"></div>
+      <div class="toggles">
+        <label><input type="checkbox" id="opt-extras" checked> Categorias extras</label>
+        <label><input type="checkbox" id="opt-cross" checked> Associações fora da árvore</label>
+      </div>
+      <div class="row-buttons">
+        <button type="button" id="all-themes">Todos</button>
+        <button type="button" id="no-themes">Nenhum</button>
+      </div>
+    </section>
+
+    <section id="detail" aria-live="polite">
+      <h2>Selecionado</h2>
+      <p class="empty">Clique num vértice para ver de onde ele veio na busca.</p>
+    </section>
+
+    <section>
+      <h2>Legenda</h2>
+      <div class="legend">
+        <i class="dot" style="width:14px;height:14px"></i><span>Raiz de tema</span>
+        <i class="dot" style="width:11px;height:11px"></i><span>Raiz de categoria extra</span>
+        <i class="dot" style="width:7px;height:7px"></i><span>Categoria aberta</span>
+        <i class="dot" style="width:4px;height:4px"></i><span>Artigo (título registrado)</span>
+        <i class="dot" style="width:6px;height:6px;background:var(--multi)"></i><span>Artigo multitema</span>
+        <i class="dot" style="width:12px;height:12px;border:2px solid var(--muted);background:none"></i><span>Categoria em que a busca parou (rótulo “parou aqui”)</span>
+        <i class="line" style="border-color:var(--muted)"></i><span>Arco que a busca usou (pai na árvore)</span>
+        <i class="line" style="border-color:var(--cross)"></i><span>Outra associação entre categorias abertas</span>
+      </div>
+    </section>
+
+    <section class="walks">
+      <h2>Buscas</h2>
+      <table>
+        <thead><tr><th>Raiz</th><th class="n">Títulos</th><th class="n">Abertas</th><th class="n">Na fila</th></tr></thead>
+        <tbody id="walks"></tbody>
+      </table>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div id="graph" role="img" aria-label="Árvores das buscas por categorias da Wikipédia"></div>
+    <div class="zoom">
+      <button type="button" id="zoom-in" aria-label="Aproximar">+</button>
+      <button type="button" id="zoom-out" aria-label="Afastar">−</button>
+      <button type="button" id="zoom-reset" aria-label="Ver tudo">⤢</button>
+    </div>
+    <p class="hint" id="hint">Role para aproximar; os nomes aparecem com o zoom. Passe o mouse para ver as ligações.</p>
+  </main>
+</div>
+
+<script type="application/json" id="crawl-data">/*__DATA__*/</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("crawl-data").textContent);
+  const nodes = DATA.nodes;
+  const themeById = Object.fromEntries(DATA.themes.map((t) => [t.id, t]));
+  const walkById = Object.fromEntries(DATA.walks.map((w) => [w.id, w]));
+  const fmt = new Intl.NumberFormat("pt-BR");
+  const KIND = {
+    theme_root: "Raiz de tema", extra_root: "Raiz de categoria extra",
+    category: "Categoria", article: "Artigo",
+  };
+  const SIZE = { theme_root: 11, extra_root: 8, category: 3.6, article: 1.5 };
+
+  const css = () => getComputedStyle(document.documentElement);
+  let palette = {};
+  function readPalette() {
+    const s = css();
+    const get = (name) => s.getPropertyValue(name).trim();
+    palette = {
+      fg: get("--fg"), muted: get("--muted"), edge: get("--edge"), cross: get("--cross"),
+      dim: get("--dim"), multi: get("--multi"), tipBg: get("--tip-bg"), tipLine: get("--tip-line"),
+      theme: Object.fromEntries(DATA.themes.map((t) => [t.id, get("--t-" + t.id) || t.color])),
+    };
+  }
+  readPalette();
+
+  const stripCat = (id) => id.replace(/^Categoria:/, "");
+  const norm = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const isExtraWalk = (walkId) => walkById[walkId].origin !== "root";
+
+  // ---- stats and walk table ----------------------------------------------------------------
+  const counts = { category: 0, article: 0, multi: 0 };
+  for (const n of nodes) {
+    if (n.kind === "article") { counts.article++; if (n.multitheme) counts.multi++; }
+    else counts.category++;
+  }
+  document.getElementById("stats").innerHTML =
+    `<span><b>${fmt.format(counts.article)}</b> artigos</span>` +
+    `<span><b>${fmt.format(counts.category)}</b> categorias</span>` +
+    `<span><b>${fmt.format(DATA.edges.length)}</b> arcos</span>` +
+    `<span><b>${fmt.format(counts.multi)}</b> multitema</span>`;
+
+  const walksBody = document.getElementById("walks");
+  for (const w of DATA.walks) {
+    const tr = document.createElement("tr");
+    tr.dataset.root = w.roots[0];
+    tr.tabIndex = 0;
+    const color = palette.theme[w.theme];
+    const name = stripCat(w.roots[0]);
+    const cut = w.cut ? `<div class="cut">parou em ${escapeHtml(stripCat(w.cut))}</div>` : "";
+    tr.innerHTML =
+      `<td><span class="swatch" style="display:inline-block;background:${color}"></span> ` +
+      `${escapeHtml(name)}${cut}</td>` +
+      `<td class="n">${w.titles}/${w.max_titles}</td><td class="n">${w.opened}</td>` +
+      `<td class="n">${w.unopened}</td>`;
+    walksBody.appendChild(tr);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  }
+
+  // ---- theme filters -----------------------------------------------------------------------
+  const activeThemes = new Set(DATA.themes.map((t) => t.id));
+  const themesBox = document.getElementById("themes");
+  for (const t of DATA.themes) {
+    const label = document.createElement("label");
+    label.innerHTML =
+      `<input type="checkbox" id="theme-${t.id}" checked>` +
+      `<span class="swatch" data-theme-swatch="${t.id}"></span>${escapeHtml(t.label)}`;
+    themesBox.appendChild(label);
+  }
+  function paintSwatches() {
+    for (const el of document.querySelectorAll("[data-theme-swatch]")) {
+      el.style.background = palette.theme[el.dataset.themeSwatch];
+    }
+    for (const tr of walksBody.querySelectorAll("tr")) {
+      const w = DATA.walks.find((x) => x.roots[0] === tr.dataset.root);
+      tr.querySelector(".swatch").style.background = palette.theme[w.theme];
+    }
+  }
+  paintSwatches();
+
+  // ---- graph --------------------------------------------------------------------------------
+  if (!window.graphology || !window.Sigma) {
+    document.getElementById("graph").innerHTML =
+      '<p class="error">Não foi possível carregar as bibliotecas de desenho do grafo (sigma.js e graphology). Verifique a conexão e recarregue a página.</p>';
+    return;
+  }
+  const graph = new graphology.DirectedGraph();
+  nodes.forEach((n) => {
+    graph.addNode(n.id, {
+      x: n.x, y: n.y, size: SIZE[n.kind] + (n.cut ? 3 : 0) + (n.multitheme ? 0.8 : 0),
+      label: n.kind === "article" ? n.label : n.label + (n.cut ? " · parou aqui" : ""),
+      forceLabel: n.kind === "theme_root" || n.kind === "extra_root" || !!n.cut,
+      zIndex: n.kind === "article" ? (n.multitheme ? 1 : 0) : 2,
+    });
+  });
+  DATA.edges.forEach(([s, t, isSub, first, tree]) => {
+    graph.addDirectedEdge(nodes[s].id, nodes[t].id, { tree: !!tree, sub: !!isSub, size: tree ? 0.6 : 0.5 });
+  });
+  const info = Object.fromEntries(nodes.map((n) => [n.id, n]));
+
+  let hovered = null;
+  let selected = null;
+  let focusSet = null;
+  const opt = { extras: true, cross: true };
+
+  function visible(id) {
+    const n = info[id];
+    return activeThemes.has(n.theme) && (opt.extras || !isExtraWalk(n.walk));
+  }
+  function computeFocus() {
+    const f = hovered || selected;
+    if (!f) { focusSet = null; return; }
+    focusSet = new Set([f]);
+    graph.forEachNeighbor(f, (m) => focusSet.add(m));
+  }
+
+  const container = document.getElementById("graph");
+  const renderer = new Sigma(graph, container, {
+    zIndex: true,
+    defaultEdgeType: "line",
+    labelFont: "IBM Plex Sans, Helvetica Neue, Arial, sans-serif",
+    labelSize: 12,
+    labelWeight: "500",
+    labelColor: { color: palette.fg },
+    labelDensity: 0.6,
+    labelGridCellSize: 90,
+    labelRenderedSizeThreshold: 7,
+    minCameraRatio: 0.004,
+    maxCameraRatio: 2,
+    hideEdgesOnMove: false,
+    stagePadding: 24,
+    nodeReducer(node, data) {
+      const n = info[node];
+      const res = { ...data };
+      if (!visible(node)) { res.hidden = true; return res; }
+      res.color = n.multitheme ? palette.multi : palette.theme[n.theme];
+      if (focusSet && !focusSet.has(node)) {
+        res.color = palette.dim; res.label = ""; res.forceLabel = false; res.zIndex = -1;
+      } else if (focusSet) {
+        res.forceLabel = true; res.zIndex = 3;
+        if (node === (hovered || selected)) res.highlighted = true;
+      }
+      return res;
+    },
+    edgeReducer(edge, data) {
+      const res = { ...data };
+      const [s, t] = graph.extremities(edge);
+      if (!visible(s) || !visible(t)) { res.hidden = true; return res; }
+      if (!data.tree && !opt.cross) { res.hidden = true; return res; }
+      res.color = data.tree ? palette.edge : palette.cross;
+      if (focusSet) {
+        const f = hovered || selected;
+        if (s !== f && t !== f) { res.hidden = true; return res; }
+        res.color = data.tree ? palette.muted : palette.cross;
+        res.size = 1.4;
+      }
+      return res;
+    },
+    hoverRenderer(context, data, settings) {
+      const size = settings.labelSize;
+      context.font = `${settings.labelWeight} ${size}px ${settings.labelFont}`;
+      const label = data.label || "";
+      const w = context.measureText(label).width;
+      const pad = 5;
+      const x = data.x + data.size + 4;
+      const y = data.y - size / 2 - pad;
+      context.fillStyle = palette.tipBg;
+      context.strokeStyle = palette.tipLine;
+      context.lineWidth = 1;
+      context.beginPath();
+      if (context.roundRect) context.roundRect(x, y, w + 2 * pad, size + 2 * pad, 4);
+      else context.rect(x, y, w + 2 * pad, size + 2 * pad);
+      context.fill(); context.stroke();
+      context.fillStyle = palette.fg;
+      context.fillText(label, x + pad, data.y + size / 3);
+      context.beginPath();
+      context.arc(data.x, data.y, data.size + 2, 0, Math.PI * 2);
+      context.strokeStyle = palette.fg; context.lineWidth = 1.5; context.stroke();
+    },
+  });
+
+  function refresh() { computeFocus(); renderer.refresh(); }
+
+  renderer.on("enterNode", ({ node }) => { hovered = node; refresh(); });
+  renderer.on("leaveNode", () => { hovered = null; refresh(); });
+  renderer.on("clickNode", ({ node }) => select(node, false));
+  renderer.on("clickStage", () => { selected = null; renderDetail(); refresh(); });
+
+  const camera = renderer.getCamera();
+  function focusCamera(id, ratio) {
+    const d = renderer.getNodeDisplayData(id);
+    if (!d) return;
+    camera.animate({ x: d.x, y: d.y, ratio }, { duration: 550 });
+  }
+  document.getElementById("zoom-in").addEventListener("click", () => camera.animatedZoom({ duration: 250 }));
+  document.getElementById("zoom-out").addEventListener("click", () => camera.animatedUnzoom({ duration: 250 }));
+  document.getElementById("zoom-reset").addEventListener("click", () => camera.animatedReset({ duration: 400 }));
+
+  // ---- selection and detail card ------------------------------------------------------------
+  function select(id, move) {
+    selected = id;
+    const n = info[id];
+    if (!visible(id)) {
+      activeThemes.add(n.theme);
+      document.getElementById("theme-" + n.theme).checked = true;
+      if (isExtraWalk(n.walk)) { opt.extras = true; document.getElementById("opt-extras").checked = true; }
+    }
+    renderDetail();
+    refresh();
+    if (move) {
+      const ratio = n.kind === "theme_root" ? 0.2 : n.kind === "extra_root" ? 0.09 : 0.035;
+      focusCamera(id, ratio);
+    }
+  }
+
+  function wikiUrl(id) {
+    return "https://pt.wikipedia.org/wiki/" + encodeURIComponent(id.replace(/ /g, "_"));
+  }
+  function walkName(walkId) {
+    const w = walkById[walkId];
+    return stripCat(w.roots[0]) + (w.origin === "root" ? "" : " (extra)");
+  }
+  function linkList(ids, limit) {
+    const shown = ids.slice(0, limit);
+    const items = shown.map((m) => {
+      const k = info[m];
+      const extra = k.kind === "article" ? "" : `<small>${KIND[k.kind].toLowerCase()}</small>`;
+      return `<li><button type="button" data-go="${escapeHtml(m)}">${escapeHtml(k.kind === "article" ? k.label : stripCat(m))}${extra}</button></li>`;
+    }).join("");
+    const more = ids.length > limit ? `<li class="empty">e mais ${fmt.format(ids.length - limit)}</li>` : "";
+    return `<ul class="linklist">${items}${more}</ul>`;
+  }
+
+  const detail = document.getElementById("detail");
+  function renderDetail() {
+    if (!selected) {
+      detail.innerHTML = '<h2>Selecionado</h2><p class="empty">Clique num vértice para ver de onde ele veio na busca.</p>';
+      return;
+    }
+    const n = info[selected];
+    const themes = n.themes.map((t) => `<span class="chip">${escapeHtml(themeById[t].label)}</span>`).join("");
+    const flags = [];
+    if (n.multitheme) flags.push('<span class="chip warn">multitema: descartado no corpus</span>');
+    if (n.cut) flags.push('<span class="chip warn">a busca parou aqui</span>');
+    const facts = [];
+    facts.push(["Busca", n.walks.map(walkName).map(escapeHtml).join("; ")]);
+    facts.push(["Profundidade", String(n.depth)]);
+    if (n.kind === "article") {
+      facts.push(["Registrado por", escapeHtml(stripCat(n.first_category))]);
+    } else {
+      facts.push(["Ordem de abertura", `${n.open_order + 1}ª na busca ${escapeHtml(walkName(n.walk))}`]);
+      facts.push(["Lista", `${fmt.format(n.n_pages)} artigos, ${fmt.format(n.n_subcats)} subcategorias`]);
+    }
+    const parents = graph.inNeighbors(selected);
+    const children = graph.outNeighbors(selected);
+    const subcats = children.filter((m) => info[m].kind !== "article");
+    const arts = children.filter((m) => info[m].kind === "article");
+    let lists = "";
+    if (parents.length) lists += `<h4>Listado em (${parents.length})</h4>` + linkList(parents, 40);
+    if (subcats.length) lists += `<h4>Subcategorias abertas (${subcats.length})</h4>` + linkList(subcats, 60);
+    if (arts.length) lists += `<h4>Títulos percorridos (${fmt.format(arts.length)})</h4>` + linkList(arts, 60);
+    detail.innerHTML =
+      `<h2>Selecionado</h2><div class="card">` +
+      `<div class="kind">${KIND[n.kind]}</div>` +
+      `<h3>${escapeHtml(n.kind === "article" ? n.label : stripCat(n.id))}</h3>` +
+      `<div class="chips">${themes}${flags.join("")}</div>` +
+      `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` +
+      `<a href="${wikiUrl(n.id)}" target="_blank" rel="noopener">Abrir na Wikipédia</a>` +
+      lists + `</div>`;
+  }
+  detail.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-go]");
+    if (b) select(b.dataset.go, true);
+  });
+
+  // ---- search -------------------------------------------------------------------------------
+  const index = nodes.map((n) => [norm(n.kind === "article" ? n.label : stripCat(n.id)), n.id]);
+  const q = document.getElementById("q");
+  const results = document.getElementById("results");
+  q.addEventListener("input", () => {
+    const term = norm(q.value.trim());
+    if (term.length < 2) { results.innerHTML = ""; return; }
+    const hits = [];
+    for (const [key, id] of index) {
+      const at = key.indexOf(term);
+      if (at >= 0) hits.push([at === 0 ? 0 : 1, key.length, id]);
+    }
+    hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    results.innerHTML = hits.slice(0, 12).map(([, , id]) => {
+      const n = info[id];
+      const name = n.kind === "article" ? n.label : stripCat(id);
+      return `<li><button type="button" data-go="${escapeHtml(id)}">${escapeHtml(name)}<small>${KIND[n.kind].toLowerCase()} · ${escapeHtml(themeById[n.theme].label)}</small></button></li>`;
+    }).join("") || '<li class="empty">Nenhum nome encontrado.</li>';
+  });
+  results.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-go]");
+    if (b) select(b.dataset.go, true);
+  });
+
+  // ---- controls -------------------------------------------------------------------------------
+  themesBox.addEventListener("change", (e) => {
+    const id = e.target.id.replace(/^theme-/, "");
+    if (e.target.checked) activeThemes.add(id); else activeThemes.delete(id);
+    refresh();
+  });
+  document.getElementById("opt-extras").addEventListener("change", (e) => { opt.extras = e.target.checked; refresh(); });
+  document.getElementById("opt-cross").addEventListener("change", (e) => { opt.cross = e.target.checked; refresh(); });
+  function setAll(on) {
+    for (const t of DATA.themes) {
+      document.getElementById("theme-" + t.id).checked = on;
+      if (on) activeThemes.add(t.id); else activeThemes.delete(t.id);
+    }
+    refresh();
+  }
+  document.getElementById("all-themes").addEventListener("click", () => setAll(true));
+  document.getElementById("no-themes").addEventListener("click", () => setAll(false));
+  walksBody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-root]");
+    if (tr) select(tr.dataset.root, true);
+  });
+  walksBody.addEventListener("keydown", (e) => {
+    const tr = e.target.closest("tr[data-root]");
+    if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); select(tr.dataset.root, true); }
+  });
+
+  // ---- theme changes (system or viewer toggle) -------------------------------------------------
+  function retheme() {
+    readPalette();
+    renderer.setSetting("labelColor", { color: palette.fg });
+    paintSwatches();
+    refresh();
+  }
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme); } catch (_) { /* old browsers */ }
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+})();
+</script>
