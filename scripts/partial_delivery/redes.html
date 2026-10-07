@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redes de ocorrências</title>
+<meta name="description" content="Visualização interativa das quatro redes k-NN de ocorrências de tokens (lex, L01, L18, L36) do Qwen3-4B-Base, projeto MO438.">
+<style>
+:root {
+  --bg: #fbfbf9;
+  --panel: #ffffff;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --line: #e1e0d9;
+  --edge: 120, 118, 110;
+  --accent: #2a78d6;
+  --mark: #fff1c2;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141413;
+    --panel: #1d1d1b;
+    --ink: #f2f1ec;
+    --ink-2: #bdbbb3;
+    --muted: #8d8b84;
+    --line: #34332f;
+    --edge: 190, 188, 178;
+    --accent: #6da7ec;
+    --mark: #5a4a12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141413;
+  --panel: #1d1d1b;
+  --ink: #f2f1ec;
+  --ink-2: #bdbbb3;
+  --muted: #8d8b84;
+  --line: #34332f;
+  --edge: 190, 188, 178;
+  --accent: #6da7ec;
+  --mark: #5a4a12;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+h1 { font-size: 17px; margin: 0 0 2px; font-weight: 650; }
+.sub { color: var(--ink-2); margin: 0; font-size: 13px; max-width: 980px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button {
+  border: 0; background: transparent; color: var(--ink-2); padding: 5px 12px; font: inherit;
+  cursor: pointer; border-right: 1px solid var(--line);
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+label.ctl { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); }
+select, input[type="search"] {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 8px;
+}
+input[type="search"] { width: 200px; }
+.count { color: var(--muted); font-size: 12.5px; min-width: 9em; }
+.btn {
+  font: inherit; color: var(--ink-2); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 10px; cursor: pointer;
+}
+main { flex: 1; display: flex; min-height: 0; }
+#stage { position: relative; flex: 1; min-width: 0; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas.dragging { cursor: grabbing; }
+#legend {
+  position: absolute; left: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; max-width: calc(100% - 24px);
+}
+#legend .title { color: var(--muted); margin-bottom: 4px; }
+#legend .items { display: flex; flex-wrap: wrap; gap: 3px 12px; max-width: 520px; }
+#legend button {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--ink);
+  font: inherit; padding: 1px 0; cursor: pointer;
+}
+#legend button.off { opacity: 0.35; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+#legend .n { color: var(--muted); }
+#status {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--ink-2); pointer-events: none; padding: 16px; text-align: center;
+}
+#tip {
+  position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; max-width: 340px; display: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+aside {
+  width: 360px; flex: none; border-left: 1px solid var(--line); background: var(--panel);
+  overflow-y: auto; padding: 14px 16px; font-size: 13px;
+}
+aside h2 { font-size: 14px; margin: 0 0 6px; }
+aside p { margin: 0 0 10px; color: var(--ink-2); }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 0 10px; }
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+.ctx { color: var(--ink-2); }
+.ctx mark, #tip mark { background: var(--mark); color: var(--ink); border-radius: 3px; padding: 0 2px; }
+code.tok { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+ol.nb { list-style: none; padding: 0; margin: 0; }
+ol.nb li { border-top: 1px solid var(--line); }
+ol.nb button {
+  display: block; width: 100%; text-align: left; border: 0; background: none; color: inherit;
+  font: inherit; padding: 6px 0; cursor: pointer;
+}
+ol.nb button:hover { background: rgba(var(--edge), 0.08); }
+.nbhead { display: flex; gap: 6px; align-items: center; }
+.stat { color: var(--ink-2); margin: 4px 0 8px; }
+footer { border-top: 1px solid var(--line); padding: 8px 16px; color: var(--muted); font-size: 12px; }
+a { color: var(--accent); }
+@media (max-width: 820px) {
+  main { flex-direction: column; }
+  #stage { min-height: 62vh; }
+  aside { width: auto; border-left: 0; border-top: 1px solid var(--line); }
+  input[type="search"] { width: 160px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Redes de ocorrências de tokens no Qwen3-4B-Base</h1>
+  <p class="sub">Cada ponto é uma ocorrência de um token em um parágrafo da Wikipédia em português
+    (13.606 no total, os mesmos nas quatro redes). Há uma aresta entre duas ocorrências quando uma
+    está entre as 10 mais semelhantes à outra (cosseno), na representação escolhida.
+    As posições vêm de um layout UMAP de cada rede.</p>
+  <div class="controls">
+    <div class="seg" id="reps" role="group" aria-label="Rede"></div>
+    <label class="ctl">Cor
+      <select id="colorBy">
+        <option value="theme">tema do artigo</option>
+        <option value="token_category">categoria do token</option>
+        <option value="stratum">estrato da amostra</option>
+        <option value="community">comunidade Leiden (8 maiores)</option>
+      </select>
+    </label>
+    <label class="ctl">Buscar
+      <input type="search" id="search" placeholder="palavra ou token, ex.: banco" autocomplete="off" spellcheck="false">
+    </label>
+    <span class="count" id="count"></span>
+    <button class="btn" id="fit" type="button">Recentrar</button>
+  </div>
+</header>
+<main>
+  <div id="stage">
+    <canvas id="canvas"></canvas>
+    <div id="status">Carregando…</div>
+    <div id="legend"><div class="title"></div><div class="items"></div></div>
+    <div id="tip"></div>
+  </div>
+  <aside id="panel"></aside>
+</main>
+<footer>
+  MO438 · Entrega Parcial, item 9 ·
+  <a href="https://github.com/annwith/gender-representation-networks">repositório</a> ·
+  redes em GraphML em <code>data/graphml/</code> (ramo <code>main-run-results</code>).
+  Arraste para mover, use a roda do mouse ou o gesto de pinça para ampliar.
+</footer>
+<script>
+"use strict";
+const REPS = ["lex", "L01", "L18", "L36"];
+const PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+const GRAY = "#898781";
+const LABELS = {
+  theme: {
+    order: ["fisica", "biologia", "economia", "politica", "computacao", "musica", "esporte", "geografia"],
+    names: { fisica: "Física", biologia: "Biologia", economia: "Economia", politica: "Política",
+      computacao: "Computação", musica: "Música", esporte: "Esporte", geografia: "Geografia" },
+    title: "Tema do artigo",
+  },
+  token_category: {
+    order: ["whole_word", "word_start", "continuation", "punctuation", "number"],
+    names: { whole_word: "palavra inteira", word_start: "início de palavra", continuation: "continuação",
+      punctuation: "pontuação", number: "número" },
+    title: "Categoria do token",
+  },
+  stratum: {
+    order: ["core", "target", "control", "multitheme"],
+    names: { core: "núcleo (parágrafos inteiros)", target: "alvo (polissêmica)", control: "controle",
+      multitheme: "multitema" },
+    title: "Estrato da amostra",
+  },
+};
+const PAGE_NOTE = `<h2>Como ler</h2>
+<p>Passe o mouse sobre um ponto para ver o token e o seu contexto. Clique para fixar a ocorrência:
+as arestas dela ficam destacadas e os vizinhos aparecem listados aqui.</p>
+<p>A ocorrência fixada continua selecionada ao trocar de rede. Assim dá para ver como a vizinhança
+muda entre a entrada (lex) e as camadas.</p>
+<p>Em <b>lex</b>, todas as ocorrências de um token têm o mesmo vetor, então formam grupos fechados
+de um token só. Nas camadas, o contexto entra no vetor, e os grupos passam a misturar tokens e a
+seguir o tema. Em <b>L36</b>, o bloco menor reúne as posições no meio de uma palavra (tokens que
+ainda não a terminam): pinte por <i>categoria do token</i> para ver.</p>
+<p>A busca encontra a palavra inteira ou o token exato, sem diferenciar maiúsculas
+(ex.: <i>banco</i>, <i>nota</i>, <i>campo</i>, <i>estado</i>).</p>`;
+
+const $ = (id) => document.getElementById(id);
+const canvas = $("canvas"), ctx = canvas.getContext("2d");
+const state = {
+  V: null, nets: {}, rep: "L36", colorBy: "theme", query: "", matches: null, hidden: new Set(),
+  selected: -1, hover: -1, view: { s: 1, tx: 0, ty: 0 }, size: { w: 0, h: 0, dpr: 1 },
+  interacting: 0, colors: null, legend: [], order: null,
+};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function attr(name, i) {
+  const a = state.V[name];
+  return Array.isArray(a) ? a[i] : a.values[a.codes[i]];
+}
+function context(i) {
+  return esc(attr("local_context", i)).replace(/«([^»]*)»/, "<mark>$1</mark>");
+}
+function showToken(t) {
+  return esc(t.replace(/^ /, "␣").replace(/\n/g, "↵"));
+}
+function label(kind, key) {
+  return (LABELS[kind] && LABELS[kind].names[key]) || key;
+}
+
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  return r.json();
+}
+async function loadNet(rep) {
+  if (state.nets[rep]) return state.nets[rep];
+  const d = await getJSON(`dados/${rep}.json`);
+  const n = state.V.n, m = d.edges.length / 2;
+  const x = Float32Array.from(d.x, (v) => v / 1000), y = Float32Array.from(d.y, (v) => -v / 1000);
+  const deg = new Int32Array(n + 1);
+  for (let k = 0; k < 2 * m; k++) deg[d.edges[k] + 1]++;
+  for (let i = 0; i < n; i++) deg[i + 1] += deg[i];
+  const adj = new Int32Array(2 * m), fill = deg.slice(0, n);
+  for (let k = 0; k < m; k++) {
+    const a = d.edges[2 * k], b = d.edges[2 * k + 1];
+    adj[fill[a]++] = b; adj[fill[b]++] = a;
+  }
+  const net = { ...d, x, y, ptr: deg, adj, m, grid: buildGrid(x, y) };
+  state.nets[rep] = net;
+  return net;
+}
+function neighbors(net, i) {
+  return net.adj.subarray(net.ptr[i], net.ptr[i + 1]);
+}
+
+// Uniform grid over the world coordinates, for hit-testing.
+function buildGrid(x, y) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < x.length; i++) {
+    x0 = Math.min(x0, x[i]); x1 = Math.max(x1, x[i]); y0 = Math.min(y0, y[i]); y1 = Math.max(y1, y[i]);
+  }
+  const G = 200, cw = (x1 - x0) / G || 1, ch = (y1 - y0) / G || 1;
+  const cells = Array.from({ length: G * G }, () => []);
+  for (let i = 0; i < x.length; i++) {
+    const cx = Math.min(G - 1, Math.floor((x[i] - x0) / cw)), cy = Math.min(G - 1, Math.floor((y[i] - y0) / ch));
+    cells[cy * G + cx].push(i);
+  }
+  return { G, x0, y0, x1, y1, cw, ch, cells };
+}
+function pick(px, py) {
+  const net = state.nets[state.rep];
+  if (!net) return -1;
+  const { s, tx, ty } = state.view, wx = (px - tx) / s, wy = (py - ty) / s, r = 7 / s;
+  const g = net.grid;
+  const cx0 = Math.max(0, Math.floor((wx - r - g.x0) / g.cw)), cx1 = Math.min(g.G - 1, Math.floor((wx + r - g.x0) / g.cw));
+  const cy0 = Math.max(0, Math.floor((wy - r - g.y0) / g.ch)), cy1 = Math.min(g.G - 1, Math.floor((wy + r - g.y0) / g.ch));
+  let best = -1, bd = r * r;
+  for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+    for (const i of g.cells[cy * g.G + cx]) {
+      const dx = net.x[i] - wx, dy = net.y[i] - wy, d = dx * dx + dy * dy;
+      if (d < bd && visible(i)) { bd = d; best = i; }
+    }
+  }
+  return best;
+}
+
+function computeColors() {
+  const n = state.V.n, kind = state.colorBy, colors = new Array(n), keys = new Array(n);
+  const counts = new Map();
+  if (kind === "community") {
+    const comm = state.nets[state.rep].community;
+    for (let i = 0; i < n; i++) counts.set(comm[i], (counts.get(comm[i]) || 0) + 1);
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, PALETTE.length);
+    const color = new Map(top.map(([c], k) => [c, PALETTE[k]]));
+    let rest = 0;
+    for (let i = 0; i < n; i++) {
+      const c = comm[i];
+      colors[i] = color.get(c) || GRAY;
+      keys[i] = color.has(c) ? `c${c}` : "rest";
+      if (!color.has(c)) rest++;
+    }
+    state.legend = top.map(([c, k], j) => ({ key: `c${c}`, name: `comunidade ${j + 1}`, color: PALETTE[j], n: k }));
+    state.legend.push({ key: "rest", name: `outras ${counts.size - top.length} comunidades`, color: GRAY, n: rest });
+  } else {
+    const spec = LABELS[kind];
+    const color = new Map(spec.order.map((k, j) => [k, PALETTE[j]]));
+    for (let i = 0; i < n; i++) {
+      const k = attr(kind, i);
+      keys[i] = k; colors[i] = color.get(k) || GRAY;
+      counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    state.legend = spec.order.filter((k) => counts.has(k))
+      .map((k) => ({ key: k, name: spec.names[k], color: color.get(k), n: counts.get(k) }));
+  }
+  state.colors = colors; state.keys = keys;
+  renderLegend();
+}
+function renderLegend() {
+  const title = state.colorBy === "community" ? "Comunidades Leiden desta rede" : LABELS[state.colorBy].title;
+  $("legend").querySelector(".title").textContent = title + " (clique para ocultar)";
+  const box = $("legend").querySelector(".items");
+  box.innerHTML = "";
+  for (const item of state.legend) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = state.hidden.has(item.key) ? "off" : "";
+    b.innerHTML = `<span class="dot" style="background:${item.color}"></span>${esc(item.name)} <span class="n">${item.n.toLocaleString("pt-BR")}</span>`;
+    b.onclick = () => {
+      state.hidden.has(item.key) ? state.hidden.delete(item.key) : state.hidden.add(item.key);
+      renderLegend(); draw();
+    };
+    box.appendChild(b);
+  }
+}
+function visible(i) {
+  return !state.hidden.has(state.keys[i]);
+}
+
+function resize() {
+  const r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const old = state.size;
+  canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+  state.size = { w: r.width, h: r.height, dpr };
+  if (!old.w) fit(); else {
+    state.view.tx += (r.width - old.w) / 2; state.view.ty += (r.height - old.h) / 2;
+  }
+  draw();
+}
+function fit() {
+  const { w, h } = state.size, s = Math.min(w, h) / 2.12;
+  state.view = { s, tx: w / 2, ty: h / 2 };
+}
+
+let frame = 0, idleTimer = 0;
+function draw() {
+  if (frame) return;
+  frame = requestAnimationFrame(() => { frame = 0; render(); });
+}
+function touch() {
+  state.interacting = 1;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { state.interacting = 0; draw(); }, 140);
+  draw();
+}
+function render() {
+  const net = state.nets[state.rep];
+  const { w, h, dpr } = state.size, { s, tx, ty } = state.view;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!net || !state.colors) return;
+  const X = (i) => net.x[i] * s + tx, Y = (i) => net.y[i] * s + ty;
+  const edgeRGB = getComputedStyle(document.documentElement).getPropertyValue("--edge").trim();
+  const focus = state.selected >= 0 || state.matches;
+  // Edges: all of them, faint; skipped while panning or zooming to keep the motion smooth.
+  if (!state.interacting) {
+    ctx.strokeStyle = `rgba(${edgeRGB}, ${focus ? 0.035 : 0.09})`;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    const e = net.edges;
+    for (let k = 0; k < e.length; k += 2) {
+      const a = e[k], b = e[k + 1];
+      if (!visible(a) || !visible(b)) continue;
+      ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b));
+    }
+    ctx.stroke();
+  }
+  const r = Math.max(1.1, Math.min(4, 0.9 * Math.sqrt(s / 200)));
+  const dim = new Uint8Array(state.V.n);
+  if (state.matches) for (let i = 0; i < state.V.n; i++) dim[i] = state.matches.has(i) ? 0 : 1;
+  if (state.selected >= 0) {
+    if (!state.matches) dim.fill(1);
+    dim[state.selected] = 0;
+    for (const j of neighbors(net, state.selected)) dim[j] = 0;
+  }
+  for (const pass of [1, 0]) {
+    if (pass === 1 && !focus) continue;
+    ctx.globalAlpha = pass ? 0.18 : 0.92;
+    for (const i of state.order) {
+      if (dim[i] !== pass || !visible(i)) continue;
+      ctx.fillStyle = state.colors[i];
+      ctx.fillRect(X(i) - r, Y(i) - r, 2 * r, 2 * r);
+    }
+  }
+  ctx.globalAlpha = 1;
+  const ink = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim();
+  if (state.matches) {
+    ctx.strokeStyle = ink; ctx.lineWidth = 1;
+    for (const i of state.matches) {
+      if (!visible(i)) continue;
+      ctx.beginPath(); ctx.arc(X(i), Y(i), r + 2.5, 0, 2 * Math.PI); ctx.stroke();
+    }
+  }
+  if (state.selected >= 0) {
+    const i = state.selected;
+    ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    for (const j of neighbors(net, i)) { ctx.moveTo(X(i), Y(i)); ctx.lineTo(X(j), Y(j)); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = state.colors[i]; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(X(i), Y(i), r + 4, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+  }
+  if (state.hover >= 0 && state.hover !== state.selected) {
+    const i = state.hover;
+    ctx.strokeStyle = ink; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(X(i), Y(i), r + 3, 0, 2 * Math.PI); ctx.stroke();
+  }
+}
+
+function describe(i, net) {
+  const target = attr("target_word", i);
+  return `<dl>
+    <dt>token</dt><dd><code class="tok">${showToken(attr("token_text", i))}</code></dd>
+    <dt>palavra</dt><dd>${esc(attr("word", i))}</dd>
+    <dt>tema</dt><dd>${esc(label("theme", attr("theme", i)))}</dd>
+    <dt>artigo</dt><dd>${esc(attr("title", i))}</dd>
+    <dt>estrato</dt><dd>${esc(label("stratum", attr("stratum", i)))}${target ? ` (${esc(target)})` : ""}</dd>
+    <dt>categoria</dt><dd>${esc(label("token_category", attr("token_category", i)))}</dd>
+    <dt>grau</dt><dd>${net.degree[i]}</dd>
+  </dl>
+  <div class="ctx">${context(i)}</div>`;
+}
+function renderPanel() {
+  const panel = $("panel"), net = state.nets[state.rep];
+  if (state.selected < 0 || !net) { panel.innerHTML = PAGE_NOTE; return; }
+  const i = state.selected, nb = [...neighbors(net, i)];
+  const tok = attr("token_text", i), theme = attr("theme", i);
+  const sameTok = nb.filter((j) => attr("token_text", j) === tok).length;
+  const sameTheme = nb.filter((j) => attr("theme", j) === theme).length;
+  panel.innerHTML = `<h2>Ocorrência selecionada · ${esc(state.rep)}</h2>${describe(i, net)}
+    <p class="stat" style="margin-top:10px">${nb.length} vizinhos em ${esc(state.rep)}:
+      ${sameTok} do mesmo token, ${sameTheme} do mesmo tema.</p>
+    <button class="btn" type="button" id="clear">Limpar seleção</button>
+    <ol class="nb" style="margin-top:10px"></ol>`;
+  $("clear").onclick = () => select(-1);
+  const list = panel.querySelector("ol");
+  for (const j of nb) {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<span class="nbhead"><span class="dot" style="background:${state.colors[j]}"></span>
+      <code class="tok">${showToken(attr("token_text", j))}</code>
+      <span style="color:var(--muted)">${esc(label("theme", attr("theme", j)))}</span></span>
+      <span class="ctx">${context(j)}</span>`;
+    b.onclick = () => select(j);
+    li.appendChild(b); list.appendChild(li);
+  }
+}
+function select(i) {
+  state.selected = i;
+  renderPanel(); draw();
+}
+
+function showTip(i, px, py) {
+  const tip = $("tip");
+  if (i < 0) { tip.style.display = "none"; return; }
+  tip.innerHTML = `<code class="tok">${showToken(attr("token_text", i))}</code> · ${esc(label("theme", attr("theme", i)))}
+    · ${esc(attr("title", i))}<div class="ctx" style="margin-top:4px">${context(i)}</div>`;
+  tip.style.display = "block";
+  const box = $("stage").getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = `${Math.min(px + 14, box.width - tw - 8)}px`;
+  tip.style.top = `${py + 14 + th > box.height ? py - th - 10 : py + 14}px`;
+}
+
+function runSearch() {
+  const q = $("search").value.trim().toLowerCase();
+  state.query = q;
+  if (!q) { state.matches = null; $("count").textContent = ""; draw(); return; }
+  const m = new Set();
+  for (let i = 0; i < state.V.n; i++) {
+    if (attr("word", i).toLowerCase() === q || attr("token_text", i).trim().toLowerCase() === q) m.add(i);
+  }
+  state.matches = m;
+  $("count").textContent = m.size ? `${m.size.toLocaleString("pt-BR")} ocorrências` : "nenhuma ocorrência";
+  draw();
+}
+
+async function setRep(rep) {
+  state.rep = rep;
+  for (const b of $("reps").children) b.setAttribute("aria-pressed", String(b.dataset.rep === rep));
+  $("status").textContent = state.nets[rep] ? "" : "Carregando…";
+  await loadNet(rep);
+  $("status").textContent = "";
+  if (state.colorBy === "community") { state.hidden.clear(); computeColors(); }
+  state.hover = -1;
+  renderPanel(); draw();
+  try { history.replaceState(null, "", `#${rep}`); } catch (e) { /* file:// or sandbox */ }
+}
+
+function setupInteraction() {
+  const pointers = new Map();
+  let last = null, moved = 0, pinch = 0;
+  const pos = (ev) => { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+  canvas.addEventListener("pointerdown", (ev) => {
+    canvas.setPointerCapture(ev.pointerId);
+    pointers.set(ev.pointerId, pos(ev));
+    last = pos(ev); moved = 0;
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    }
+    canvas.classList.add("dragging");
+  });
+  canvas.addEventListener("pointermove", (ev) => {
+    const p = pos(ev);
+    if (pointers.has(ev.pointerId)) {
+      pointers.set(ev.pointerId, p);
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (pinch) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, d / pinch);
+        pinch = d; moved += 10;
+      } else if (last) {
+        state.view.tx += p[0] - last[0]; state.view.ty += p[1] - last[1];
+        moved += Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]);
+        last = p; touch();
+      }
+      $("tip").style.display = "none";
+      return;
+    }
+    const i = pick(p[0], p[1]);
+    if (i !== state.hover) { state.hover = i; draw(); }
+    showTip(i, p[0], p[1]);
+  });
+  const end = (ev) => {
+    pointers.delete(ev.pointerId);
+    if (pointers.size === 0) {
+      canvas.classList.remove("dragging");
+      if (moved < 4 && ev.type === "pointerup") {
+        const p = pos(ev), i = pick(p[0], p[1]);
+        select(i);
+      }
+      last = null; pinch = 0;
+    } else {
+      last = [...pointers.values()][0]; pinch = 0;
+    }
+  };
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
+  canvas.addEventListener("pointerleave", () => { state.hover = -1; $("tip").style.display = "none"; draw(); });
+  canvas.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    const p = pos(ev);
+    zoomAt(p[0], p[1], Math.exp(-ev.deltaY * (ev.deltaMode === 1 ? 0.05 : 0.0015)));
+  }, { passive: false });
+}
+function zoomAt(px, py, f) {
+  const v = state.view, s = Math.max(50, Math.min(v.s * f, 200000));
+  f = s / v.s;
+  v.tx = px - (px - v.tx) * f; v.ty = py - (py - v.ty) * f; v.s = s;
+  touch();
+}
+
+async function init() {
+  for (const rep of REPS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = rep; b.dataset.rep = rep;
+    b.onclick = () => setRep(rep);
+    $("reps").appendChild(b);
+  }
+  $("colorBy").onchange = (ev) => { state.colorBy = ev.target.value; state.hidden.clear(); computeColors(); renderPanel(); draw(); };
+  let timer = 0;
+  $("search").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(runSearch, 150); });
+  $("fit").onclick = () => { fit(); draw(); };
+  setupInteraction();
+  new ResizeObserver(resize).observe($("stage"));
+  try {
+    state.V = await getJSON("dados/vertices.json");
+  } catch (err) {
+    $("status").textContent = "Não foi possível carregar os dados. Abra a página por um servidor "
+      + "(ex.: python -m http.server na pasta docs/), não direto do arquivo.";
+    return;
+  }
+  // Fixed shuffled drawing order, so no category is always drawn on top of the others.
+  const order = Array.from({ length: state.V.n }, (_, i) => i);
+  let seed = 438;
+  for (let i = order.length - 1; i > 0; i--) {
+    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+    const j = seed % (i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  state.order = order;
+  const fromHash = location.hash.slice(1);
+  await setRep(REPS.includes(fromHash) ? fromHash : "L36");
+  computeColors();
+  renderPanel();
+  draw();
+}
+init();
+</script>
+</body>
+</html>
