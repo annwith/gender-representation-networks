@@ -656,6 +656,10 @@ def sample_payload(
     spread = {
         "vertices_per_paragraph": sorted(Counter(per_paragraph.values()).items()),
         "multi_stratum": sum(len(s) > 1 for s in strata_of.values()),
+        # paragraphs by the sparse strata that brought them in
+        "by_strata": Counter(
+            ",".join(sorted(s, key=STRATUM_ORDER.index)) for s in strata_of.values()
+        ).most_common(),
         "articles": len(paragraphs_of),
         "articles_one_paragraph": sum(len(s) == 1 for s in paragraphs_of.values()),
         "max_per_article": max(len(s) for s in paragraphs_of.values()),

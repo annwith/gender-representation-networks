@@ -1091,8 +1091,12 @@ table.summary.static tbody tr:hover td { background: none; }
         `<li><b>Sem sorteio.</b> Todo parágrafo que passa fica: ${n(T.corpus_paragraphs)} parágrafos, em média ${(T.corpus_paragraphs / T.corpus_articles).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} por artigo.</li></ol>`,
       sequences:
         `<h3>Parágrafos da amostra</h3><ol>` +
-        `<li><b>Não há sorteio de parágrafos.</b> Um parágrafo entra na amostra quando ganha pelo menos um vértice. São os ${n(T.core_paragraphs)} do núcleo e os ` +
-        `${n(T.paragraphs - T.core_paragraphs)} em que caiu alguma ocorrência sorteada de alvo, controle ou multitema (ver os dois cartões seguintes), de ${n(T.articles)} artigos.</li>` +
+        `<li><b>Duas portas de entrada.</b> Os ${n(T.core_paragraphs)} parágrafos do núcleo são sorteados como parágrafos, e todos os seus tokens viram vértices. ` +
+        `Os outros ${n(T.paragraphs - T.core_paragraphs)} não são sorteados como parágrafos: entram porque receberam pelo menos uma ocorrência sorteada de ` +
+        `alvo, controle ou multitema, e o resto do texto é só contexto (ver os dois cartões seguintes). Ao todo, vêm de ${n(T.articles)} artigos.</li>` +
+        `<li><b>O que trouxe cada parágrafo esparso:</b> ${S.by_strata.map(([k, c]) =>
+          `${new Intl.ListFormat("pt-BR").format(k.split(",").map((x) => stratumLabel[x]))}, ${n(c)}`).join("; ")}. ` +
+        `Por ser o maior estrato esparso, o multitema traz a maioria dos parágrafos.</li>` +
         `<li><b>Uma sequência por parágrafo.</b> Cada parágrafo passa sozinho pelo modelo: o token <code>&lt;|endoftext|&gt;</code> seguido dos tokens do parágrafo, ` +
         `sem o título nem os outros parágrafos do artigo.</li>` +
         `<li><b>Corte.</b> A sequência termina no último token escolhido do parágrafo. Como a atenção é causal, os tokens seguintes não mudariam nenhum vetor; ` +
