@@ -33,6 +33,7 @@
 \captionsetup{font=small, labelfont=bf, skip=3pt}
 \setlength{\textfloatsep}{8pt}
 \setlength{\floatsep}{6pt}
+\setlength{\intextsep}{6pt}
 
 \hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue}
 
@@ -64,120 +65,72 @@ redes complexas sobre \textbf{os mesmos vértices}: cada vértice é uma
 \textit{ocorrência} de um token em um texto, e cada ocorrência se liga às $k$ ocorrências
 mais semelhantes a ela. Comparando as redes camada a camada, queremos medir quanto a
 vizinhança deixa de ser determinada pela identidade do token e passa a refletir o
-contexto (perguntas P1--P4 da proposta: reorganização local e global, camadas em que ela
-se concentra, comunidades contextuais e separação das ocorrências de um mesmo token).
+contexto (perguntas P1--P4 da proposta).
 
 \textbf{Dados do projeto:} \url{\repo}. As quatro redes analisadas aqui estão em
-GraphML em \href{\dados}{\texttt{data/graphml/}}; o
-script que as gera, junto com esta análise, é
-\texttt{scripts/partial\_delivery/export\_networks.py}. A visualização das redes (item 9) é
-entregue em um arquivo separado,
+\href{\dados}{\nolinkurl{data/graphml/}}, em GraphML (\texttt{\textit{rede}\_k10\_union.graphml},
+cerca de 17\,MB cada), com os atributos dos vértices descritos em
+\nolinkurl{data/graphml/README.md}; as arestas não têm atributos. O script
+\nolinkurl{scripts/partial_delivery/export_networks.py} gera os arquivos e calcula todas as
+métricas abaixo com \texttt{igraph}, a partir dos arquivos relidos do disco. A visualização das
+redes (item 9) é entregue em um arquivo separado,
 \href{\visual}{\texttt{entrega-parcial-visualizacao.pdf}}.
 
 % ============================================================
 \section*{2. Origem dos dados e construção das redes}
 
-As redes são originais, construídas por nós; não foram baixadas de um repositório de
-redes. As duas fontes usadas são públicas:
-\begin{itemize}
-    \item \textbf{Textos:} Wikipédia em português (\url{https://pt.wikipedia.org}, licença
-    CC BY-SA), obtida pela API MediaWiki a partir de 8 categorias temáticas: física,
-    biologia, economia, política, computação, música, futebol (tema ``esporte'' nos dados) e
-    geografia. A identificação
-    e a revisão de cada artigo estão em \texttt{data/corpus/manifest.csv}, o que permite
-    baixar de novo exatamente o mesmo texto.
-    \item \textbf{Modelo:} \href{https://huggingface.co/Qwen/Qwen3-4B-Base}{Qwen3-4B-Base}
-    (Hugging Face, 36 blocos, revisão \texttt{906bfd4}), cujo \textit{tokenizer} também
-    define os tokens.
-\end{itemize}
+As redes são originais, construídas por nós a partir de duas fontes públicas. Os textos vêm
+da \textbf{Wikipédia em português} (\url{https://pt.wikipedia.org}, CC BY-SA), obtida pela
+API MediaWiki a partir de 8 categorias temáticas: física, biologia, economia, política,
+computação, música, futebol (tema ``esporte'' nos dados) e geografia. A revisão de cada
+artigo está em \texttt{data/corpus/manifest.csv}. O modelo é o
+\href{https://huggingface.co/Qwen/Qwen3-4B-Base}{\textbf{Qwen3-4B-Base}} (36 blocos, revisão
+\texttt{906bfd4}), cujo \textit{tokenizer} também define os tokens.
 
 \textbf{Coleta.} Em cada tema, uma busca em largura percorre as subcategorias até a
-profundidade 2 e para em 600 títulos, entre os quais são sorteados 150 artigos. Como a API
-lista as subcategorias em ordem alfabética, o corte não é aleatório: os oito temas atingiram
-o limite tendo aberto só parte das subcategorias (de 7 de 79 em computação a 98 de 439 em
-música), e, nas listas de subcategorias por país de música e futebol, só as do começo do
-alfabeto foram abertas. Os temas são, portanto, ``artigos próximos da categoria raiz'', e não
-a área inteira, o que basta para o uso que fazemos deles (temas bem separados). Para
-reforçar sentidos raros dos alvos (\textit{nota} como cédula, \textit{banco} de areia),
-entram também 16 categorias extras ligadas a temas (profundidade 1, até 60 artigos cada;
-\texttt{configs/experiment.yaml}), com 475 dos 1.172 artigos e 38\% dos vértices.
+profundidade 2, para em 600 títulos e sorteia 150 artigos. A busca para antes de abrir todas
+as subcategorias (de 7 de 79 em computação a 98 de 439 em música), e, como a API as lista em
+ordem alfabética, o corte não é aleatório: os temas são ``artigos próximos da categoria
+raiz'', e não a área inteira, o que basta para o nosso uso (temas bem separados). Outras 16 categorias ligadas a temas
+(profundidade 1, até 60 artigos cada) reforçam sentidos raros das palavras-alvo
+(\textit{nota} como cédula, \textit{banco} de areia).
 
-\textbf{Vértices.} Cada vértice é uma \textit{ocorrência}: um token do \textit{tokenizer} do Qwen3, que pode
-ser só um pedaço de palavra, numa posição de um parágrafo. A rede não cobre o corpus inteiro
-(17.066 parágrafos de 2.153 artigos). São 13.606 ocorrências de 2.864 tipos de token, em
-3.230 parágrafos de 1.172 artigos, escolhidas em quatro estratos com no máximo 50
-ocorrências por tipo (\texttt{configs/experiment.yaml}, semente 438):
-\begin{itemize}
-    \item \textbf{Núcleo} (10.020 vértices, 74\%): em cada um dos 8 temas, sorteamos 5
-    artigos e 2 parágrafos de cada um, 80 parágrafos ao todo (0,5\% do corpus). Nesses
-    parágrafos \emph{todos} os tokens são vértices: palavras, fragmentos, números e
-    pontuação. Das 11.935 ocorrências, o teto retira ao acaso 1.915, de 25 tipos frequentes
-    (vírgula, ponto, \textit{de}, \textit{que}, \textit{-ão}\ldots).
-    \item \textbf{Alvos} (477): 11 palavras polissêmicas (\textit{banco}, \textit{campo},
-    \textit{nota}\ldots), com uma cota por tema de sentido (\textit{banco} em economia,
-    computação e geografia). \textit{Planta} saiu da amostra por não chegar a 10
-    ocorrências em dois temas.
-    \item \textbf{Controles} (277): 6 palavras frequentes sem ambiguidade forte
-    (\textit{ano}, \textit{água}\ldots), com cotas iguais às dos alvos.
-    \item \textbf{Multitemáticas} (2.832): 150 palavras de conteúdo presentes em ao menos
-    3 temas, até 20 ocorrências cada.
-\end{itemize}
-Os três últimos estratos sorteiam palavras inteiras nos demais parágrafos, no máximo uma
-ocorrência da mesma palavra por parágrafo e três por artigo. Nesses 3.150 parágrafos, só as
-posições sorteadas são vértices, e o resto do texto serve apenas de contexto (2.762 deles
-têm um único vértice). O núcleo dá uma amostra de texto corrido. Os demais estratos existem
-porque 80 parágrafos quase não repetem palavras de conteúdo, e sem repetição não há como
-comparar a mesma palavra em contextos diferentes. Por construção, todos os fragmentos,
-números, sinais de pontuação e palavras funcionais vêm do núcleo. No total são 6.583
-palavras inteiras, 6.345 fragmentos de palavra (início ou continuação), 351 números e 327
-sinais de pontuação. Como o núcleo reúne três quartos dos vértices, as medidas globais
-descrevem sobretudo texto corrido. O sorteio de 10 parágrafos por tema, feito com uma única
-semente, pesa no vocabulário: 2.780 dos 2.864 tipos aparecem no núcleo.
+\textbf{Vértices.} Cada vértice é uma \textit{ocorrência}: um token do Qwen3, que pode ser só
+um pedaço de palavra, numa posição de um parágrafo. São 13.606 ocorrências de 2.864 tipos de
+token, em 3.230 parágrafos de 1.172 artigos (o corpus tem 17.066 parágrafos de 2.153
+artigos), com no máximo 50 ocorrências por tipo (semente 438). O \textbf{núcleo} (10.020
+vértices, 74\%) reúne \emph{todos} os tokens de 80 parágrafos sorteados, 10 por tema,
+inclusive fragmentos, números e pontuação. Como 80 parágrafos quase não repetem palavras de
+conteúdo, três estratos acrescentam palavras inteiras sorteadas em outros parágrafos, nos
+quais o resto do texto serve só de contexto: 11 palavras polissêmicas (\textbf{alvos}, 477
+ocorrências, com uma cota por tema de sentido, como \textit{banco} em economia, computação e
+geografia), 6 palavras sem ambiguidade forte (\textbf{controles}, 277) e 150 palavras
+presentes em ao menos 3 temas (\textbf{multitemáticas}, 2.832). No total são 6.583 palavras
+inteiras, 6.345 fragmentos de palavra, 351 números e 327 sinais de pontuação. Como o núcleo
+tem três quartos dos vértices, as medidas globais descrevem sobretudo texto corrido.
 
-\textbf{Extração dos vetores.} Cada parágrafo é tokenizado, recebe na frente o separador de documentos
-\texttt{<|endoftext|>} e passa sozinho pelo Qwen3, numa chamada própria e sem \textit{cache}:
-o modelo não vê o título nem os outros parágrafos do artigo, e não há contexto compartilhado
-entre parágrafos ou artigos. A sequência é cortada logo depois da última ocorrência sorteada
-no parágrafo. Dentro do modelo, cada posição carrega um vetor de dimensão 2560 (o fluxo
-residual), que cada um dos 36 blocos atualiza com atenção e MLP; como a atenção é causal, o
-vetor de uma posição depende só do seu token e dos anteriores. O vetor \textbf{lex} não passa
-pelo modelo: é a linha do token na matriz de \textit{embeddings}, igual para todas as
-ocorrências do token. \textbf{L01}, \textbf{L18} e \textbf{L36} são capturados durante a
-chamada por \textit{hooks} do PyTorch nos blocos 1, 18 e 36: quando o bloco termina, o
-\textit{hook} recebe a sua saída bruta (antes da normalização final), com uma linha por
-posição, e guarda só as linhas das posições sorteadas. Assim, as ocorrências de um mesmo
-parágrafo saem da mesma chamada, cada uma lida na sua posição, com o mesmo resultado que
-teriam em chamadas separadas. As linhas
-são reunidas numa matriz $13.606\times2560$ por representação.
+\textbf{Vetores.} Cada parágrafo, precedido do separador \texttt{<|endoftext|>}, passa
+sozinho pelo Qwen3, sem o título nem os outros parágrafos do artigo. O vetor \textbf{lex} é a
+linha do token na matriz de \textit{embeddings}, igual para todas as ocorrências do token;
+\textbf{L01}, \textbf{L18} e \textbf{L36} são as saídas brutas (antes da normalização final)
+dos blocos 1, 18 e 36, de dimensão 2560, lidas por \textit{hooks} do PyTorch na posição de
+cada ocorrência. Como a atenção é causal, o vetor de uma posição depende só do seu token e
+dos anteriores.
 
-\textbf{Arestas.} Cada ocorrência $i$ recebe um vetor $x_i$ e escolhe, entre as outras 13.605
-ocorrências (de qualquer parágrafo, artigo ou tema), os $k=10$ vizinhos de maior
-similaridade de cosseno (calculada em \texttt{float64}). O modelo nunca processa dois
-parágrafos juntos: a comparação entre ocorrências de parágrafos diferentes acontece só no
-espaço dos vetores. As quatro redes diferem
-apenas em $x_i$: \textbf{lex}, o \textit{embedding} de entrada do token (ocorrências do
-mesmo token são idênticas, e os empates são desfeitos ao acaso, semente 0); \textbf{L01},
-\textbf{L18} e \textbf{L36}, a saída dos blocos 1, 18 e 36 (inicial, intermediário e
-final). A relação k-NN é direcionada; as redes entregues e analisadas são as versões
-\textbf{não direcionadas por união}, com aresta $\{i,j\}$ quando $j$ está entre os vizinhos
-de $i$ ou $i$ entre os de $j$. Por isso todo vértice tem grau $\ge k$. As redes não são
-ponderadas: a aresta só registra que um vértice está entre os $k$ mais próximos do outro, sem
-o valor do cosseno. Usamos a união por
-dois motivos. Primeiro, clusterização, distâncias, componentes e comunidades são definidas
-para grafos não direcionados; na versão direcionada, a maioria dos pares não tem caminho
-(82\% dos pares ordenados em lex), e a distância média fica infinita. Segundo, a união
-preserva todas as relações de vizinhança, enquanto a versão mútua (aresta só quando $i$ e
-$j$ se escolhem) descartaria de 39\% a 56\% dos arcos e fragmentaria lex em 1.497
-componentes. A versão direcionada continua sendo usada para os graus de entrada
-(\textit{hubs}) e a reciprocidade.
-
-\textbf{Arquivos.} \texttt{\textit{rede}\_k10\_union.graphml}, com \textit{rede} em
-\texttt{lex}, \texttt{L01}, \texttt{L18} e \texttt{L36} (cerca de 17\,MB cada). Cada vértice
-traz o token, a palavra de origem e a posição do token nela, o tema, o artigo, o contexto
-textual e as medidas desta análise (grau, clusterização local, componente e comunidade
-Leiden); as arestas não têm atributos. Os atributos estão descritos em
-\texttt{data/graphml/README.md}. Todas as métricas abaixo foram calculadas com \texttt{igraph}
-a partir dos próprios arquivos GraphML relidos do disco.
+\textbf{Arestas.} Cada ocorrência $i$ escolhe, entre as outras 13.605, de qualquer parágrafo,
+artigo ou tema, as $k=10$ de maior cosseno (calculado em \texttt{float64}) com o seu
+vetor $x_i$; a comparação entre parágrafos diferentes acontece só no espaço dos
+vetores. As quatro redes diferem apenas em $x_i$. Em lex, as ocorrências de um mesmo token
+são idênticas, e os empates são desfeitos ao acaso (semente 0). A relação k-NN é
+direcionada; as redes entregues e analisadas são as versões \textbf{não direcionadas por
+união}, com aresta $\{i,j\}$ quando $j$ está entre os vizinhos de $i$ ou $i$ entre os de
+$j$, de modo que todo vértice tem grau $\ge k$. As redes não são ponderadas: a aresta não
+guarda o valor do cosseno. Usamos a união porque clusterização, distâncias e componentes são
+definidas para grafos não direcionados (na versão direcionada, 82\% dos pares ordenados de
+lex não têm caminho) e porque ela preserva todas as relações de vizinhança, enquanto a versão
+mútua (aresta só quando $i$ e $j$ se escolhem) descartaria de 39\% a 56\% dos arcos. A
+versão direcionada continua sendo usada para os graus de entrada (\textit{hubs}) e a
+reciprocidade.
 
 % ============================================================
 \section*{3. Análise inicial}
@@ -200,20 +153,16 @@ fica acima de $k=10$ porque um vértice também ganha arestas de quem o escolheu
 vizinho. As redes são muito esparsas: densidade
 $\rho = 2|E|/(|V|(|V|-1)) \approx 10^{-3}$.
 
-\textbf{Clusterização global (item 2).} Reportamos os dois coeficientes:
-\begin{itemize}
-    \item a \textbf{transitividade}, $C = 3 \times (\text{nº de triângulos}) /
-    (\text{nº de triplas conexas})$;
-    \item a \textbf{clusterização local média}, $\bar C = \frac{1}{|V_{\ge2}|}\sum_{i\in
-    V_{\ge2}} C_i$, com $C_i = 2T_i / (d_i(d_i-1))$, em que $T_i$ é o número de triângulos
-    que passam por $i$ e $d_i$ é o grau de $i$. $C_i$ não é definido quando $d_i<2$, então
-    a média (e a distribuição de $C_i$) usa só o conjunto $V_{\ge2}$ dos vértices de grau
-    $\ge 2$. Aqui $V_{\ge2}=V$, pois o grau mínimo é 10.
-\end{itemize}
-Os dois coeficientes são altos nas redes lexical e inicial (0,53--0,62) e caem pela
-metade nas camadas intermediária e final (0,23--0,37). Ainda assim, ficam duas ordens de
-grandeza acima da densidade, que é a clusterização esperada em um grafo aleatório com o
-mesmo número de vértices e de arestas. Na rede lex, as ocorrências de um mesmo token
+\textbf{Clusterização global (item 2).} Reportamos a \textbf{transitividade} $C=3T/\tau$,
+em que $T$ é o número de triângulos e $\tau$ o de triplas conexas, e a \textbf{clusterização
+local média} $\bar C = \frac{1}{|V_{\ge2}|}\sum_{i\in V_{\ge2}} C_i$, com
+$C_i = 2T_i / (d_i(d_i-1))$, em que $T_i$ é o número de triângulos que passam por $i$ e
+$d_i$ é o grau de $i$. $C_i$ não é definido quando $d_i<2$, então a média (e a distribuição
+de $C_i$) usa só o conjunto $V_{\ge2}$ dos vértices de grau $\ge 2$; aqui $V_{\ge2}=V$, pois
+o grau mínimo é 10. Os dois coeficientes são altos nas redes lexical e inicial (0,53--0,62) e
+caem pela metade nas camadas intermediária e final (0,23--0,37). Ainda assim, ficam duas
+ordens de grandeza acima da densidade, que é a clusterização esperada em um grafo aleatório
+com o mesmo número de vértices e de arestas. Na rede lex, as ocorrências de um mesmo token
 são idênticas e tendem a formar grupos quase completos, o que eleva a clusterização.
 
 \begin{figure}[h]
@@ -229,14 +178,12 @@ de clusterização local $C_i$ (item 3), em 40 faixas de largura 0,025.}
 \textbf{Clusterização local (item 3, Fig.~\ref{fig:graus-clust}).} Em lex e L01 a
 distribuição de $C_i$ se concentra entre 0,5 e 0,85, com um excesso em $C_i=1$ (vértices
 cuja vizinhança é um grupo completo). Em L18 e L36 ela se desloca para um pico perto de
-0,2 e uma cauda longa. A mudança atinge a maioria dos vértices; não é efeito de um grupo
-pequeno.
+0,2 e uma cauda longa; a mudança atinge a maioria dos vértices.
 
 \textbf{Distribuição de graus (item 7, Fig.~\ref{fig:graus-clust}).} O grau mínimo é sempre
 $k=10$. Em lex a cauda é curta (máximo 37); em L01 e L18 ela se alonga (máximos 60 e 55);
-em L36 ela se torna pesada, com máximo 247. Esse é o fenômeno de \textit{hubness}: na
-camada final, poucas ocorrências são escolhidas como vizinhas por muitas outras. O
-fenômeno será estudado na rede direcionada (grau de entrada) no restante do projeto.
+em L36 ela se torna pesada, com máximo 247. É o fenômeno de \textit{hubness}: na camada
+final, poucas ocorrências são escolhidas por muitas outras.
 
 \begin{figure}[h]
 \centering
@@ -246,14 +193,13 @@ tamanho da maior componente; os dois eixos estão em escala logarítmica.}
 \label{fig:componentes}
 \end{figure}
 
-\textbf{Componentes (item 8, Fig.~\ref{fig:componentes}).} As redes lex e L01 têm 44 e 40
-componentes. Além da gigante (91\% e 93\% dos vértices), há dezenas de componentes de 10
-a 50 vértices, cada uma formada por ocorrências de 1 a 5 tipos de token: por exemplo, as
-50 ocorrências de ``ão'' em lex e as 50 de ``para'' em L01. Nelas a identidade lexical
-isola grupos inteiros de ocorrências. Em L18 e L36 restam só 2 componentes: a gigante
-(99,6\%) e uma de cerca de 50 vértices, formada por 50 das 80 ocorrências na primeira posição
-da sequência (em L18, com mais uma); as outras 30 ficam na gigante. Nessas camadas, a
-representação dessas 50 ocorrências é muito diferente da das demais.
+\textbf{Componentes (item 8, Fig.~\ref{fig:componentes}).} Lex e L01 têm 44 e 40
+componentes: além da gigante (91\% e 93\% dos vértices), dezenas de componentes de 10 a 50
+vértices, cada uma com ocorrências de 1 a 5 tipos de token (por exemplo, as 50 ocorrências de
+``ão'' em lex e as 50 de ``para'' em L01), que a identidade lexical isola. L18 e L36 têm só
+2: a gigante (99,6\%) e uma de cerca de 50 vértices, formada por 50 das 80 ocorrências na
+primeira posição da sequência (em L18, com mais uma; as outras 30 ficam na gigante), cuja
+representação nessas camadas é muito diferente da das demais.
 
 \begin{figure}[h]
 \centering
@@ -271,25 +217,25 @@ valor com frequência positiva.}
 \textbf{Distância média e diâmetro (itens 4 e 5, Fig.~\ref{fig:distancias}).} Como lex e
 L01 não são conexas, as distâncias são calculadas na maior componente, sobre todos os
 pares, por busca em largura a partir de cada vértice. A distância média cai de 7,6 (lex)
-e 7,1 (L01) para 5,1--5,3 (L18 e L36), e o diâmetro cai de 18 para 11. Para comparação,
-um grafo aleatório com o mesmo tamanho e grau médio teria distância média em torno de
-$\ln|V|/\ln\langle d\rangle \approx 3{,}5$. As redes contextuais combinam, portanto,
-clusterização muito acima da aleatória com distâncias mais curtas que as da rede lexical.
+e 7,1 (L01) para 5,1--5,3 (L18 e L36), e o diâmetro, de 18 para 11. Um grafo aleatório com
+o mesmo tamanho e grau médio teria distância média em torno de
+$\ln|V|/\ln\langle d\rangle \approx 3{,}5$: as redes contextuais combinam clusterização
+muito acima da aleatória com distâncias menores.
 
 \textbf{Comparação entre as redes.} Como os vértices são os mesmos, as redes podem ser
 comparadas aresta a aresta (fim da Tabela~\ref{tab:metricas}). As arestas entre ocorrências do
 mesmo token caem de 68\% em lex para 64\% em L01, 39\% em L18 e 21\% em L36. E cada rede
 guarda poucas arestas da anterior: o Jaccard é 0,19 entre L01 e L18 e 0,16 entre L18 e L36,
 embora estas duas tenham métricas globais parecidas. Entre lex e L01 (0,37), ele subestima a
-semelhança, porque em lex o desempate sorteia quais ocorrências idênticas de um token se ligam.
+semelhança: em lex, o desempate sorteia quais cópias idênticas se ligam.
 
 \textbf{Síntese.} Já nas métricas globais, a passagem lex/L01 $\to$ L18/L36 aparece
 como uma reorganização: a clusterização cai, as distâncias encolhem, as componentes
 isoladas por token se fundem na componente gigante e surgem \textit{hubs}. Lex e L01 são
-muito parecidas. Depois do bloco 1, a reorganização é grande e continua até o último bloco: L18
-e L36 têm métricas globais próximas, mas as arestas mudam tanto entre os blocos 18 e 36 quanto
-entre os blocos 1 e 18. O restante do projeto mede essa reorganização vértice a vértice
-(Jaccard das vizinhanças, dominância lexical), com as comunidades (NMI com tipo de token e com
-contexto) e com a robustez a $k$, à simetrização e ao desempate.
+muito parecidas; depois do bloco 1, a reorganização é grande e continua até o último bloco,
+pois as arestas mudam tanto entre os blocos 18 e 36 quanto entre os blocos 1 e 18. O restante
+do projeto mede essa reorganização vértice a vértice (Jaccard das vizinhanças, dominância
+lexical), com as comunidades (NMI com tipo de token e com contexto) e com a robustez a $k$, à
+simetrização e ao desempate.
 
 \end{document}

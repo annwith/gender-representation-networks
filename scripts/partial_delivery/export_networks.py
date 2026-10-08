@@ -436,7 +436,7 @@ def _half_figure(
     results: Mapping[str, Mapping[str, Any]], title: str, grid: str
 ) -> tuple[Figure, Axes, dict[str, plots.Style]]:
     styles = plots.rep_styles(list(results))
-    fig, axes = plots.figure(1, 1, height=2.4, width=HALF)
+    fig, axes = plots.figure(1, 1, height=2.0, width=HALF)
     ax = axes[0, 0]
     plots.prepare(ax, title, grid=grid)
     plots.legend_top(fig, [plots.line_handle(styles[r]) for r in results], ncol=len(results))
@@ -521,12 +521,13 @@ def figure_distances(results: Mapping[str, Mapping[str, Any]]) -> Figure:
 
 
 def figure_directed_distances(results: Mapping[str, Mapping[str, Any]]) -> Figure:
-    """Finite directed distances as a share of *all* ordered pairs, and the unreachable rest."""
+    """Finite directed distances as a share of *all* ordered pairs.
 
-    styles = plots.rep_styles(list(results))
-    fig, axes = plots.figure(1, 2, height=2.3, width_ratios=[2.2, 1])
-    ax, bar_ax = axes[0]
-    plots.prepare(ax, "Distância d(i, j) entre pares ordenados com caminho", grid="y")
+    The area under each curve is the share of pairs with a path; the rest have d = inf (that
+    share is in the table).
+    """
+
+    fig, ax, styles = _half_figure(results, "Distâncias dirigidas d(i, j)", "y")
     for rep, result in results.items():
         hist = result["distance_hist"]
         n = result["n_vertices"]
@@ -541,28 +542,6 @@ def figure_directed_distances(results: Mapping[str, Mapping[str, Any]]) -> Figur
     ax.set_ylabel("fração dos pares ordenados")
     ax.yaxis.set_major_formatter(plots.percent_formatter())
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-    plots.prepare(bar_ax, "Pares sem caminho (d = ∞)", grid="x")
-    reps = list(results)
-    shares = [1 - results[r]["reachable_fraction"] for r in reps]
-    ys = np.arange(len(reps))[::-1]
-    for y, rep, share in zip(ys, reps, shares, strict=True):
-        bar_ax.barh(y, share, height=0.62, color=styles[rep].color, linewidth=0)
-        bar_ax.text(
-            share + 0.02,
-            y,
-            f"{plots.fmt_dec(100 * share, 1)}%",
-            va="center",
-            ha="left",
-            fontsize=7.5,
-            color=plots.INK_SECONDARY,
-        )
-    bar_ax.set_yticks(ys, reps)
-    bar_ax.set_xlim(0, 1.15)
-    bar_ax.set_xticks([0, 0.5, 1])
-    bar_ax.xaxis.set_major_formatter(plots.percent_formatter())
-    bar_ax.spines["left"].set_visible(False)
-    plots.legend_top(fig, [plots.line_handle(styles[r]) for r in reps], ncol=len(reps))
     return fig
 
 
@@ -574,7 +553,7 @@ def figure_components(
     noun_in_title: bool = True,
 ) -> Figure:
     styles = plots.rep_styles(list(results))
-    fig, axes = plots.figure(1, len(results), height=1.9, sharex=True, sharey=True)
+    fig, axes = plots.figure(1, len(results), height=1.6, sharex=True, sharey=True)
     ymax = 1
     for ax, (rep, result) in zip(axes[0], results.items(), strict=True):
         sizes = result[sizes_key]
