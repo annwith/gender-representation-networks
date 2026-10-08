@@ -63,8 +63,8 @@ corpus:
   articles_per_extra_category: 60
   delay_s: 2.5
   batch_titles: 50
-  # Política da Wikimedia: identifique um contato no User-Agent (edite antes de rodar).
-  user_agent: "gender-representation-networks/0.2 (projeto academico MO438)"
+  # Política da Wikimedia: o User-Agent identifica um contato (aqui, o repositório).
+  user_agent: "gender-representation-networks/0.2 (https://github.com/annwith/gender-representation-networks; projeto academico MO438)"
   skip_category_patterns:
     - "Categoria:!"
     - "Artigos"
