@@ -296,3 +296,19 @@ def test_fetch_pages_follows_continuation_and_reads_disambiguation(tmp_path: Pat
     assert pages["Cortado"].disambiguation and not pages["Longo"].disambiguation
     assert pages["Longo"].wikitext == "texto Longo"
     assert api.calls[1]["rvcontinue"] == "2|20" and api.calls[1]["titles"] == "Longo|Cortado"
+
+
+def test_fetch_revisions_batches_ids_and_skips_bad_revisions(tmp_path: Path) -> None:
+    def handler(params, n):
+        ids = [int(r) for r in params["revids"].split("|")]
+        pages = [page_json(r // 10, f"Página {r}") for r in ids if r != 30]
+        return 200, {"query": {"badrevids": {"30": {"revid": 30}}, "pages": pages}}, {}
+
+    api = FakeApi(handler)
+    wiki = client(tmp_path, api, [])
+
+    pages = wiki.fetch_revisions([10, 20, 30], batch=2)
+
+    assert [call["revids"] for call in api.calls] == ["10|20", "30"]
+    assert [(page.pageid, page.revid) for page in pages] == [(1, 10), (2, 20)]
+    assert pages[0].wikitext == "texto Página 10"

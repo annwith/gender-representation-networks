@@ -29,7 +29,7 @@ from gender_networks.textclean import (
     is_disambiguation,
     split_sentences,
 )
-from gender_networks.wiki import WikiClient
+from gender_networks.wiki import Page, WikiClient
 
 LOGGER = logging.getLogger(__name__)
 OFFLINE_ENV = "GENDER_NETWORKS_OFFLINE"
@@ -153,48 +153,68 @@ def build_corpus(client: WikiClient, settings: CorpusSettings) -> CorpusResult:
                     result.articles.append(_record(candidate, page, themes, "duplicate"))
                     continue
                 seen_pageids.add(page.pageid)
-                if page.disambiguation or is_disambiguation(page.wikitext, page.title):
-                    result.articles.append(_record(candidate, page, themes, "disambiguation"))
+                reason, paragraphs = clean_page(page, settings, seen_paragraphs)
+                record = _record(candidate, page, themes, reason)
+                record["is_biography"] = reason == "biography"
+                result.articles.append(record)
+                if reason is not None:
                     continue
-                if has_excluded_infobox(page.wikitext, settings.exclude_infobox_patterns):
-                    record = _record(candidate, page, themes, "biography")
-                    record["is_biography"] = True
-                    result.articles.append(record)
-                    continue
-                paragraphs = []
-                for text in clean_article(
-                    page.wikitext,
-                    settings.cut_sections,
-                    settings.paragraph.min_words,
-                    settings.paragraph.max_digit_ratio,
-                ):
-                    key = text[: settings.paragraph.dedup_chars].lower()
-                    if key in seen_paragraphs:
-                        continue
-                    seen_paragraphs.add(key)
-                    paragraphs.append(text)
-                if not paragraphs:
-                    result.articles.append(_record(candidate, page, themes, "no_paragraphs"))
-                    continue
-                result.articles.append(_record(candidate, page, themes, None))
-                for index, text in enumerate(paragraphs):
-                    result.paragraphs.append(
-                        {
-                            "paragraph_id": f"{page.pageid}-{index}",
-                            "pageid": page.pageid,
-                            "revid": page.revid,
-                            "title": page.title,
-                            "theme": candidate.theme,
-                            "source_category": candidate.source_category,
-                            "paragraph_idx": index,
-                            "text": text,
-                            "sentences": [list(span) for span in split_sentences(text)],
-                        }
-                    )
+                result.paragraphs.extend(
+                    paragraph_records(page, candidate.theme, candidate.source_category, paragraphs)
+                )
                 kept += 1
         log = LOGGER.warning if kept < quota else LOGGER.info
         log("Grupo %s: %d artigos mantidos (cota %d)", group, kept, quota)
     return result
+
+
+def clean_page(
+    page: Page, settings: CorpusSettings, seen_paragraphs: set[str]
+) -> tuple[str | None, list[str]]:
+    """Content filters and cleaning of one fetched page: ``(dropped_reason, paragraphs)``.
+
+    ``seen_paragraphs`` holds the dedup keys of the paragraphs kept so far, across articles; the
+    keys of this page's paragraphs are added to it, so pages must be cleaned in corpus order.
+    """
+
+    if page.disambiguation or is_disambiguation(page.wikitext, page.title):
+        return "disambiguation", []
+    if has_excluded_infobox(page.wikitext, settings.exclude_infobox_patterns):
+        return "biography", []
+    paragraphs = []
+    for text in clean_article(
+        page.wikitext,
+        settings.cut_sections,
+        settings.paragraph.min_words,
+        settings.paragraph.max_digit_ratio,
+    ):
+        key = text[: settings.paragraph.dedup_chars].lower()
+        if key in seen_paragraphs:
+            continue
+        seen_paragraphs.add(key)
+        paragraphs.append(text)
+    if not paragraphs:
+        return "no_paragraphs", []
+    return None, paragraphs
+
+
+def paragraph_records(
+    page: Page, theme: str, source_category: str, paragraphs: list[str]
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "paragraph_id": f"{page.pageid}-{index}",
+            "pageid": page.pageid,
+            "revid": page.revid,
+            "title": page.title,
+            "theme": theme,
+            "source_category": source_category,
+            "paragraph_idx": index,
+            "text": text,
+            "sentences": [list(span) for span in split_sentences(text)],
+        }
+        for index, text in enumerate(paragraphs)
+    ]
 
 
 def _record(
@@ -230,6 +250,10 @@ def summarize(result: CorpusResult) -> dict[str, Any]:
     }
 
 
+def offline_from_env() -> bool:
+    return os.environ.get(OFFLINE_ENV, "").strip().lower() in {"1", "true", "yes"}
+
+
 def run(
     settings: Settings,
     paths: RunPaths,
@@ -247,7 +271,7 @@ def run(
         LOGGER.info("Corpus já existe em %s; use --force para refazer", paths.corpus_dir)
         return
     if offline is None:
-        offline = os.environ.get(OFFLINE_ENV, "").strip().lower() in {"1", "true", "yes"}
+        offline = offline_from_env()
     started = time.time()
     ensure_dir(paths.corpus_dir)
     client = WikiClient(

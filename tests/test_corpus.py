@@ -296,3 +296,62 @@ def test_run_skips_existing_outputs_unless_forced(corpus_run, monkeypatch) -> No
     assert len(created) == 2 and created[-1]["offline"] is True
     assert paths.paragraphs.read_text(encoding="utf-8") == before
     assert json.loads((paths.corpus_dir / "_manifest.json").read_text())["offline"] is True
+
+
+def test_rebuild_from_manifest_reproduces_the_corpus(corpus_run, monkeypatch) -> None:
+    from gender_networks import corpus_rebuild
+
+    config, paths, _ = corpus_run
+    corpus.run(config, paths)
+    original = list(read_jsonl(paths.paragraphs))
+    manifest_csv = paths.corpus_manifest_csv.read_text(encoding="utf-8")
+    by_revid = {
+        10: page("Átomo", 1, f"Átomo {PROSE}. Segunda frase {PROSE}."),
+        60: page("Nota", 6, f"Nota musical {PROSE}."),
+        70: page("Escala", 7, f"Escala {PROSE}."),
+    }
+    requested: list[int] = []
+
+    class RevisionWiki(FakeWiki):
+        def fetch_revisions(self, revids, batch=50):
+            requested.extend(revids)
+            return [by_revid[r] for r in revids if r in by_revid]
+
+    monkeypatch.setattr(corpus_rebuild, "WikiClient", lambda *args, **kwargs: RevisionWiki({}, {}))
+
+    corpus_rebuild.run(config, paths)  # outputs exist: nothing happens without --force
+    assert list(read_jsonl(paths.paragraphs)) == original
+
+    corpus_rebuild.run(config, paths, force=True)
+
+    assert list(read_jsonl(paths.paragraphs)) == original
+    assert sorted(requested) == [10, 60, 70]  # the biography is not fetched again
+    articles = {a["title"]: a for a in read_jsonl(paths.articles)}
+    assert articles["Einstein"]["dropped_reason"] == "biography"
+    assert articles["Einstein"]["is_biography"] is True
+    assert articles["Átomo"]["origin"] is None and articles["Átomo"]["depth"] is None
+    assert paths.corpus_manifest_csv.read_text(encoding="utf-8") == manifest_csv
+    manifest = read_json(paths.corpus_dir / "_manifest.json")
+    assert manifest["rebuilt_from"].endswith("manifest.csv") and manifest["changed"] == []
+    assert manifest["articles_kept"] == manifest["manifest_kept"] == 3
+
+
+def test_rebuild_reports_revisions_that_disappeared(tmp_path: Path) -> None:
+    from gender_networks.corpus_rebuild import rebuild_corpus
+
+    class RevisionWiki:
+        def fetch_revisions(self, revids, batch=50):
+            return [page("Átomo", 1, f"Átomo {PROSE}.")]
+
+    rows = [
+        {"pageid": 1, "revid": 10, "title": "Átomo", "theme": "fisica",
+         "source_category": "Categoria:Física", "kept": True, "dropped_reason": None},
+        {"pageid": 2, "revid": 20, "title": "Som", "theme": "fisica",
+         "source_category": "Categoria:Física", "kept": True, "dropped_reason": None},
+    ]  # fmt: skip
+
+    result, changed = rebuild_corpus(RevisionWiki(), settings(), rows)
+
+    assert [a["dropped_reason"] for a in result.articles] == [None, "missing"]
+    assert changed == [{"title": "Som", "revid": 20, "reason": "missing"}]
+    assert [p["paragraph_id"] for p in result.paragraphs] == ["1-0"]

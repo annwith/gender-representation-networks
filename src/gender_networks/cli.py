@@ -26,6 +26,10 @@ LOGGER = logging.getLogger(__name__)
 # stage does not import torch.
 STAGES: dict[str, tuple[str, str]] = {
     "corpus": ("gender_networks.corpus", "Baixa e limpa os artigos da Wikipédia"),
+    "corpus-rebuild": (
+        "gender_networks.corpus_rebuild",
+        "Reconstrói o corpus a partir das revisões de data/corpus/manifest.csv",
+    ),
     "sample": ("gender_networks.sampling", "Monta a amostra híbrida de ocorrências"),
     "extract": ("gender_networks.extract", "Extrai as representações do modelo"),
     "knn": ("gender_networks.knn", "Calcula candidatos e vizinhos k-NN"),
