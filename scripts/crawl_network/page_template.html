@@ -3,12 +3,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: one-screen tool with three tabs under a slim bar. "Rede": sidebar of controls and the
+/* Layout: one-screen tool with four tabs under a slim bar. "Rede": sidebar of controls and the
    selected node beside a full-height graph canvas (on phones the canvas comes first and the
    sidebar stacks under it). "Artigos": a scrolling ledger of every candidate article, summary
    by theme first, then a filterable table whose rows open onto the clean text. "Amostra": the
    same ledger layout, read top to bottom as the sample is drawn: counts, the core paragraphs
-   token by token, then the studied words with the concordance of their occurrences. */
+   token by token, then the studied words with the concordance of their occurrences.
+   "Construção": the same ledger again, four numbered steps from a paragraph to the k-NN networks,
+   each a schematic figure with its caption. */
 :root {
   --bg: #f3f4f6;
   --panel: #ffffff;
@@ -36,6 +38,10 @@
   --tok-a: rgba(36, 89, 168, 0.07);
   --tok-b: rgba(36, 89, 168, 0.17);
   --studied: #ffd970;
+  --r-lex: #b9cdea;
+  --r-l01: #7ea3d8;
+  --r-l18: #3f72bf;
+  --r-l36: #1b437f;
   --font-display: "Crimson Pro", "Linux Libertine", Georgia, "Times New Roman", serif;
   --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -49,6 +55,7 @@
     --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
     --kept: #6fd39d; --kept-bg: #173326; --hit: rgba(127, 176, 242, 0.14);
     --tok-a: rgba(127, 176, 242, 0.09); --tok-b: rgba(127, 176, 242, 0.22); --studied: #6b5200;
+    --r-lex: #2c4466; --r-l01: #3f659c; --r-l18: #6b98dc; --r-l36: #a9c7f4;
     color-scheme: dark;
   }
 }
@@ -60,6 +67,7 @@
   --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
   --kept: #6fd39d; --kept-bg: #173326; --hit: rgba(127, 176, 242, 0.14);
   --tok-a: rgba(127, 176, 242, 0.09); --tok-b: rgba(127, 176, 242, 0.22); --studied: #6b5200;
+  --r-lex: #2c4466; --r-l01: #3f659c; --r-l18: #6b98dc; --r-l36: #a9c7f4;
   color-scheme: dark;
 }
 
@@ -319,8 +327,57 @@ table.summary.static tbody tr:hover td { background: none; }
 .kwic .m { font-size: 11px; color: var(--muted); padding-inline-start: 10px; overflow-wrap: anywhere; }
 .kwic .m .linkish { margin-inline-start: 0; }
 
+/* ---- Construção tab ---- */
+.build-step { display: flex; flex-direction: column; gap: 8px; }
+.build-step h2 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.build-step h2.sub { margin-top: 10px; }
+.bn {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--fg); color: var(--panel); font-family: var(--font-data); font-size: 11px; letter-spacing: 0;
+}
+.build-step .note { font-size: 13px; color: var(--fg); line-height: 1.55; }
+.build-step figure { margin: 0; }
+.build-step figcaption.note { margin-top: 10px; }
+.build-step code { font-family: var(--font-data); font-size: 12px; }
+.sentence { margin: 0 0 10px; font-family: var(--font-display); font-size: 1.2rem; }
+.seq { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; font-family: var(--font-data); font-size: 13px; }
+.tk-chip {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  padding: 3px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); white-space: pre;
+}
+.tk-chip small { font-family: var(--font-body); font-size: 10px; color: var(--muted); font-weight: 400; }
+.tk-chip.v { background: var(--studied); border-color: transparent; font-weight: 600; }
+.tk-chip.v small { color: var(--fg); }
+.tk-chip.pre { color: var(--muted); border-style: dashed; background: none; }
+.tk-chip.out {
+  color: var(--muted); background: none; border-style: dotted;
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
+.cut-mark {
+  display: flex; align-items: center; padding-inline: 6px 2px; border-left: 2px solid var(--fg);
+  font-family: var(--font-body); font-size: 11px; font-weight: 600;
+}
+.build-svg { display: block; width: 100%; max-width: 760px; height: auto; min-width: 560px; font-family: var(--font-body); font-size: 12px; }
+.build-svg.wide { max-width: 960px; min-width: 680px; }
+.build-svg text { fill: var(--fg); }
+.build-svg .mut { fill: var(--muted); }
+.build-svg .sm { font-size: 10.5px; }
+.build-svg .mono { font-family: var(--font-data); }
+.build-svg .rep { font-weight: 600; }
+.build-svg .cell { fill: var(--bg); stroke: var(--line); }
+.build-svg .cell-off { fill: none; stroke: var(--line); stroke-dasharray: 4 3; }
+.minis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.minis figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 10px; }
+.minis svg { display: block; width: 100%; height: auto; font-family: var(--font-body); }
+.minis svg text { fill: var(--fg); font-size: 9.5px; }
+.minis figcaption { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.minis figcaption b { color: var(--fg); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.rep-sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; flex: none; }
+
 @media (max-width: 760px) {
   .shell { height: auto; }
+  .tabs { padding-inline: 8px; overflow-x: auto; }
+  .tabs button { padding-inline: 8px; white-space: nowrap; }
   .ledger { height: auto; overflow: visible; }
   .filters input[type="search"] { width: 100%; }
   .filters label.field { flex: 1 1 100%; }
@@ -338,6 +395,7 @@ table.summary.static tbody tr:hover td { background: none; }
   <button type="button" role="tab" id="tab-rede" aria-controls="view-rede" aria-selected="true">Rede</button>
   <button type="button" role="tab" id="tab-artigos" aria-controls="view-artigos" aria-selected="false">Artigos<small id="tab-artigos-n"></small></button>
   <button type="button" role="tab" id="tab-amostra" aria-controls="view-amostra" aria-selected="false">Amostra<small id="tab-amostra-n"></small></button>
+  <button type="button" role="tab" id="tab-construcao" aria-controls="view-construcao" aria-selected="false">Construção</button>
 </nav>
 <div class="app" id="view-rede" role="tabpanel" aria-labelledby="tab-rede">
   <aside class="side">
@@ -512,6 +570,127 @@ table.summary.static tbody tr:hover td { background: none; }
       <div class="scroll-x">
         <table class="list" id="sam-multi"></table>
       </div>
+    </section>
+  </div>
+</section>
+
+<section class="ledger" id="view-construcao" role="tabpanel" aria-labelledby="tab-construcao" hidden>
+  <div class="ledger-inner">
+    <header>
+      <h1>Dos vértices às redes</h1>
+      <p class="lede">Como cada vértice da amostra ganha um vetor em cada representação e como os vetores
+        viram arestas. Os vértices saem da aba <a href="#amostra" data-tab="amostra">Amostra</a>; as quatro
+        redes prontas estão no <a href="https://annwith.github.io/gender-representation-networks/redes/" target="_blank" rel="noopener">desenho das redes</a>.
+        As figuras são esquemas: a frase é inventada, mas está dividida pelo tokenizador do Qwen3, e as
+        posições dos pontos são ilustrativas.</p>
+      <div class="stats">
+        <span><b data-b="vertices">…</b> vértices</span><span><b data-b="paragraphs">…</b> sequências</span>
+        <span><b>4</b> representações: lex, L01, L18, L36</span><span><b>k = <span data-b="k">…</span></b> vizinhos por vértice</span>
+      </div>
+    </header>
+
+    <section class="build-step" aria-labelledby="b1-h">
+      <h2 id="b1-h"><span class="bn">1</span>Parágrafo, tokens e vértices</h2>
+      <div class="panel">
+        <p class="sentence">“O banco central ampliou o crédito para as empresas exportadoras.”</p>
+        <div class="seq" role="img" aria-label="A frase dividida em tokens do Qwen3: o prefixo endoftext, O, banco, central, ampl, iou, o, crédito, e depois do corte para, as, empresas, export, adoras, ponto. Banco e crédito são vértices.">
+          <span class="tk-chip pre">&lt;|endoftext|&gt;<small>prefixo</small></span>
+          <span class="tk-chip">O<small>&nbsp;</small></span>
+          <span class="tk-chip v">␣banco<small>vértice</small></span>
+          <span class="tk-chip">␣central<small>&nbsp;</small></span>
+          <span class="tk-chip">␣ampl<small>&nbsp;</small></span>
+          <span class="tk-chip">iou<small>&nbsp;</small></span>
+          <span class="tk-chip">␣o<small>&nbsp;</small></span>
+          <span class="tk-chip v">␣crédito<small>vértice</small></span>
+          <span class="cut-mark">corte</span>
+          <span class="tk-chip out">␣para</span>
+          <span class="tk-chip out">␣as</span>
+          <span class="tk-chip out">␣empresas</span>
+          <span class="tk-chip out">␣export</span>
+          <span class="tk-chip out">adoras</span>
+          <span class="tk-chip out">.</span>
+        </div>
+      </div>
+      <p class="note">O parágrafo é dividido em tokens do Qwen3 (␣ marca o espaço que faz parte do token), e um
+        vértice é <b>um token numa posição</b>, não uma palavra: “ampliou” são dois tokens, ␣ampl e iou. Fora do
+        núcleo, como aqui, só as posições sorteadas viram vértices (␣banco é uma palavra-alvo; ␣crédito, uma
+        multitema); o resto é contexto. Nos parágrafos do núcleo, todo token que não é espaço vira vértice. Cada
+        parágrafo vira uma sequência que começa no prefixo <code>&lt;|endoftext|&gt;</code> e acaba no último
+        vértice: a atenção é causal, e os tokens depois do corte não mudariam nenhum vetor.</p>
+    </section>
+
+    <section class="build-step" aria-labelledby="b2-h">
+      <h2 id="b2-h"><span class="bn">2</span>Uma passada pelo modelo, quatro leituras</h2>
+      <figure class="panel scroll-x">
+        <svg class="build-svg wide" viewBox="0 0 920 312" role="img" aria-label="Grade de posições por camadas do Qwen3. Nas colunas de banco e crédito, o vetor é lido em quatro linhas: embeddings (lex), saída do bloco 1 (L01), do bloco 18 (L18) e do bloco 36 (L36). Linhas em leque mostram que crédito, no bloco 1, lê só as posições até ela.">
+          <defs>
+            <marker id="b2-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)"/>
+            </marker>
+          </defs>
+          <g class="lbl">
+            <text x="140" y="31" text-anchor="end" class="mut">RMSNorm final e saída</text>
+            <text x="140" y="67" text-anchor="end">bloco 36</text>
+            <text x="140" y="127" text-anchor="end">bloco 18</text>
+            <text x="140" y="187" text-anchor="end">bloco 1</text>
+            <text x="140" y="247" text-anchor="end">embeddings</text>
+            <text x="140" y="277" text-anchor="end" class="mut">tokens</text>
+            <text x="140" y="301" text-anchor="end" class="mut">posição</text>
+          </g>
+          <line x1="148" y1="282" x2="148" y2="24" style="stroke: var(--muted)" stroke-width="1" marker-end="url(#b2-arrow)"/>
+          <rect x="154" y="18" width="636" height="20" rx="3" class="cell-off"/>
+          <text x="472" y="32" text-anchor="middle" class="mut sm">não usadas</text>
+          <g id="b2-grid"></g>
+          <g class="lbl">
+            <text x="802" y="67"><tspan class="rep">L36</tspan></text>
+            <text x="802" y="127"><tspan class="rep">L18</tspan></text>
+            <text x="802" y="187"><tspan class="rep">L01</tspan></text>
+            <text x="802" y="247"><tspan class="rep">lex</tspan></text>
+            <text x="802" y="262" class="mut sm">igual em toda</text>
+            <text x="802" y="275" class="mut sm">ocorrência do token</text>
+            <text x="802" y="96" class="mut sm">⋮ blocos 19–35</text>
+            <text x="802" y="156" class="mut sm">⋮ blocos 2–17</text>
+          </g>
+        </svg>
+        <figcaption class="note">Cada sequência passa sozinha pelo Qwen3-4B-Base, sem o título nem os outros
+          parágrafos do artigo. Em cada vértice, lê-se o vetor da sua posição (2.560 números) em quatro pontos:
+          <b>lex</b> é a linha do token na matriz de <i>embeddings</i>, antes de qualquer bloco, e por isso é a
+          mesma em toda ocorrência do token; <b>L01</b>, <b>L18</b> e <b>L36</b> são o fluxo residual na saída
+          dos blocos 1, 18 e 36, antes da RMSNorm final. O leque mostra o que ␣crédito lê no bloco 1: a própria
+          posição e as anteriores. ␣banco nunca vê ␣crédito.</figcaption>
+      </figure>
+    </section>
+
+    <section class="build-step" aria-labelledby="b3-h">
+      <h2 id="b3-h"><span class="bn">3</span>Todos os vértices, quatro matrizes</h2>
+      <figure class="panel scroll-x">
+        <svg class="build-svg" viewBox="0 0 700 226" role="img" aria-label="Quatro matrizes, lex, L01, L18 e L36, cada uma com uma linha por vértice e 2.560 colunas. As linhas de banco e crédito estão destacadas em cada uma.">
+          <g id="b3-mats"></g>
+        </svg>
+        <figcaption class="note">A passada se repete nas <span data-b="paragraphs">…</span> sequências, uma por
+          parágrafo da amostra. Cada representação vira uma matriz com uma linha por vértice, e cada linha é
+          dividida pela sua norma (‖v‖ = 1): o cosseno entre dois vértices passa a ser o produto escalar das
+          linhas. Nas redes principais, não há centralização nem redução de dimensão.</figcaption>
+      </figure>
+    </section>
+
+    <section class="build-step" aria-labelledby="b4-h">
+      <h2 id="b4-h"><span class="bn">4</span>Os <span data-b="k">…</span> vizinhos mais próximos</h2>
+      <div class="minis" id="b4-rule"></div>
+      <p class="note">Em cada representação, separadamente, cada vértice escolhe os <span data-b="k">…</span>
+        outros de maior cosseno com o seu vetor (no desenho, 2, num plano). É uma busca exata, sem limiar e sem
+        peso, e só o próprio vértice fica de fora: vizinhos do mesmo parágrafo ou do mesmo token valem. Disso sai
+        uma rede <b>dirigida</b>, em que todo vértice tem grau de saída <span data-b="k">…</span>. As métricas
+        principais usam a <b>união</b>: uma aresta sem direção quando pelo menos um dos dois escolheu o outro.
+        A <b>mútua</b> (os dois se escolheram) entra só nos testes de robustez.</p>
+      <h2 id="b4c-h" class="sub">Quatro redes com os mesmos vértices</h2>
+      <div class="minis" id="b4-reps"></div>
+      <p class="keys" id="b4-keys"></p>
+      <p class="note">Os mesmos vértices, quatro conjuntos de arestas (união). Na <b>lex</b>, as ocorrências
+        do mesmo token têm o mesmo vetor, com cosseno 1: as quatro de ␣banco se escolhem entre si, qualquer que
+        seja o parágrafo, e o empate entre cópias é desfeito por sorteio (semente 0). Nas camadas, o vetor
+        também depende do contexto, e as cópias podem se afastar umas das outras. Aqui as cópias se agrupam pelo
+        tema do parágrafo para mostrar o mecanismo; o que de fato acontece em cada camada está nas redes.</p>
     </section>
   </div>
 </section>
@@ -920,7 +1099,7 @@ table.summary.static tbody tr:hover td { background: none; }
   let stratumLabel = {};
   function loadSample() {
     if (!sampleReady) {
-      sampleReady = inflate("sample-data").then((d) => { SAM = d; renderSample(); });
+      sampleReady = inflate("sample-data").then((d) => { SAM = d; renderSample(); renderBuildNumbers(); });
       sampleReady.catch((err) => { document.getElementById("sam-status").textContent = err.message; });
     }
     return sampleReady;
@@ -1265,8 +1444,198 @@ table.summary.static tbody tr:hover td { background: none; }
   document.getElementById("sam-multi-q").addEventListener("input", () => { clearTimeout(multiTimer); multiTimer = setTimeout(renderMulti, 150); });
   document.getElementById("sam-multi-theme").addEventListener("change", renderMulti);
 
+  // ---- construction tab ---------------------------------------------------------------------
+  // Schematic of how the sampled vertices become the k-NN networks. Step 2 is a grid of the
+  // example's positions by the model's layers, step 3 the four vector matrices. Step 4 places a
+  // dozen made-up vertices in a plane and links each to its nearest ones by the pipeline's rule
+  // (exact top-k, self excluded, exact ties in a seeded random order), so the drawn edges follow
+  // from the drawn points. Counts come from the sample payload once it is inflated.
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  function svgEl(parent, tag, attrs, text) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    if (text != null) el.textContent = text;
+    parent.appendChild(el);
+    return el;
+  }
+  const REPS = [
+    ["lex", "--r-lex", "embeddings: as cópias de um token coincidem"],
+    ["L01", "--r-l01", "saída do bloco 1"],
+    ["L18", "--r-l18", "saída do bloco 18"],
+    ["L36", "--r-l36", "saída do bloco 36"],
+  ];
+
+  function drawModelGrid() {
+    const g = document.getElementById("b2-grid");
+    const tokens = ["<|endoftext|>", "O", "␣banco", "␣central", "␣ampl", "iou", "␣o", "␣crédito"];
+    const vertexCols = new Set([2, 7]);
+    const reads = [[52, "--r-l36"], [112, "--r-l18"], [172, "--r-l01"], [232, "--r-lex"]];  // top of each row read
+    const cx = (i) => 194 + 80 * i;
+    // block 1 at crédito attends to the embeddings of its own and every earlier position
+    for (let i = 0; i <= 7; i++) {
+      svgEl(g, "line", { x1: cx(i), y1: 232, x2: cx(7), y2: 194, style: "stroke: var(--accent); opacity: 0.6" });
+    }
+    tokens.forEach((t, i) => {
+      const on = vertexCols.has(i);
+      for (const [y, color] of reads) {
+        svgEl(g, "rect", on
+          ? { x: cx(i) - 28, y, width: 56, height: 22, rx: 3, style: `fill: var(${color})` }
+          : { x: cx(i) - 28, y, width: 56, height: 22, rx: 3, class: "cell" });
+      }
+      for (const y of [97, 157]) svgEl(g, "text", { x: cx(i), y, "text-anchor": "middle", class: "mut" }, "⋮");
+      svgEl(g, "rect", on
+        ? { x: cx(i) - 36, y: 262, width: 72, height: 22, rx: 4, style: "fill: var(--studied)" }
+        : { x: cx(i) - 36, y: 262, width: 72, height: 22, rx: 4, class: "cell" });
+      svgEl(g, "text", {
+        x: cx(i), y: 277, "text-anchor": "middle", class: "mono" + (i === 0 ? " mut" : ""),
+        style: i === 0 ? "font-size: 9px" : on ? "font-weight: 600" : "",
+      }, t);
+      svgEl(g, "text", { x: cx(i), y: 301, "text-anchor": "middle", class: "mut sm mono" }, String(i));
+    });
+  }
+
+  function drawMatrices() {
+    const g = document.getElementById("b3-mats");
+    const top = 34, w = 120, h = 150;
+    REPS.forEach(([name, color], i) => {
+      const x = 20 + 155 * i;
+      svgEl(g, "rect", { x, y: 11, width: 11, height: 11, rx: 2, style: `fill: var(${color})` });
+      svgEl(g, "text", { x: x + 17, y: 21, class: "rep" }, name);
+      svgEl(g, "rect", { x, y: top, width: w, height: h, class: "cell" });
+      for (let y = top + 10; y < top + h; y += 10) {
+        svgEl(g, "line", { x1: x, x2: x + w, y1: y, y2: y, style: "stroke: var(--line)" });
+      }
+      for (const y of [top + 30, top + 90]) svgEl(g, "rect", { x, y, width: w, height: 10, style: `fill: var(${color})` });
+      svgEl(g, "text", { x: x + w / 2, y: top + h + 18, "text-anchor": "middle", class: "mono sm", "data-b": "matrix" }, "… × 2.560");
+      svgEl(g, "text", { x: x + w / 2, y: top + h + 34, "text-anchor": "middle", class: "mut sm" }, "‖v‖ = 1 em cada linha");
+    });
+    const right = 20 + 155 * 3 + w + 10;
+    svgEl(g, "text", { x: right, y: top + 38, class: "mono sm" }, "␣banco");
+    svgEl(g, "text", { x: right, y: top + 98, class: "mono sm" }, "␣crédito");
+    svgEl(g, "text", { x: right, y: top + 140, class: "mut sm" }, "uma linha");
+    svgEl(g, "text", { x: right, y: top + 153, class: "mut sm" }, "por vértice");
+  }
+
+  // made-up vertices: label (null: unlabeled), theme of the paragraph, position in lex and in
+  // L36. L01 and L18 lie 12% and 55% of the way from one to the other, a stand-in for context
+  // building up over the blocks. In lex the copies of a token share one point, as they share one
+  // vector.
+  const BUILD_K = 2;
+  const BV = [
+    ["banco", "economia", [72, 66], [40, 52]],
+    ["banco", "economia", [72, 66], [62, 72]],
+    ["banco", "computacao", [72, 66], [152, 62]],
+    ["banco", "biologia", [72, 66], [106, 132]],
+    ["dados", "computacao", [154, 98], [180, 40]],
+    ["dados", "biologia", [154, 98], [132, 148]],
+    ["crédito", "economia", [34, 108], [28, 86]],
+    [null, "economia", [30, 30], [76, 34]],
+    [null, "computacao", [190, 124], [190, 80]],
+    [null, "computacao", [184, 42], [150, 26]],
+    [null, "biologia", [110, 146], [80, 150]],
+    [null, "biologia", [128, 24], [140, 112]],
+  ];
+  const BUILD_T = { lex: 0, L01: 0.12, L18: 0.55, L36: 1 };
+  const buildLayout = (rep) => BV.map(([, , a, b]) => {
+    const t = BUILD_T[rep];
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  });
+  function buildKnn(pts, k, seed) {
+    let state = seed + 1;  // Park-Miller draw, only to order exact ties
+    const rand = () => (state = (state * 48271) % 2147483647) / 2147483647;
+    return pts.map((p, i) => pts
+      .map((q, j) => [Math.hypot(p[0] - q[0], p[1] - q[1]), rand(), j])
+      .filter((c) => c[2] !== i)
+      .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+      .slice(0, k).map((c) => c[2]));
+  }
+  let miniId = 0;
+  function drawMini(host, { title, color, caption, rep, mode }) {
+    const pts = buildLayout(rep), nb = buildKnn(pts, BUILD_K, 0);
+    const fig = document.createElement("figure");
+    const svg = svgEl(fig, "svg", { viewBox: "0 0 220 172", role: "img", "aria-label": `${title}: ${caption}` });
+    const marker = `b4-arrow-${miniId++}`;
+    const defs = svgEl(svg, "defs", {});
+    const m = svgEl(defs, "marker", { id: marker, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" });
+    svgEl(m, "path", { d: "M0,0 L10,5 L0,10 z", style: "fill: var(--fg)" });
+    // exact copies are drawn as a small ring around their shared point so each stays visible
+    const groups = new Map();
+    pts.forEach((p, i) => { const key = p.join(); groups.set(key, [...(groups.get(key) || []), i]); });
+    const at = pts.map((p, i) => {
+      const g = groups.get(p.join());
+      if (g.length < 2) return p;
+      const a = (2 * Math.PI * g.indexOf(i)) / g.length - Math.PI / 2;
+      return [p[0] + 6 * Math.cos(a), p[1] + 6 * Math.sin(a)];
+    });
+    const edge = (i, j, arrow) => {
+      const [x1, y1] = at[i], [x2, y2] = at[j], d = Math.hypot(x2 - x1, y2 - y1) || 1;
+      const s = arrow ? 6.5 : 0, ux = (x2 - x1) / d, uy = (y2 - y1) / d;
+      svgEl(svg, "line", {
+        x1: x1 + ux * 5, y1: y1 + uy * 5, x2: x2 - ux * s, y2: y2 - uy * s,
+        style: arrow ? "stroke: var(--fg); stroke-width: 1" : "stroke: var(--muted); stroke-width: 1.2",
+        ...(arrow ? { "marker-end": `url(#${marker})` } : {}),
+      });
+    };
+    const chose = (i, j) => nb[i].includes(j);
+    if (mode === "pick") {
+      const r = Math.hypot(pts[0][0] - pts[nb[0][BUILD_K - 1]][0], pts[0][1] - pts[nb[0][BUILD_K - 1]][1]);
+      svgEl(svg, "circle", { cx: pts[0][0], cy: pts[0][1], r: r + 2, style: "fill: var(--hit); stroke: var(--accent); stroke-dasharray: 3 3" });
+      for (const j of nb[0]) edge(0, j, true);
+    } else if (mode === "directed") {
+      nb.forEach((js, i) => js.forEach((j) => edge(i, j, true)));
+    } else {
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          if (mode === "mutual" ? chose(i, j) && chose(j, i) : chose(i, j) || chose(j, i)) edge(i, j, false);
+        }
+      }
+    }
+    at.forEach(([x, y], i) => {
+      if (mode === "pick" && i === 0) svgEl(svg, "circle", { cx: x, cy: y, r: 7.5, style: "fill: none; stroke: var(--fg); stroke-width: 1.5" });
+      svgEl(svg, "circle", { cx: x, cy: y, r: 4.5, style: `fill: var(--t-${BV[i][1]}); stroke: var(--panel); stroke-width: 1.2` });
+    });
+    // one label per run of same-token vertices drawn close together, right of the rightmost
+    const labelled = new Set();
+    BV.forEach(([label], i) => {
+      if (!label || labelled.has(i)) return;
+      const near = BV.map((v, j) => j).filter((j) => BV[j][0] === label &&
+        Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]) < 16);
+      near.forEach((j) => labelled.add(j));
+      const x = Math.max(...near.map((j) => at[j][0])) + 7;
+      const y = near.reduce((sum, j) => sum + at[j][1], 0) / near.length + 3.5;
+      svgEl(svg, "text", { x, y }, near.length > 1 ? `${label} ×${near.length}` : label);
+    });
+    const cap = document.createElement("figcaption");
+    cap.innerHTML = `<b>${color ? `<span class="rep-sw" style="background:var(${color})"></span>` : ""}${title}</b>${caption}`;
+    fig.appendChild(cap);
+    host.appendChild(fig);
+  }
+
+  function drawBuild() {
+    drawModelGrid();
+    drawMatrices();
+    const rule = document.getElementById("b4-rule");
+    drawMini(rule, { title: "Um vértice escolhe", caption: "o ␣banco circulado aponta para os 2 pontos mais próximos", rep: "L36", mode: "pick" });
+    drawMini(rule, { title: "Rede dirigida", caption: "todo vértice aponta para os seus 2", rep: "L36", mode: "directed" });
+    drawMini(rule, { title: "União · principal", caption: "aresta se um dos dois escolheu o outro", rep: "L36", mode: "union" });
+    drawMini(rule, { title: "Mútua · robustez", caption: "aresta só se os dois se escolheram", rep: "L36", mode: "mutual" });
+    const reps = document.getElementById("b4-reps");
+    for (const [name, color, caption] of REPS) drawMini(reps, { title: name, color, caption, rep: name, mode: "union" });
+    document.getElementById("b4-keys").innerHTML = ["economia", "computacao", "biologia"]
+      .map((t) => `<span>${swatch(t)} parágrafo de ${escapeHtml(themeLabel(t))}</span>`).join("");
+  }
+  function renderBuildNumbers() {
+    const T = SAM.totals;
+    const value = {
+      vertices: fmt.format(T.vertices), paragraphs: fmt.format(T.paragraphs), k: String(SAM.k_main),
+      matrix: `${fmt.format(T.vertices)} × 2.560`,
+    };
+    for (const el of document.querySelectorAll("#view-construcao [data-b]")) el.textContent = value[el.dataset.b];
+  }
+  drawBuild();
+
   // ---- tabs ---------------------------------------------------------------------------------
-  const TABS = ["rede", "artigos", "amostra"];
+  const TABS = ["rede", "artigos", "amostra", "construcao"];
   const views = Object.fromEntries(TABS.map((k) => [k, document.getElementById("view-" + k)]));
   let onShowGraph = () => {};
   function showTab(name) {
@@ -1278,6 +1647,9 @@ table.summary.static tbody tr:hover td { background: none; }
     if (name === "rede") onShowGraph();
   }
   for (const k of TABS) document.getElementById("tab-" + k).addEventListener("click", () => showTab(k));
+  for (const a of document.querySelectorAll("a[data-tab]")) {
+    a.addEventListener("click", (e) => { e.preventDefault(); showTab(a.dataset.tab); });
+  }
   document.querySelector(".tabs").addEventListener("keydown", (e) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     const at = TABS.findIndex((k) => !views[k].hidden);
