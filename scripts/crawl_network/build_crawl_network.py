@@ -27,11 +27,13 @@ on first use, so the page stays a single file that also works from ``file://``. 
 page goes to ``docs/coleta/index.html`` for GitHub Pages.
 
 A third tab, "Amostra", shows how the occurrence sample of the ``sample`` stage forms the
-networks: counts by stratum and theme, the 80 core paragraphs token by token (vertex, cut by
-``f_max`` or whitespace, from the Qwen3 tokenizer in the local cache), the quotas of the target
-and control words and the 150 multitheme words, each with a concordance of its occurrences. It
-reads ``outputs/experiment/<run>/sample/`` (``occurrences.csv`` and ``_manifest.json``) and
-checks it against the corpus and the manifest before writing.
+networks: how each count, from the corpus articles to the vertices, is chosen or extracted (a
+panel opened by clicking its card), counts by stratum and theme, the 80 core paragraphs token
+by token (vertex, cut by ``f_max`` or whitespace, from the Qwen3 tokenizer in the local cache),
+the quotas of the target and control words and the 150 multitheme words, each with a
+concordance of its occurrences. It reads ``outputs/experiment/<run>/sample/``
+(``occurrences.csv`` and ``_manifest.json``) and checks it against the corpus and the manifest
+before writing.
 
 Usage::
 
@@ -500,7 +502,7 @@ def _context(text: str, start: int, end: int) -> tuple[str, str, str]:
 
 
 def sample_payload(
-    sample_dir: Path, paragraphs_path: Path, tokenizer: Any, themes: Sequence[str]
+    sample_dir: Path, paragraphs_path: Path, tokenizer: Any, corpus: CorpusSettings, k_main: int
 ) -> tuple[dict[str, Any], str]:
     """Data of the "Amostra" tab (summary counts and the gzip+base64 JSON the page inflates).
 
@@ -510,6 +512,7 @@ def sample_payload(
     count in each theme; every multitheme type has ``before + drawn`` occurrences.
     """
 
+    themes = list(corpus.themes)
     manifest = json.loads((sample_dir / "_manifest.json").read_text(encoding="utf-8"))
     with (sample_dir / "occurrences.csv").open(encoding="utf-8", newline="") as handle:
         occurrences = list(csv.DictReader(handle))
@@ -642,8 +645,41 @@ def sample_payload(
         left, token, right = _context(text, int(row["char_start"]), int(row["char_end"]))
         kwic.append([key, row["stratum"], row["theme"], int(row["pageid"]), left, token, right])
 
+    # how the sparse strata spread over paragraphs and articles
+    sparse = [row for row in occurrences if row["stratum"] != "core"]
+    per_paragraph = Counter(row["paragraph_id"] for row in sparse)
+    strata_of: dict[str, set[str]] = defaultdict(set)
+    paragraphs_of: dict[str, set[str]] = defaultdict(set)
+    for row in sparse:
+        strata_of[row["paragraph_id"]].add(row["stratum"])
+        paragraphs_of[row["pageid"]].add(row["paragraph_id"])
+    spread = {
+        "vertices_per_paragraph": sorted(Counter(per_paragraph.values()).items()),
+        "multi_stratum": sum(len(s) > 1 for s in strata_of.values()),
+        "articles": len(paragraphs_of),
+        "articles_one_paragraph": sum(len(s) == 1 for s in paragraphs_of.values()),
+        "max_per_article": max(len(s) for s in paragraphs_of.values()),
+    }
     sample = manifest["settings"]["sample"]
     data = {
+        "corpus_design": {
+            "bfs_depth": corpus.bfs_depth,
+            "max_titles_per_theme": corpus.max_titles_per_theme,
+            "articles_per_theme": corpus.articles_per_theme,
+            "articles_per_extra_category": corpus.articles_per_extra_category,
+            "extra_depth": min(1, corpus.bfs_depth),
+            "extra_max_titles": corpus.articles_per_extra_category * 4,
+            "n_extra": sum(len(c) for c in corpus.extra_categories.values()),
+            "batch_titles": corpus.batch_titles,
+            "seed": corpus.seed,
+            "cut_sections": corpus.cut_sections,
+            "min_words": corpus.paragraph.min_words,
+            "max_digit_ratio": corpus.paragraph.max_digit_ratio,
+            "dedup_chars": corpus.paragraph.dedup_chars,
+        },
+        "sparse": spread,
+        "k_main": k_main,
+        "types_at_f_max": manifest["types_at_f_max"],
         "f_max": sample["f_max"],
         "seed": sample["seed"],
         "core_design": sample["core"],
@@ -761,7 +797,7 @@ def main() -> None:
     print(f"artigos: {len(table['rows'])} candidatos, {kept} mantidos; texto {len(text):,} bytes")
     stats, sample = sample_payload(
         sample_dir, corpus_dir / "paragraphs.jsonl", load_tokenizer(settings.model),
-        list(corpus.themes),
+        corpus, settings.networks.k_main,
     )  # fmt: skip
     print(
         f"amostra: {stats['vertices']} vértices; núcleo {stats['core_paragraphs']} parágrafos, "

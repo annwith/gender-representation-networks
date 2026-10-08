@@ -260,10 +260,23 @@ ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); borde
 
 /* ---- Amostra tab ---- */
 .funnel { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
-.funnel li { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; position: relative; }
+.funnel > li { display: flex; }
+.funnel button.step {
+  all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+}
+.funnel button.step:hover { border-color: var(--muted); }
+.funnel button.step[aria-expanded="true"] { border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.funnel button.step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .funnel .big { display: block; font-family: var(--font-data); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .funnel .what { font-size: 12px; color: var(--muted); }
+.funnel .how-cue { margin-top: auto; padding-top: 4px; font-size: 12px; color: var(--accent); }
 .funnel b { font-weight: 600; }
+.funnel > li.how { display: block; grid-column: 1 / -1; }
+.how h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; margin: 0 0 6px; }
+.how h4 { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
+.how ol { margin: 0; padding-inline-start: 1.4em; display: flex; flex-direction: column; gap: 6px; max-width: 86ch; }
+.how li { line-height: 1.55; }
 table.summary td small { display: block; color: var(--muted); font-size: 11px; }
 table.summary.static tbody tr { cursor: default; }
 table.summary.static tbody tr:hover td { background: none; }
@@ -937,12 +950,16 @@ table.summary.static tbody tr:hover td { background: none; }
       `<span><b>${n(T.tokens_to_process)}</b> tokens processados pelo modelo</span>`;
 
     document.getElementById("sam-funnel").innerHTML = [
-      [`${n(T.corpus_articles)} artigos`, `${n(T.corpus_paragraphs)} parágrafos de prosa no corpus (aba Artigos)`],
-      [`${n(T.paragraphs)} parágrafos`, `de ${n(T.articles)} artigos entram na amostra; cada um vira uma sequência, cortada depois da última posição escolhida nele`],
-      [`${n(T.core_paragraphs)} inteiros`, `o <b>núcleo</b>: ${n(coreVertices)} vértices, todo token que não é espaço, menos os cortados pelo limite por tipo`],
-      [`${n(T.paragraphs - T.core_paragraphs)} esparsos`, `${n(T.vertices - coreVertices)} vértices: só as posições sorteadas de alvos, controles e multitema; o resto do parágrafo é contexto`],
-      [`${n(T.vertices)} vértices`, `${n(T.types)} tipos de token, no máximo ${SAM.f_max} ocorrências por tipo`],
-    ].map(([big, what]) => `<li><span class="big">${big}</span><span class="what">${what}</span></li>`).join("");
+      ["corpus", `${n(T.corpus_articles)} artigos`, `${n(T.corpus_paragraphs)} parágrafos de prosa no corpus (aba Artigos)`],
+      ["sequences", `${n(T.paragraphs)} parágrafos`, `de ${n(T.articles)} artigos entram na amostra; cada um vira uma sequência, cortada depois da última posição escolhida nele`],
+      ["core", `${n(T.core_paragraphs)} inteiros`, `o <b>núcleo</b>: ${n(coreVertices)} vértices, todo token que não é espaço, menos os cortados pelo limite por tipo`],
+      ["sparse", `${n(T.paragraphs - T.core_paragraphs)} esparsos`, `${n(T.vertices - coreVertices)} vértices: só as posições sorteadas de alvos, controles e multitema; o resto do parágrafo é contexto`],
+      ["vertices", `${n(T.vertices)} vértices`, `${n(T.types)} tipos de token, no máximo ${SAM.f_max} ocorrências por tipo`],
+    ].map(([id, big, what]) =>
+      `<li><button type="button" class="step" data-how="${id}" aria-expanded="false" aria-controls="sam-how">` +
+      `<span class="big">${big}</span><span class="what">${what}</span><span class="how-cue">como? ▾</span></button></li>`).join("") +
+      `<li class="panel how" id="sam-how" aria-live="polite" hidden></li>`;
+    howHtml = buildHow(T, coreVertices);
 
     const themes = DATA.themes.map((t) => t.id);
     const td = (c) => `<td class="n${c[0] ? "" : " zero"}">${n(c[0])}<small>${n(c[1])} par.</small></td>`;
@@ -1025,6 +1042,118 @@ table.summary.static tbody tr:hover td { background: none; }
     SAM.multi.sort((x, y) => norm(x.word).localeCompare(norm(y.word), "pt"));
     renderMulti();
   }
+
+  // ---- "como?" panels of the funnel: how each count is chosen or extracted ----------------
+  let howHtml = {};
+  function buildHow(T, coreVertices) {
+    const n = (v) => fmt.format(v);
+    const C = SAM.corpus_design, D = SAM.core_design, L = SAM.limits, M = SAM.multitheme_design, S = SAM.sparse;
+    const reasons = {};
+    for (const r of rows) if (!isKept(r)) reasons[r[F.reason]] = (reasons[r[F.reason]] || 0) + 1;
+    const keptRoot = keptRows.filter((r) => r[F.origin] === "root").length;
+    const keptByExtra = {};
+    for (const r of keptRows) if (r[F.origin] !== "root") keptByExtra[r[F.origin]] = (keptByExtra[r[F.origin]] || 0) + 1;
+    const short = Object.entries(keptByExtra).filter(([, k]) => k < C.articles_per_extra_category)
+      .map(([o, k]) => `${escapeHtml(stripCat(o))} ficou com ${k} de ${C.articles_per_extra_category}, porque a busca não encontrou títulos suficientes`);
+    const after = [["biography", "biografia (infobox de pessoa)"], ["disambiguation", "página de desambiguação"],
+      ["duplicate", "mesmo artigo que um título já escolhido"], ["missing", "a API não devolveu a página"],
+      ["no_paragraphs", "nenhum parágrafo passou nos filtros abaixo"]]
+      .filter(([k]) => reasons[k]).map(([k, label]) => `${label}, ${n(reasons[k])}`).join("; ");
+    let whitespace = 0;
+    for (const a of SAM.core) for (const p of a.paragraphs) for (const st of p.s) if (st === 0) whitespace++;
+    const vpp = Object.fromEntries(S.vertices_per_paragraph);
+    const threePlus = S.vertices_per_paragraph.filter(([k]) => k >= 3).reduce((x, [, c]) => x + c, 0);
+    const short1 = SAM.words.flatMap((w) => w.quotas.filter((q) => q[4] < q[1]).map((q) => [w.word, q]))[0];
+    const drop1 = SAM.dropped[0];
+    const strat = (id) => (SAM.grid[`${id}|`] || [0])[0];
+    return {
+      corpus:
+        `<h3>Artigos e parágrafos do corpus</h3><p class="note">Etapa <code>corpus</code>. A aba Rede mostra as buscas, e a aba Artigos, cada candidato e o seu texto.</p>` +
+        `<h4>Artigos</h4><ol>` +
+        `<li><b>Busca por categorias.</b> Para cada um dos ${DATA.themes.length} temas, uma busca em largura parte da categoria raiz (por exemplo, Categoria:Física) ` +
+        `e abre subcategorias até a profundidade ${C.bfs_depth}, juntando até ${n(C.max_titles_per_theme)} títulos. Outras ${C.n_extra} categorias extras, ligadas a um tema ` +
+        `para reforçar sentidos raros das palavras-alvo, são percorridas até a profundidade ${C.extra_depth}, com até ${C.extra_max_titles} títulos cada. Subcategorias de manutenção ` +
+        `não são abertas, e títulos “Lista de…” são ignorados.</li>` +
+        `<li><b>Corte alfabético.</b> A API lista os membros de uma categoria em ordem alfabética, e a busca para quando atinge o limite de títulos, ` +
+        `com subcategorias ainda na fila. Por isso, cada tema cobre as subcategorias mais próximas da raiz e que vêm primeiro no alfabeto, e não a área inteira.</li>` +
+        `<li><b>Multitema.</b> Um título alcançado pelas buscas de mais de um tema é descartado antes do download (${n(reasons.multi_theme || 0)} títulos).</li>` +
+        `<li><b>Sorteio e cota.</b> Cada busca (tema ou categoria extra) embaralha os seus títulos com uma semente própria, derivada de ${C.seed}, e baixa a revisão atual ` +
+        `em lotes de ${C.batch_titles}, nessa ordem, até manter ${C.articles_per_theme} artigos por tema e ${C.articles_per_extra_category} por categoria extra. Os títulos que sobram na fila nunca são baixados.</li>` +
+        `<li><b>Descartes depois do download:</b> ${after}.</li>` +
+        `<li><b>Resultado:</b> ${n(rows.length)} candidatos examinados e ${n(keptRows.length)} mantidos: ${n(keptRoot)} das buscas a partir das raízes ` +
+        `(${C.articles_per_theme} × ${DATA.themes.length}) e ${n(keptRows.length - keptRoot)} das categorias extras${short.length ? ` (${short.join("; ")})` : ""}.</li></ol>` +
+        `<h4>Parágrafos</h4><ol>` +
+        `<li><b>Limpeza.</b> Do <em>wikitext</em> saem as seções de apoio (${C.cut_sections.map(escapeHtml).join(", ")}), as referências, tabelas, galerias e predefinições. ` +
+        `Linhas com fórmulas e itens de lista são descartadas inteiras, para não deixar frases com buracos.</li>` +
+        `<li><b>Filtros de prosa.</b> Fica o parágrafo com pelo menos ${C.min_words} palavras, que termina como frase (“.”, “!” ou “?”), não começa com resto de marcação ` +
+        `e tem no máximo ${Math.round(C.max_digit_ratio * 100)}% de dígitos (o que elimina tabelas de resultados e cronologias).</li>` +
+        `<li><b>Repetições.</b> Um parágrafo cujos primeiros ${C.dedup_chars} caracteres, em minúsculas, já apareceram em outro parágrafo do corpus é removido.</li>` +
+        `<li><b>Sem sorteio.</b> Todo parágrafo que passa fica: ${n(T.corpus_paragraphs)} parágrafos, em média ${(T.corpus_paragraphs / T.corpus_articles).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} por artigo.</li></ol>`,
+      sequences:
+        `<h3>Parágrafos da amostra</h3><ol>` +
+        `<li><b>Não há sorteio de parágrafos.</b> Um parágrafo entra na amostra quando ganha pelo menos um vértice. São os ${n(T.core_paragraphs)} do núcleo e os ` +
+        `${n(T.paragraphs - T.core_paragraphs)} em que caiu alguma ocorrência sorteada de alvo, controle ou multitema (ver os dois cartões seguintes), de ${n(T.articles)} artigos.</li>` +
+        `<li><b>Uma sequência por parágrafo.</b> Cada parágrafo passa sozinho pelo modelo: o token <code>&lt;|endoftext|&gt;</code> seguido dos tokens do parágrafo, ` +
+        `sem o título nem os outros parágrafos do artigo.</li>` +
+        `<li><b>Corte.</b> A sequência termina no último token escolhido do parágrafo. Como a atenção é causal, os tokens seguintes não mudariam nenhum vetor; ` +
+        `cortá-los só economiza processamento. O vetor de um vértice depende, então, do começo do parágrafo até ele. No total, ${n(T.tokens_to_process)} tokens passam pelo ` +
+        `modelo para ${n(T.vertices)} vértices.</li></ol>`,
+      core:
+        `<h3>Núcleo: parágrafos inteiros</h3><ol>` +
+        `<li><b>Artigos.</b> Em cada tema, ${D.articles_per_theme} artigos sorteados com a mesma chance entre os que têm pelo menos ${D.paragraphs_per_article} parágrafos no corpus, ` +
+        `venham da busca pela raiz ou de uma categoria extra.</li>` +
+        `<li><b>Parágrafos.</b> Em cada artigo, ${D.paragraphs_per_article} parágrafos sorteados com a mesma chance. Dois parágrafos por artigo fazem “artigo” e “parágrafo” serem ` +
+        `rótulos diferentes na P3.</li>` +
+        `<li><b>Vértices.</b> Todo token que não é só espaço vira vértice, inclusive fragmentos de palavra, números e pontuação: ${n(T.core_before_cap)} tokens ` +
+        `(${n(whitespace)} tokens só de espaço ficam de fora).</li>` +
+        `<li><b>Limite por tipo.</b> ${n(T.core_capped_types)} tipos passam de f<sub>max</sub> = ${SAM.f_max} ocorrências no núcleo. Para cada um, as ${SAM.f_max} que ficam são ` +
+        `sorteadas entre todas as do núcleo, e não as primeiras a aparecer; as outras ${n(T.core_cut)} são cortadas (riscadas no texto abaixo). Sobram ${n(coreVertices)} vértices.</li>` +
+        `<li><b>Ordem.</b> O núcleo é o primeiro estrato. As ocorrências de palavras-alvo e de controle que ele contém já contam nas cotas dos estratos seguintes.</li></ol>`,
+      sparse:
+        `<h3>Parágrafos esparsos</h3><ol>` +
+        `<li><b>Fila de parágrafos.</b> Para cada palavra e tema, o código lista os parágrafos do tema, fora os ${n(T.core_paragraphs)} do núcleo, em que a palavra aparece ` +
+        `como palavra inteira, e embaralha essa lista.</li>` +
+        `<li><b>Uma ocorrência por parágrafo.</b> A fila é percorrida em ordem, tirando no máximo ${L.per_type_paragraph} ocorrência da palavra por parágrafo e ` +
+        `${L.per_type_article} por artigo, até completar a cota ou a palavra chegar a ${SAM.f_max} ocorrências na amostra. A chance é por parágrafo, e não por ocorrência: ` +
+        `um parágrafo com cinco “banco” vale o mesmo que um com um só.</li>` +
+        `<li><b>Cotas.</b> Para alvos e controles, a cota de cada tema de sentido menos o que já está no núcleo. Se a fila acaba antes, a palavra fica abaixo da cota` +
+        (short1 ? ` (${escapeHtml(short1[0])} em ${escapeHtml(themeLabel(short1[1][0]))}: ${short1[1][4]} de ${short1[1][1]})` : "") +
+        `; uma palavra que não chega a ${SAM.min_per_sense} ocorrências em pelo menos 2 temas perde todas as ocorrências sorteadas` +
+        (drop1 ? ` (${escapeHtml(drop1.word)}: ${drop1.removed_occurrences} retiradas)` : "") +
+        `. Para as palavras multitema, rodízio entre os temas da palavra, uma ocorrência por vez, até ${M.per_type} no total. Ordem: alvos, controles, multitema.</li>` +
+        `<li><b>Resultado.</b> Como cada sorteio tende a cair num parágrafo novo, ${n(vpp[1] || 0)} dos ${n(T.paragraphs - T.core_paragraphs)} parágrafos dão um único vértice, ` +
+        `${n(vpp[2] || 0)} dão dois e ${n(threePlus)} dão três ou mais; ${n(S.multi_stratum)} servem a mais de um estrato. Eles vêm de ${n(S.articles)} artigos: ` +
+        `${n(S.articles_one_paragraph)} contribuem com um único parágrafo, e nenhum com mais de ${S.max_per_article}.</li>` +
+        `<li><b>Contexto.</b> Nesses parágrafos, só a posição sorteada é vértice; os tokens antes dela são o contexto que o modelo lê.</li></ol>`,
+      vertices:
+        `<h3>Os vértices das redes</h3><ol>` +
+        `<li><b>União dos estratos.</b> Núcleo ${n(strat("core"))}, alvos ${n(strat("target"))}, controles ${n(strat("control"))} e multitema ${n(strat("multitheme"))}, ` +
+        `sorteados nesta ordem por um único gerador (semente ${SAM.seed}). Uma posição de um parágrafo nunca é escolhida duas vezes.</li>` +
+        `<li><b>Limite de ${SAM.f_max} por tipo na amostra inteira.</b> O núcleo é cortado por sorteio, e os estratos esparsos param de sortear uma palavra quando ela chega ` +
+        `a ${SAM.f_max}. ${n(SAM.types_at_f_max)} tipos ficaram exatamente no limite. Os ${n(T.vertices)} vértices são ocorrências de ${n(T.types)} tipos de token.</li>` +
+        `<li><b>Das ocorrências às redes.</b> Os mesmos vértices formam as quatro redes. Em cada uma, um vértice escolhe os ${SAM.k_main} outros de maior cosseno com o seu vetor: ` +
+        `a linha do token na matriz de <em>embeddings</em> (lex) ou a saída dos blocos 1, 18 e 36 do Qwen3 na sua posição (L01, L18 e L36). ` +
+        `<a href="${REDES_URL}" target="_blank" rel="noopener">Desenho das redes</a>.</li></ol>`,
+    };
+  }
+  // the panel spans the whole row: under all the cards, or right under the clicked one on phones
+  const narrow = matchMedia("(max-width: 760px)");
+  document.getElementById("sam-funnel").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-how]");
+    if (!b) return;
+    const howPanel = document.getElementById("sam-how");
+    const open = b.getAttribute("aria-expanded") === "true";
+    for (const x of document.querySelectorAll("#sam-funnel button[data-how]")) {
+      x.setAttribute("aria-expanded", "false");
+      x.querySelector(".how-cue").textContent = "como? ▾";
+    }
+    howPanel.hidden = open;
+    if (open) return;
+    b.setAttribute("aria-expanded", "true");
+    b.querySelector(".how-cue").textContent = "fechar ▴";
+    howPanel.innerHTML = howHtml[b.dataset.how];
+    if (narrow.matches) b.closest("li").after(howPanel); else howPanel.parentElement.append(howPanel);
+  });
 
   function kwicHtml(key) {
     const items = kwicBy.get(key) || [];
