@@ -43,6 +43,7 @@
 \newcommand{\repo}{https://github.com/annwith/gender-representation-networks}
 \newcommand{\dados}{\repo/tree/main/data/graphml}
 \newcommand{\visual}{\repo/blob/main/report/entrega-parcial-visualizacao/entrega-parcial-visualizacao.pdf}
+\newcommand{\coleta}{https://annwith.github.io/gender-representation-networks/coleta/}
 
 % ------------------------------------------------------------
 % Documento
@@ -72,11 +73,12 @@ que são o objeto produzido diretamente pelo k-NN.
 
 \textbf{Dados do projeto:} \url{\repo}. As redes estão em
 \href{\dados}{\nolinkurl{data/graphml/}}, em GraphML
-(\texttt{\textit{rede}\_k10\_directed.graphml}, cerca de 19\,MB cada), com os atributos dos
+(\texttt{\textit{rede}\_k10\_directed.graphml}), com os atributos dos
 vértices descritos em \nolinkurl{data/graphml/README.md}; os arcos não têm atributos. Esta
 versão é gerada por \nolinkurl{scripts/partial_delivery/export_networks.py}, com a opção
-\texttt{-{}-sym directed}. A visualização das redes (item 9) é entregue em um arquivo
-separado, \href{\visual}{\texttt{entrega-parcial-visualizacao.pdf}}.
+\texttt{-{}-sym directed}. A visualização das redes é entregue em um arquivo
+separado, \href{\visual}{\texttt{entrega-parcial-visualizacao.pdf}}. A página interativa
+\mbox{\url{\coleta}} mostra, passo a passo, como as redes foram construídas.
 
 % ============================================================
 \section*{2. Origem dos dados e construção das redes}
@@ -86,7 +88,10 @@ As redes são originais, construídas por nós a partir de duas fontes públicas
 API MediaWiki a partir de 8 categorias temáticas, com a revisão de cada artigo em
 \texttt{data/corpus/manifest.csv}; e o modelo
 \href{https://huggingface.co/Qwen/Qwen3-4B-Base}{\textbf{Qwen3-4B-Base}} (36 blocos,
-revisão \texttt{906bfd4}), cujo \textit{tokenizer} também define os tokens.
+revisão \texttt{906bfd4}), cujo \textit{tokenizer} também define os tokens. Na página interativa,
+as abas \href{\coleta}{Rede}, \href{\coleta\#amostra}{Amostra} e
+\href{\coleta\#construcao}{Construção} ilustram a coleta, a amostra de vértices e a construção
+dos arcos.
 
 \textbf{Coleta.} Em cada tema, uma busca em largura percorre as subcategorias até a
 profundidade 2, para em 600 títulos e sorteia 150 artigos. A busca para antes de abrir todas
@@ -99,7 +104,7 @@ raiz'', e não a área inteira, o que basta para o nosso uso (temas bem separado
 \textbf{Vértices.} Cada vértice é uma \textit{ocorrência}: um token do Qwen3, que pode ser só
 um pedaço de palavra, numa posição de um parágrafo. São 13.606 ocorrências de 2.864 tipos de
 token, em 3.230 parágrafos de 1.172 artigos (o corpus tem 17.066 parágrafos de 2.153
-artigos), com no máximo 50 ocorrências por tipo (semente 438). O \textbf{núcleo} (10.020
+artigos), com no máximo 50 ocorrências por tipo. O \textbf{núcleo} (10.020
 vértices, 74\%) reúne \emph{todos} os tokens de 80 parágrafos sorteados, 10 por tema,
 inclusive fragmentos, números e pontuação. Como 80 parágrafos quase não repetem palavras de
 conteúdo, três estratos acrescentam palavras inteiras sorteadas em outros parágrafos, nos
@@ -122,7 +127,7 @@ artigo ou tema, para as $k=10$ de maior cosseno (calculado em \texttt{float64}) 
 seu vetor $x_i$: $i\to j$ para $j\in N_i$, o conjunto desses vizinhos. A comparação entre
 parágrafos diferentes acontece só no espaço dos vetores, e as quatro redes diferem apenas em
 $x_i$. Em lex, as ocorrências de um mesmo token são idênticas, e os empates são desfeitos ao
-acaso (semente 0). Os arcos não têm peso: não guardam o valor do cosseno.
+acaso. Os arcos não têm peso: não guardam o valor do cosseno.
 
 % ============================================================
 \section*{3. Definições para a rede direcionada}
@@ -135,8 +140,7 @@ de vizinhos recíprocos. A clusterização local é $C_i^{\rightarrow}=t_i/D_i$,
 quando $D_i>0$, isto é, quando $i$ tem ao menos 2 vizinhos distintos (aqui, sempre, pois o
 grau de saída é 10). Os coeficientes globais são a média $\bar C^{\rightarrow}$ sobre esses
 vértices e a transitividade dirigida $T^{\rightarrow}=\sum_i t_i/\sum_i D_i$; com $A$
-simétrica, eles se reduzem aos não direcionados. Os valores conferem com
-\texttt{networkx.clustering}.
+simétrica, eles se reduzem aos não direcionados.
 
 \textbf{Componentes.} Há duas noções: \textit{fracas}, ignorando o sentido dos arcos (são
 as componentes da rede não direcionada), e \textit{fortes}, em que há caminho de $i$ para
@@ -163,7 +167,7 @@ $|A\cap A'|/|A\cup A'|$, com $A$ os arcos da rede e $A'$ os da coluna anterior.}
 \input{tabelas/metricas.tex}
 \end{table}
 
-\textbf{Tamanho, grau e densidade (itens 1, 6 e 7).} As quatro redes têm 13.606 vértices e
+\textbf{Tamanho, grau e densidade.} As quatro redes têm 13.606 vértices e
 136.060 arcos. Todo vértice tem grau de saída exatamente $k=10$, então o grau médio de
 entrada e de saída é 10, e a densidade $\rho=|A|/(|V|(|V|-1)) = k/(|V|-1) = 7{,}35\times
 10^{-4}$ é fixada pela construção. A informação está no grau de entrada $d_i^{\text{in}}$
@@ -180,8 +184,7 @@ ninguém (\textit{hubness}).
 \label{fig:graus-clust}
 \end{figure}
 
-\textbf{Clusterização (itens 2 e 3).} $T^{\rightarrow}$ e $\bar C^{\rightarrow}$ seguem a
-mesma tendência da rede não direcionada: altas em lex e L01 (0,44--0,53) e menores em L18
+\textbf{Clusterização.} $T^{\rightarrow}$ e $\bar C^{\rightarrow}$ são altas em lex e L01 (0,44--0,53) e menores em L18
 e L36 (0,23--0,33). A distribuição de $C_i^{\rightarrow}$ em L18 e L36 se concentra perto de
 0,2. Em lex ela tem dois picos (perto de 0,18 e de 0,45).
 
@@ -193,9 +196,8 @@ de componentes e o rótulo, o tamanho da maior).}
 \label{fig:componentes}
 \end{figure}
 
-\textbf{Componentes (item 8, Fig.~\ref{fig:componentes}).} As componentes fracas são as
-mesmas da rede não direcionada (44, 40, 2 e 2), mas as fortes são muito mais numerosas:
-1.059 em lex, 1.768 em L01, 173 em L18 e 1.517 em L36. Em lex, 58\% das ocorrências têm os 10 vizinhos do
+\textbf{Componentes (Fig.~\ref{fig:componentes}).} As componentes fortes são muito mais numerosas
+(1.059 em lex, 1.768 em L01, 173 em L18 e 1.517 em L36) que as fracas (44, 40, 2 e 2). Em lex, 58\% das ocorrências têm os 10 vizinhos do
 próprio token: os grupos de ocorrências de um token frequente apontam só para dentro e
 formam ``ralos'' de onde nenhum arco sai (388 componentes, 64\% dos vértices). Em L36, os
 tamanhos-1 vêm sobretudo dos vértices que ninguém escolhe.
@@ -213,14 +215,14 @@ demais têm $d=\infty$.}
 \end{minipage}
 \end{figure}
 
-\textbf{Distâncias (itens 4 e 5, Fig.~\ref{fig:distancias}).} Os pares sem caminho são
+\textbf{Distâncias (Fig.~\ref{fig:distancias}).} Os pares sem caminho são
 82\% em lex, 75\% em L01, 5\% em L18 e 20\% em L36, e cada substituto distorce a comparação:
 (a) compara médias sobre populações diferentes (10,4 em lex, sobre 18\% dos pares, e 7,0 em
 L18, sobre 95\%) e não é monótona, pois remover um arco pode \emph{diminuir} a média;
 (b) compara subconjuntos diferentes (a maior componente forte de lex tem só 19\% dos
 vértices); (c) mistura alcance com distância ($1/E$ dá 49 em lex contra 6,8 em L18,
 sobretudo porque lex tem muitos pares sem caminho). Em L36, a maior distância finita chega a
-50 (11 na rede de união).
+50.
 
 \textbf{Comparação entre as redes.} As duas últimas linhas da Tabela~\ref{tab:metricas}
 comparam as redes arco a arco. A fração dos arcos entre ocorrências do mesmo token é de 70\%
@@ -231,9 +233,7 @@ quais cópias idênticas se ligam.
 
 \textbf{Síntese.} A versão direcionada confirma a reorganização lex/L01 $\to$ L18/L36
 (clusterização menor, componente forte gigante, \textit{hubs} em L36) e mostra, arco a arco,
-que ela continua entre os blocos 18 e 36. Mas suas distâncias medem sobretudo
-\emph{alcançabilidade}: os grupos fechados por token em lex e os vértices não escolhidos em
-L36 deixam muitos pares sem caminho. Por isso, as distâncias serão comparadas na rede de
-união, e a versão direcionada servirá para grau de entrada, reciprocidade e alcance.
+que ela continua entre os blocos 18 e 36. Os grupos fechados por token em lex e os vértices não escolhidos em
+L36 deixam muitos pares sem caminho.
 
 \end{document}
