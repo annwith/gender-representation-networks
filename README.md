@@ -52,8 +52,9 @@ tests/                 testes offline (não baixam pesos)
 data/
   corpus/manifest.csv  pageid e revid de cada artigo do corpus
   graphml/             redes da entrega parcial em GraphML (ver data/graphml/README.md)
-  crawl/               rede da coleta de categorias e a sua página interativa
+  crawl/               rede da coleta de categorias e a página interativa (rede e artigos)
 docs/redes/            página interativa das redes da entrega parcial (GitHub Pages)
+docs/coleta/           cópia da página da coleta e dos artigos do corpus (GitHub Pages)
 report/
   report.tex           proposta revisada
   plano-de-execucao.md plano de execução
@@ -64,7 +65,7 @@ report/
 scripts/
   feasibility/         estudo de viabilidade: scripts, saídas (sim_*.txt, hyb_*.txt) e figuras
   partial_delivery/    GraphML, figuras, tabelas e página interativa da entrega parcial
-  crawl_network/       rede da coleta de categorias (data/crawl/)
+  crawl_network/       rede da coleta e página dos artigos (data/crawl/, docs/coleta/)
   run_network_pilot.py piloto congelado
 ```
 
@@ -126,10 +127,28 @@ principal e grava suas redes e seu relatório gerado separados.
 | `data/graphml/` | redes da entrega parcial em GraphML (versionadas) |
 | `report/entrega-parcial*/figuras/`, `tabelas/` | material gerado para a entrega parcial |
 | `docs/redes/` | página interativa das redes da entrega parcial e os seus dados |
+| `data/crawl/`, `docs/coleta/` | rede da coleta e página dos artigos do corpus |
 
 `<nome>` é o campo `name` do YAML (`main` ou `mini`). Cada pasta de etapa tem um
 `_manifest.json` com a configuração, as versões das bibliotecas, os tempos e as estatísticas da
 etapa.
+
+### Conferir os artigos coletados
+
+A página `data/crawl/rede-de-coleta.html` mostra a coleta em duas abas:
+
+- **Rede:** as buscas por categorias.
+- **Artigos:** os 2.631 candidatos da etapa `corpus`, com resumo por tema e motivo de descarte,
+  busca no título ou no texto, filtros, o link para a revisão exata usada (`oldid`) e o texto
+  limpo dos artigos mantidos.
+
+A página é um arquivo único que abre direto no navegador. Uma cópia fica em `docs/coleta/` e é
+publicada em <https://annwith.github.io/gender-representation-networks/coleta/> (abre direto na
+lista com `#artigos`). Para regerar as duas a partir do cache e de `data/corpus/`:
+
+```bash
+.venv/bin/python scripts/crawl_network/build_crawl_network.py
+```
 
 ## Relatório técnico
 

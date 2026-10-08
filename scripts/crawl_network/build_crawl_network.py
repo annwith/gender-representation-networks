@@ -19,7 +19,12 @@ as ``data/corpus/articles.jsonl``.
 
 Outputs (``data/crawl/``): ``crawl_network.graphml``, ``crawl_network.json`` (with a
 precomputed layout: one radial tree per walk) and ``rede-de-coleta.html``, the interactive page
-built from ``page_template.html`` with the JSON embedded.
+built from ``page_template.html`` with the JSON embedded. The page has a second tab, "Artigos",
+with every candidate article of ``data/corpus/articles.jsonl`` (status, revision, paragraph and
+word counts) and the clean text of the kept ones from ``paragraphs.jsonl``. The text goes in as
+gzip-compressed, base64-encoded JSON (about 4.6 MB instead of 10 MB), which the browser inflates
+on first use, so the page stays a single file that also works from ``file://``. A copy of the
+page goes to ``docs/coleta/index.html`` for GitHub Pages.
 
 Usage::
 
@@ -29,8 +34,11 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import base64
+import gzip
 import json
 import math
+import shutil
 from collections import Counter, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -40,15 +48,23 @@ from typing import Any
 import igraph as ig
 import networkx as nx
 
-from gender_networks.plots import CATEGORICAL, THEME_LABELS
+from gender_networks.artifacts import read_jsonl
+from gender_networks.plots import CATEGORICAL, REASON_LABELS, REASON_ORDER, THEME_LABELS
 from gender_networks.settings import CorpusSettings, load_settings
 from gender_networks.wiki import WikiClient
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO / "configs" / "experiment.yaml"
 DEFAULT_OUT = REPO / "data" / "crawl"
+DEFAULT_DOCS = REPO / "docs" / "coleta"
 TEMPLATE = Path(__file__).with_name("page_template.html")
 DATA_MARK = "/*__DATA__*/"
+ARTICLES_MARK = "/*__ARTICLES__*/"
+TEXT_MARK = "/*__TEXT__*/"
+ARTICLE_FIELDS = [
+    "title", "theme", "origin", "source_category", "depth", "pageid", "revid", "reason",
+    "themes_reached", "paragraphs", "words",
+]  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -209,6 +225,11 @@ def check_against_pipeline(
     with articles_path.open(encoding="utf-8") as handle:
         for line in handle:
             record = json.loads(line)
+            if record["origin"] is None:
+                raise ValueError(
+                    f"{articles_path} came from corpus-rebuild, which does not record the crawl "
+                    "(origin, depth); rebuild the network from the articles.jsonl of `corpus`"
+                )
             found = traces[f"{record['theme']}::{record['origin']}"].found
             expected = (record["source_category"], record["depth"])
             if found.get(record["title"]) != expected:
@@ -387,13 +408,60 @@ def write_graphml(g: nx.DiGraph, positions: dict[str, tuple[float, float]], path
     nx.write_graphml(out, path, encoding="utf-8", prettyprint=True)
 
 
-def write_page(payload: str, path: Path) -> None:
-    """Embed the JSON in the page template (``</`` escaped so no tag closes early)."""
+def articles_payload(articles_path: Path, paragraphs_path: Path) -> tuple[dict[str, Any], str]:
+    """Rows of the "Artigos" tab and the compressed text of the kept articles.
 
-    template = TEMPLATE.read_text(encoding="utf-8")
-    if template.count(DATA_MARK) != 1:
-        raise ValueError(f"{TEMPLATE.name} must contain {DATA_MARK} once")
-    path.write_text(template.replace(DATA_MARK, payload.replace("</", "<\\/")), encoding="utf-8")
+    One row per record of ``articles.jsonl``, in corpus order. The text is a JSON list aligned
+    with the rows (the kept paragraphs of each article, in order; empty for dropped ones),
+    gzip-compressed with a fixed timestamp (so an unchanged corpus gives the same bytes) and
+    base64-encoded.
+    """
+
+    texts: dict[int, list[str]] = {}
+    for paragraph in read_jsonl(paragraphs_path):
+        article = texts.setdefault(paragraph["pageid"], [])
+        if paragraph["paragraph_idx"] != len(article):
+            raise AssertionError(f"{paragraph['paragraph_id']}: paragraphs out of order")
+        article.append(paragraph["text"])
+    rows: list[list[Any]] = []
+    text_rows: list[list[str]] = []
+    for record in read_jsonl(articles_path):
+        kept = record["dropped_reason"] is None
+        paragraphs = texts.pop(record["pageid"], []) if kept else []
+        if kept and not paragraphs:
+            raise AssertionError(f"{record['title']}: kept without paragraphs")
+        rows.append(
+            [
+                record["title"], record["theme"], record["origin"], record["source_category"],
+                record["depth"], record["pageid"], record["revid"], record["dropped_reason"],
+                record["themes_reached"], len(paragraphs),
+                sum(len(text.split()) for text in paragraphs),
+            ]
+        )  # fmt: skip
+        text_rows.append(paragraphs)
+    if texts:
+        raise AssertionError(f"paragraphs of {len(texts)} articles that are not kept")
+    reasons = REASON_ORDER + sorted({r[7] for r in rows if r[7] and r[7] not in REASON_ORDER})
+    labels = {**REASON_LABELS, "missing": "ausente"}
+    table = {
+        "fields": ARTICLE_FIELDS,
+        "reasons": [{"id": r, "label": labels.get(r, r)} for r in reasons],
+        "rows": rows,
+    }
+    packed = json.dumps(text_rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    text = base64.b64encode(gzip.compress(packed, compresslevel=9, mtime=0)).decode("ascii")
+    return table, text
+
+
+def write_page(payloads: dict[str, str], path: Path) -> None:
+    """Fill each mark of the page template (``</`` escaped so no tag closes early)."""
+
+    page = TEMPLATE.read_text(encoding="utf-8")
+    for mark, payload in payloads.items():
+        if page.count(mark) != 1:
+            raise ValueError(f"{TEMPLATE.name} must contain {mark} once")
+        page = page.replace(mark, payload.replace("</", "<\\/"))
+    path.write_text(page, encoding="utf-8")
 
 
 def summary(g: nx.DiGraph, walk_list: Sequence[Walk], traces: dict[str, WalkTrace]) -> None:
@@ -420,6 +488,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument(
+        "--docs", type=Path, default=DEFAULT_DOCS, help="Pasta da cópia para o GitHub Pages"
+    )
     args = parser.parse_args()
 
     settings = load_settings(args.config)
@@ -448,9 +519,16 @@ def main() -> None:
     data = to_json(g, walk_list, traces, positions)
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     (args.out / "crawl_network.json").write_text(payload, encoding="utf-8")
+    corpus_dir = REPO / settings.paths.corpus_dir
+    table, text = articles_payload(corpus_dir / "articles.jsonl", corpus_dir / "paragraphs.jsonl")
+    kept = sum(row[7] is None for row in table["rows"])
+    print(f"artigos: {len(table['rows'])} candidatos, {kept} mantidos; texto {len(text):,} bytes")
     page = args.out / "rede-de-coleta.html"
-    write_page(payload, page)
-    print(f"gravado: {graphml}, {args.out / 'crawl_network.json'} e {page}")
+    articles = json.dumps(table, ensure_ascii=False, separators=(",", ":"))
+    write_page({DATA_MARK: payload, ARTICLES_MARK: articles, TEXT_MARK: text}, page)
+    args.docs.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(page, args.docs / "index.html")
+    print(f"gravado: {graphml}, {args.out / 'crawl_network.json'}, {page} e {args.docs}/index.html")
 
 
 if __name__ == "__main__":

@@ -3,8 +3,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: one-screen tool. Sidebar of controls and the selected node beside a full-height graph
-   canvas; on phones the canvas comes first and the sidebar stacks under it. */
+/* Layout: one-screen tool with two tabs under a slim bar. "Rede": sidebar of controls and the
+   selected node beside a full-height graph canvas (on phones the canvas comes first and the
+   sidebar stacks under it). "Artigos": a scrolling ledger of every candidate article, summary
+   by theme first, then a filterable table whose rows open onto the clean text. */
 :root {
   --bg: #f3f4f6;
   --panel: #ffffff;
@@ -26,6 +28,9 @@
   --t-musica: #008300;
   --t-esporte: #4a3aa7;
   --t-geografia: #e34948;
+  --kept: #1d7048;
+  --kept-bg: #e3f2e9;
+  --hit: rgba(36, 89, 168, 0.12);
   --font-display: "Crimson Pro", "Linux Libertine", Georgia, "Times New Roman", serif;
   --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -37,6 +42,7 @@
     --dim: #2a2e36; --multi: #f2f3f5; --tip-bg: #1f232b; --tip-line: #3a3f4a;
     --t-fisica: #6aa6ec; --t-biologia: #f08a5d; --t-economia: #3cc795; --t-politica: #f2b937;
     --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
+    --kept: #6fd39d; --kept-bg: #173326; --hit: rgba(127, 176, 242, 0.14);
     color-scheme: dark;
   }
 }
@@ -46,15 +52,33 @@
   --dim: #2a2e36; --multi: #f2f3f5; --tip-bg: #1f232b; --tip-line: #3a3f4a;
   --t-fisica: #6aa6ec; --t-biologia: #f08a5d; --t-economia: #3cc795; --t-politica: #f2b937;
   --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
+  --kept: #6fd39d; --kept-bg: #173326; --hit: rgba(127, 176, 242, 0.14);
   color-scheme: dark;
 }
 
 html, body { height: 100%; }
+[hidden] { display: none !important; }  /* .app and .ledger set display; hidden must still win */
 body {
+  margin: 0;
   background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px;
   line-height: 1.45;
 }
-.app { height: 100%; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+.shell { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.tabs {
+  display: flex; align-items: stretch; gap: 2px; padding-inline: 18px; background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.tabs button {
+  all: unset; cursor: pointer; padding: 9px 12px 8px; font-size: 13px; font-weight: 500;
+  color: var(--muted); border-bottom: 2px solid transparent;
+}
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tabs button:hover { color: var(--fg); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tabs small {
+  margin-inline-start: 6px; font-family: var(--font-data); font-size: 11px; color: var(--muted);
+}
+.app { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
 .side {
   background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto;
   padding-block: 18px 24px; padding-inline: 18px; display: flex; flex-direction: column; gap: 18px;
@@ -150,7 +174,88 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
 }
 .error { padding: 24px; color: var(--fg); }
 
+/* ---- Artigos tab ---- */
+.ledger { height: 100%; overflow-y: auto; }
+.ledger-inner {
+  max-width: 1180px; margin-inline: auto; padding-block: 22px 40px; padding-inline: 18px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.ledger .lede { max-width: 78ch; }
+.scroll-x { overflow-x: auto; min-width: 0; }
+table.summary, table.list { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.summary th, table.summary td, table.list th, table.list td {
+  text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line);
+  vertical-align: baseline;
+}
+table.summary th, table.list th { color: var(--muted); font-weight: 500; font-size: 12px; white-space: nowrap; }
+table.summary .n, table.list .n {
+  text-align: right; font-family: var(--font-data); font-size: 12px; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+table.summary tbody tr { cursor: pointer; }
+table.summary td:first-child { white-space: nowrap; }
+table.summary tbody tr:hover td { background: var(--panel); }
+table.summary tfoot td { font-weight: 600; border-bottom: 0; }
+table.summary .zero { color: var(--muted); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+.filters label.field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+.filters input[type="search"], .filters select {
+  font: inherit; font-size: 13px; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; max-width: 100%;
+}
+.filters input[type="search"] { width: 260px; }
+.filters .check { display: flex; align-items: center; gap: 6px; font-size: 13px; padding-bottom: 6px; cursor: pointer; }
+.filters input:focus-visible, .filters select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.count { margin: 0; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+table.list th button {
+  all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: baseline;
+}
+table.list th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+table.list th[aria-sort] button { color: var(--fg); }
+table.list th .arrow { font-size: 10px; }
+table.list tr.row { cursor: pointer; }
+table.list tr.row:hover td, table.list tr.row[aria-expanded="true"] td { background: var(--panel); }
+table.list tr.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+table.list td.title { min-width: 220px; overflow-wrap: anywhere; }
+table.list td.title .swatch { display: inline-block; margin-inline-end: 6px; }
+table.list td.sub { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; min-width: 140px; }
+table.list td.actions { white-space: nowrap; }
+table.list td.actions a, table.list td.actions button { font-size: 12px; }
+.linkish {
+  all: unset; cursor: pointer; color: var(--accent); text-decoration: underline;
+  text-underline-offset: 2px; margin-inline-start: 10px;
+}
+.linkish:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ledger a { color: var(--accent); }
+.status {
+  display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid var(--line); color: var(--muted); background: var(--panel);
+}
+.status.kept { color: var(--kept); background: var(--kept-bg); border-color: transparent; font-weight: 600; }
+.hits { display: block; color: var(--accent); font-size: 11px; }
+tr.detail > td { background: var(--panel); padding: 4px 14px 16px 26px; }
+.detail-facts { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; color: var(--muted); margin: 6px 0 10px; }
+.detail-facts b { color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; }
+.why { max-width: 72ch; margin: 0 0 4px; }
+ol.paras { margin: 0; padding-inline-start: 2.2em; display: flex; flex-direction: column; gap: 10px; max-width: 76ch; }
+ol.paras li { line-height: 1.6; padding-inline-start: 4px; }
+ol.paras li::marker { font-family: var(--font-data); font-size: 11px; color: var(--muted); }
+ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); border-radius: 2px; }
+.more { align-self: center; }
+.more button {
+  font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+}
+.more button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.card .goto { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.card .goto .linkish { margin-inline-start: 0; }
+
 @media (max-width: 760px) {
+  .shell { height: auto; }
+  .ledger { height: auto; overflow: visible; }
+  .filters input[type="search"] { width: 100%; }
+  .filters label.field { flex: 1 1 100%; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 62vh auto; height: auto; }
   .stage { order: -1; border-bottom: 1px solid var(--line); }
   .side { border-right: 0; overflow: visible; }
@@ -158,7 +263,12 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 
-<div class="app">
+<div class="shell">
+<nav class="tabs" role="tablist" aria-label="Vistas">
+  <button type="button" role="tab" id="tab-rede" aria-controls="view-rede" aria-selected="true">Rede</button>
+  <button type="button" role="tab" id="tab-artigos" aria-controls="view-artigos" aria-selected="false">Artigos<small id="tab-artigos-n"></small></button>
+</nav>
+<div class="app" id="view-rede" role="tabpanel" aria-labelledby="tab-rede">
   <aside class="side">
     <header>
       <h1>Rede da coleta da Wikipédia</h1>
@@ -227,7 +337,54 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
   </main>
 </div>
 
+<section class="ledger" id="view-artigos" role="tabpanel" aria-labelledby="tab-artigos" hidden>
+  <div class="ledger-inner">
+    <header>
+      <h1>Artigos do corpus</h1>
+      <p class="lede" id="art-lede"></p>
+      <div class="stats" id="art-stats"></div>
+    </header>
+
+    <section aria-labelledby="art-summary-h">
+      <h2 id="art-summary-h">Por tema</h2>
+      <div class="panel scroll-x">
+        <table class="summary" id="art-summary"></table>
+      </div>
+    </section>
+
+    <section aria-labelledby="art-list-h">
+      <h2 id="art-list-h">Candidatos</h2>
+      <div class="filters">
+        <label class="field" for="art-q">Procurar
+          <input id="art-q" type="search" autocomplete="off" placeholder="título, ou termo no texto">
+        </label>
+        <label class="check"><input type="checkbox" id="art-fulltext"> também no texto</label>
+        <label class="field" for="art-theme">Tema
+          <select id="art-theme"><option value="">Todos</option></select>
+        </label>
+        <label class="field" for="art-status">Situação
+          <select id="art-status"><option value="">Todas</option><option value="kept">Mantidos</option><option value="dropped">Descartados</option></select>
+        </label>
+        <label class="field" for="art-origin">Busca
+          <select id="art-origin"><option value="">Todas</option><option value="root">Raiz do tema</option></select>
+        </label>
+      </div>
+    </section>
+    <p class="count" id="art-count" aria-live="polite"></p>
+    <div class="scroll-x">
+      <table class="list" id="art-table">
+        <thead><tr id="art-head"></tr></thead>
+        <tbody id="art-rows"></tbody>
+      </table>
+    </div>
+    <div class="more" id="art-more" hidden><button type="button" id="art-more-btn">Mostrar mais</button></div>
+  </div>
+</section>
+</div>
+
 <script type="application/json" id="crawl-data">/*__DATA__*/</script>
+<script type="application/json" id="articles-data">/*__ARTICLES__*/</script>
+<script type="application/octet-stream" id="text-data">/*__TEXT__*/</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
 <script>
@@ -314,6 +471,326 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
   }
   paintSwatches();
 
+  // ---- articles tab -------------------------------------------------------------------------
+  // One row per candidate of the corpus stage (articles.jsonl, in corpus order); the clean text
+  // of the kept ones is gzip+base64 JSON, inflated on first use.
+  const ART = JSON.parse(document.getElementById("articles-data").textContent);
+  const F = Object.fromEntries(ART.fields.map((f, i) => [f, i]));
+  const rows = ART.rows;
+  const reasonLabel = Object.fromEntries(ART.reasons.map((r) => [r.id, r.label]));
+  const artByTitle = new Map(rows.map((r, i) => [r[F.title], i]));
+  const REASON_WHY = {
+    multi_theme: "Alcançado pelas buscas de mais de um tema; descartado antes do download.",
+    biography: "Biografia (infobox de pessoa); descartado sem limpar o texto.",
+    disambiguation: "Página de desambiguação.",
+    duplicate: "Mesmo artigo (pageid) que um título já escolhido, em geral por um redirecionamento.",
+    no_paragraphs: "Nenhum parágrafo passou nos filtros de prosa: ao menos 40 palavras, fim de frase, até 8% de dígitos e sem repetir um parágrafo já mantido.",
+    missing: "A API não devolveu a página.",
+  };
+  const origLabel = (o) => (o == null ? "?" : o === "root" ? "raiz do tema" : stripCat(o));
+  const revUrl = (revid) => "https://pt.wikipedia.org/w/index.php?oldid=" + revid;
+  const isKept = (r) => r[F.reason] == null;
+
+  let textsPromise = null;
+  function loadTexts() {
+    if (!textsPromise) {
+      textsPromise = (async () => {
+        if (typeof DecompressionStream === "undefined") {
+          throw new Error("Este navegador não descomprime o texto (falta DecompressionStream). Use uma versão recente do Chrome, Firefox ou Safari.");
+        }
+        const b64 = document.getElementById("text-data").textContent.trim();
+        const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"));
+        return JSON.parse(await new Response(stream).text());
+      })();
+      textsPromise.catch(() => { textsPromise = null; });
+    }
+    return textsPromise;
+  }
+  let normTexts = null;
+  async function loadNormTexts() {
+    if (!normTexts) normTexts = (await loadTexts()).map((ps) => ps.map(norm));
+    return normTexts;
+  }
+
+  // header: lede, stats, tab badge
+  const keptRows = rows.filter(isKept);
+  const totalParas = keptRows.reduce((s, r) => s + r[F.paragraphs], 0);
+  const totalWords = keptRows.reduce((s, r) => s + r[F.words], 0);
+  document.getElementById("art-lede").innerHTML =
+    `Os ${fmt.format(rows.length)} títulos que a etapa <code>corpus</code> considerou, entre os ` +
+    `${fmt.format(counts.article)} listados pelas buscas da aba Rede (os demais não chegaram a ser ` +
+    `baixados porque a cota do grupo foi preenchida antes). Clique numa linha para ler o texto limpo ` +
+    `que entrou no corpus; <em>revisão</em> abre na Wikipédia a versão exata que foi baixada, com o seu ` +
+    `histórico de autores. Texto da <a href="https://pt.wikipedia.org" target="_blank" rel="noopener">Wikipédia em português</a>, ` +
+    `sob a licença <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt-br" target="_blank" rel="noopener">CC BY-SA 4.0</a>.`;
+  document.getElementById("art-stats").innerHTML =
+    `<span><b>${fmt.format(rows.length)}</b> candidatos</span>` +
+    `<span><b>${fmt.format(keptRows.length)}</b> mantidos</span>` +
+    `<span><b>${fmt.format(totalParas)}</b> parágrafos</span>` +
+    `<span><b>${fmt.format(totalWords)}</b> palavras</span>`;
+  document.getElementById("tab-artigos-n").textContent = fmt.format(rows.length);
+
+  // summary by theme
+  const summaryEl = document.getElementById("art-summary");
+  (function renderSummary() {
+    const cols = ART.reasons.map((r) => r.id);
+    const blank = () => ({ cand: 0, kept: 0, paras: 0, words: 0, ...Object.fromEntries(cols.map((c) => [c, 0])) });
+    const by = Object.fromEntries(DATA.themes.map((t) => [t.id, blank()]));
+    const total = blank();
+    for (const r of rows) {
+      for (const acc of [by[r[F.theme]], total]) {
+        acc.cand++;
+        if (isKept(r)) { acc.kept++; acc.paras += r[F.paragraphs]; acc.words += r[F.words]; }
+        else acc[r[F.reason]]++;
+      }
+    }
+    const num = (v) => `<td class="n${v ? "" : " zero"}">${fmt.format(v)}</td>`;
+    const line = (acc) => num(acc.cand) + num(acc.kept) + num(acc.paras) + num(acc.words) + cols.map((c) => num(acc[c])).join("");
+    summaryEl.innerHTML =
+      `<thead><tr><th>Tema</th><th class="n">Candidatos</th><th class="n">Mantidos</th>` +
+      `<th class="n">Parágrafos</th><th class="n">Palavras</th>` +
+      cols.map((c) => `<th class="n">${escapeHtml(reasonLabel[c])}</th>`).join("") + `</tr></thead>` +
+      `<tbody>` + DATA.themes.map((t) =>
+        `<tr data-theme="${t.id}" tabindex="0" title="Filtrar por ${escapeHtml(t.label)}"><td><span class="swatch" style="display:inline-block;background:var(--t-${t.id})"></span> ${escapeHtml(t.label)}</td>${line(by[t.id])}</tr>`
+      ).join("") + `</tbody>` +
+      `<tfoot><tr><td>Total</td>${line(total)}</tr></tfoot>`;
+  })();
+
+  // filters
+  const artQ = document.getElementById("art-q");
+  const artFull = document.getElementById("art-fulltext");
+  const artTheme = document.getElementById("art-theme");
+  const artStatus = document.getElementById("art-status");
+  const artOrigin = document.getElementById("art-origin");
+  for (const t of DATA.themes) artTheme.insertAdjacentHTML("beforeend", `<option value="${t.id}">${escapeHtml(t.label)}</option>`);
+  for (const r of ART.reasons) artStatus.insertAdjacentHTML("beforeend", `<option value="r:${r.id}">Descartados: ${escapeHtml(r.label)}</option>`);
+  const extras = [...new Set(rows.map((r) => r[F.origin]).filter((o) => o && o !== "root"))].sort((a, b) => a.localeCompare(b, "pt"));
+  for (const o of extras) artOrigin.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(o)}">Extra: ${escapeHtml(stripCat(o))}</option>`);
+
+  // table
+  const COLS = [
+    { key: "title", label: "Título" },
+    { key: "theme", label: "Tema" },
+    { key: "source", label: "Categoria · busca" },
+    { key: "status", label: "Situação" },
+    { key: "paragraphs", label: "Parágrafos", num: true },
+    { key: "words", label: "Palavras", num: true },
+    { key: null, label: "" },
+  ];
+  const SORT = {
+    title: (r) => norm(r[F.title]),
+    theme: (r) => DATA.themes.findIndex((t) => t.id === r[F.theme]),
+    source: (r) => norm(stripCat(r[F.source_category] || "")),
+    status: (r) => (isKept(r) ? "" : reasonLabel[r[F.reason]]),
+    paragraphs: (r) => r[F.paragraphs],
+    words: (r) => r[F.words],
+  };
+  let sort = { key: null, dir: 1 };  // null = corpus order
+  const head = document.getElementById("art-head");
+  function renderHead() {
+    head.innerHTML = COLS.map((c) => {
+      if (!c.key) return "<th></th>";
+      const on = sort.key === c.key;
+      const aria = on ? ` aria-sort="${sort.dir > 0 ? "ascending" : "descending"}"` : "";
+      const arrow = on ? (sort.dir > 0 ? "▲" : "▼") : "";
+      return `<th class="${c.num ? "n" : ""}"${aria}><button type="button" data-sort="${c.key}">${c.label}<span class="arrow" aria-hidden="true">${arrow}</span></button></th>`;
+    }).join("");
+  }
+  head.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-sort]");
+    if (!b) return;
+    const key = b.dataset.sort;
+    if (sort.key === key) { if (sort.dir > 0) sort.dir = -1; else sort = { key: null, dir: 1 }; }
+    else sort = { key, dir: COLS.find((c) => c.key === key).num ? -1 : 1 };
+    renderHead(); applyFilters();
+  });
+
+  const PAGE = 250;
+  let shown = PAGE;
+  let filtered = rows.map((_, i) => i);
+  let hitCounts = null;   // row index -> paragraphs containing the term (full-text search)
+  let hitTerm = "";
+  const expanded = new Set();
+  const body = document.getElementById("art-rows");
+  const countEl = document.getElementById("art-count");
+  const more = document.getElementById("art-more");
+  let filterRun = 0;
+
+  async function applyFilters() {
+    const run = ++filterRun;
+    const term = norm(artQ.value.trim());
+    const theme = artTheme.value, status = artStatus.value, origin = artOrigin.value;
+    let ids = rows.map((_, i) => i).filter((i) => {
+      const r = rows[i];
+      if (theme && r[F.theme] !== theme) return false;
+      if (status === "kept" && !isKept(r)) return false;
+      if (status === "dropped" && isKept(r)) return false;
+      if (status.startsWith("r:") && r[F.reason] !== status.slice(2)) return false;
+      if (origin && r[F.origin] !== origin) return false;
+      return true;
+    });
+    hitCounts = null; hitTerm = "";
+    if (term.length >= 2) {
+      const titleHit = (i) => norm(rows[i][F.title]).includes(term);
+      if (artFull.checked && term.length >= 3) {
+        countEl.textContent = "Procurando no texto…";
+        let texts;
+        try { texts = await loadNormTexts(); } catch (err) { countEl.textContent = err.message; return; }
+        if (run !== filterRun) return;
+        hitCounts = new Map();
+        for (const i of ids) {
+          const n = texts[i].reduce((s, p) => s + (p.includes(term) ? 1 : 0), 0);
+          if (n) hitCounts.set(i, n);
+        }
+        hitTerm = term;
+        ids = ids.filter((i) => titleHit(i) || hitCounts.has(i));
+      } else {
+        ids = ids.filter(titleHit);
+      }
+    }
+    if (sort.key) {
+      const k = SORT[sort.key];
+      ids.sort((a, b) => {
+        const x = k(rows[a]), y = k(rows[b]);
+        return (x < y ? -1 : x > y ? 1 : a - b) * (x === y ? 1 : sort.dir);
+      });
+    }
+    filtered = ids;
+    shown = PAGE;
+    renderRows();
+  }
+
+  function statusChip(r) {
+    return isKept(r) ? '<span class="status kept">mantido</span>'
+      : `<span class="status">${escapeHtml(reasonLabel[r[F.reason]] || r[F.reason])}</span>`;
+  }
+  function rowHtml(i) {
+    const r = rows[i];
+    const open = expanded.has(i);
+    const hits = hitCounts && hitCounts.get(i) ? `<span class="hits">${hitCounts.get(i)} com o termo</span>` : "";
+    const rev = r[F.revid] != null ? `<a href="${revUrl(r[F.revid])}" target="_blank" rel="noopener">revisão</a>` : "";
+    const inGraph = info0.has(r[F.title]) ? `<button type="button" class="linkish" data-graph="${i}">na rede</button>` : "";
+    return `<tr class="row" data-i="${i}" tabindex="0" aria-expanded="${open}">` +
+      `<td class="title"><span class="swatch" style="background:var(--t-${r[F.theme]})"></span>${escapeHtml(r[F.title])}</td>` +
+      `<td>${escapeHtml(themeById[r[F.theme]].label)}</td>` +
+      `<td class="sub">${escapeHtml(stripCat(r[F.source_category] || ""))}<br>${escapeHtml(origLabel(r[F.origin]))}</td>` +
+      `<td>${statusChip(r)}</td>` +
+      `<td class="n">${isKept(r) ? fmt.format(r[F.paragraphs]) : ""}${hits}</td>` +
+      `<td class="n">${isKept(r) ? fmt.format(r[F.words]) : ""}</td>` +
+      `<td class="actions">${rev}${inGraph}</td></tr>` +
+      (open ? detailHtml(i) : "");
+  }
+  function detailHtml(i) {
+    const r = rows[i];
+    const facts = [
+      ["pageid", r[F.pageid] ?? "—"], ["revid", r[F.revid] ?? "—"],
+      ["profundidade", r[F.depth] ?? "—"],
+      ["temas alcançados", (r[F.themes_reached] || []).map((t) => themeById[t] ? themeById[t].label : t).join(", ") || "—"],
+    ].map(([k, v]) => `<span>${k} <b>${escapeHtml(String(v))}</b></span>`).join("");
+    const content = isKept(r) ? `<div class="paras-slot" data-slot="${i}"><p class="empty">Carregando o texto…</p></div>`
+      : `<p class="why">${escapeHtml(REASON_WHY[r[F.reason]] || "")}</p>`;
+    return `<tr class="detail" data-detail="${i}"><td colspan="${COLS.length}"><div class="detail-facts">${facts}</div>${content}</td></tr>`;
+  }
+  async function fillText(i) {
+    const slot = body.querySelector(`[data-slot="${i}"]`);
+    if (!slot) return;
+    try {
+      const texts = await loadTexts();
+      const paras = texts[i];
+      const normed = hitTerm && normTexts ? normTexts[i] : null;
+      slot.innerHTML = `<ol class="paras">` + paras.map((p, j) =>
+        `<li${normed && normed[j].includes(hitTerm) ? ' class="hit"' : ""}>${escapeHtml(p)}</li>`).join("") + `</ol>`;
+    } catch (err) {
+      slot.innerHTML = `<p class="empty">${escapeHtml(err.message)}</p>`;
+    }
+  }
+  function renderRows() {
+    const list = filtered.slice(0, shown);
+    body.innerHTML = list.map(rowHtml).join("") ||
+      `<tr><td colspan="${COLS.length}" class="empty">Nenhum artigo com esses filtros.</td></tr>`;
+    for (const i of list) if (expanded.has(i) && isKept(rows[i])) fillText(i);
+    const total = filtered.length;
+    countEl.textContent = total === rows.length
+      ? `${fmt.format(total)} artigos` + (sort.key ? "" : ", na ordem em que a etapa corpus os tratou")
+      : `${fmt.format(total)} de ${fmt.format(rows.length)} artigos`;
+    more.hidden = total <= shown;
+    document.getElementById("art-more-btn").textContent = `Mostrar mais ${fmt.format(Math.min(PAGE, total - shown))}`;
+  }
+  function toggle(i) {
+    const tr = body.querySelector(`tr.row[data-i="${i}"]`);
+    if (expanded.has(i)) {
+      expanded.delete(i);
+      body.querySelector(`tr[data-detail="${i}"]`)?.remove();
+      tr?.setAttribute("aria-expanded", "false");
+    } else {
+      expanded.add(i);
+      tr?.insertAdjacentHTML("afterend", detailHtml(i));
+      tr?.setAttribute("aria-expanded", "true");
+      if (isKept(rows[i])) fillText(i);
+    }
+  }
+  body.addEventListener("click", (e) => {
+    const g = e.target.closest("button[data-graph]");
+    if (g) { showInGraph(rows[+g.dataset.graph][F.title]); return; }
+    if (e.target.closest("a")) return;
+    const tr = e.target.closest("tr.row");
+    if (tr) toggle(+tr.dataset.i);
+  });
+  body.addEventListener("keydown", (e) => {
+    const tr = e.target.closest("tr.row");
+    if (tr && e.target === tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggle(+tr.dataset.i); }
+  });
+  document.getElementById("art-more-btn").addEventListener("click", () => { shown += PAGE; renderRows(); });
+  let qTimer = 0;
+  artQ.addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(applyFilters, 180); });
+  for (const el of [artFull, artTheme, artStatus, artOrigin]) el.addEventListener("change", applyFilters);
+  function pickTheme(id) { artTheme.value = id; applyFilters(); document.getElementById("art-list-h").scrollIntoView({ block: "start" }); }
+  summaryEl.addEventListener("click", (e) => { const tr = e.target.closest("tr[data-theme]"); if (tr) pickTheme(tr.dataset.theme); });
+  summaryEl.addEventListener("keydown", (e) => {
+    const tr = e.target.closest("tr[data-theme]");
+    if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickTheme(tr.dataset.theme); }
+  });
+
+  // open one article in the table (from the graph card)
+  function showArticle(title) {
+    const i = artByTitle.get(title);
+    if (i == null) return;
+    artQ.value = title; artFull.checked = false;
+    artTheme.value = ""; artStatus.value = ""; artOrigin.value = "";
+    expanded.add(i);
+    showTab("artigos");
+    applyFilters().then(() => {
+      const tr = body.querySelector(`tr.row[data-i="${i}"]`);
+      if (tr) { tr.scrollIntoView({ block: "center" }); tr.focus({ preventScroll: true }); }
+    });
+  }
+
+  // ---- tabs ---------------------------------------------------------------------------------
+  const views = { rede: document.getElementById("view-rede"), artigos: document.getElementById("view-artigos") };
+  let onShowGraph = () => {};
+  function showTab(name) {
+    for (const [k, el] of Object.entries(views)) {
+      el.hidden = k !== name;
+      document.getElementById("tab-" + k).setAttribute("aria-selected", String(k === name));
+    }
+    try { history.replaceState(null, "", name === "artigos" ? "#artigos" : location.pathname + location.search); } catch (_) { /* sandboxed */ }
+    if (name === "rede") onShowGraph();
+  }
+  document.getElementById("tab-rede").addEventListener("click", () => showTab("rede"));
+  document.getElementById("tab-artigos").addEventListener("click", () => showTab("artigos"));
+  document.querySelector(".tabs").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const next = views.rede.hidden ? "rede" : "artigos";
+    showTab(next); document.getElementById("tab-" + next).focus();
+  });
+  let showInGraph = () => {};
+  const info0 = new Set(nodes.filter((n) => n.kind === "article").map((n) => n.id));
+
+  renderHead();
+  applyFilters();
+  if (location.hash === "#artigos") showTab("artigos");
+
   // ---- graph --------------------------------------------------------------------------------
   if (!window.graphology || !window.Sigma) {
     document.getElementById("graph").innerHTML =
@@ -365,6 +842,7 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
     maxCameraRatio: 2,
     hideEdgesOnMove: false,
     stagePadding: 24,
+    allowInvalidContainer: true,  // the graph tab may be hidden when the page opens on #artigos
     nodeReducer(node, data) {
       const n = info[node];
       const res = { ...data };
@@ -416,6 +894,8 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
   });
 
   function refresh() { computeFocus(); renderer.refresh(); }
+  onShowGraph = () => { renderer.resize(); refresh(); };
+  showInGraph = (title) => { showTab("rede"); select(title, true); };
 
   renderer.on("enterNode", ({ node }) => { hovered = node; refresh(); });
   renderer.on("leaveNode", () => { hovered = null; refresh(); });
@@ -481,8 +961,13 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
     const facts = [];
     facts.push(["Busca", n.walks.map(walkName).map(escapeHtml).join("; ")]);
     facts.push(["Profundidade", String(n.depth)]);
+    const art = n.kind === "article" ? artByTitle.get(n.id) : undefined;
     if (n.kind === "article") {
       facts.push(["Registrado por", escapeHtml(stripCat(n.first_category))]);
+      const r = rows[art];
+      facts.push(["No corpus", art == null ? "não baixado: a cota do grupo foi preenchida antes"
+        : isKept(r) ? `mantido, ${fmt.format(r[F.paragraphs])} parágrafos e ${fmt.format(r[F.words])} palavras`
+        : `descartado (${escapeHtml(reasonLabel[r[F.reason]] || r[F.reason])})`]);
     } else {
       facts.push(["Ordem de abertura", `${n.open_order + 1}ª na busca ${escapeHtml(walkName(n.walk))}`]);
       facts.push(["Lista", `${fmt.format(n.n_pages)} artigos, ${fmt.format(n.n_subcats)} subcategorias`]);
@@ -501,10 +986,15 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-
       `<h3>${escapeHtml(n.kind === "article" ? n.label : stripCat(n.id))}</h3>` +
       `<div class="chips">${themes}${flags.join("")}</div>` +
       `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` +
-      `<a href="${wikiUrl(n.id)}" target="_blank" rel="noopener">Abrir na Wikipédia</a>` +
+      `<div class="goto"><a href="${wikiUrl(n.id)}" target="_blank" rel="noopener">Abrir na Wikipédia</a>` +
+      (art != null && rows[art][F.revid] != null ? `<a href="${revUrl(rows[art][F.revid])}" target="_blank" rel="noopener">Revisão usada</a>` : "") +
+      (art != null ? `<button type="button" class="linkish" data-art="${art}">${isKept(rows[art]) ? "Ler o texto" : "Ver na tabela"}</button>` : "") +
+      `</div>` +
       lists + `</div>`;
   }
   detail.addEventListener("click", (e) => {
+    const a = e.target.closest("button[data-art]");
+    if (a) { showArticle(rows[+a.dataset.art][F.title]); return; }
     const b = e.target.closest("button[data-go]");
     if (b) select(b.dataset.go, true);
   });
