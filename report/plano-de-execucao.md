@@ -175,19 +175,21 @@ regressão exige que o k-NN novo, com desempate por posição e união, reproduz
   as decisões e os problemas da fase de planejamento.
 - Sugestão: versionar `report/`, que hoje está fora do git.
 
-### 1. `corpus` — `wiki.py`, `textclean.py`, `configs/corpus.yaml`
+### 1. `corpus` — `wiki.py`, `textclean.py`, seção `corpus:` de `configs/experiment.yaml`
 Evolução do `fetch_wiki.py`:
 - busca por categorias com cache cru;
-- wikitext em lotes de 50 por `revid`, com pausa de 2,5 s, respeito ao `Retry-After` e retomada;
+- wikitext em lotes de 50 títulos (a revisão baixada fica fixada pelo `revid` no manifest), com
+  pausa de 2,5 s, respeito ao `Retry-After` e retomada;
 - `User-Agent` com um contato preenchido no config (política da Wikimedia);
 - limpeza com mwparserfromhell, cortando Referências, Ligações externas e seções parecidas;
 - parágrafos com ≥ 40 palavras, fim de frase e ≤ 8% de dígitos, sem duplicatas;
 - sentenças por regex, com uma lista de abreviações.
 
 Saídas: `data/corpus/articles.jsonl` e `paragraphs.jsonl`. Versionar só
-`data/corpus/manifest.csv` (pageid, revid, título, tema, categoria de origem).
+`data/corpus/manifest.csv` (pageid, revid, título, tema, categoria de origem), de onde
+`corpus-rebuild` reconstrói o corpus baixando as mesmas revisões por `revid`.
 
-### 2. `sample` — `tokens.py`, `sampling.py`, `configs/sample.yaml`
+### 2. `sample` — `tokens.py`, `sampling.py`, seção `sample:` de `configs/experiment.yaml`
 Tokenização com offsets e rotulagem (decisão 4), e amostra híbrida (decisão 6), com registro das
 faltas por (alvo, tema).
 

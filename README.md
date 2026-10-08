@@ -86,6 +86,7 @@ existem é pulada, a menos que se passe `--force`.
 
 ```bash
 uv run gender-networks corpus  --config configs/experiment.yaml  # baixa e limpa a Wikipédia
+uv run gender-networks corpus-rebuild --force  # refaz o corpus das revisões de manifest.csv
 uv run gender-networks sample  --config configs/experiment.yaml  # amostra híbrida de ocorrências
 uv run gender-networks extract --config configs/experiment.yaml --verify  # checagens no modelo real
 uv run gender-networks extract --config configs/experiment.yaml  # representações
@@ -96,6 +97,16 @@ uv run gender-networks report  --config configs/experiment.yaml  # figuras, tabe
 uv run gender-networks lens    --config configs/experiment.yaml  # extensão opcional
 uv run gender-networks all     --config configs/experiment.yaml  # corpus → report, em ordem (o corpus só é refeito com --force-corpus)
 ```
+
+O corpus é compartilhado por todas as execuções e custa requisições à API: o `all --force` não o
+refaz, só o `all --force-corpus`. Com `GENDER_NETWORKS_OFFLINE=1`, as etapas `corpus` e
+`corpus-rebuild` não acessam a rede e param com erro (`CacheMiss`) se faltar uma resposta no
+cache. Use isso para refazer a limpeza depois de mudar `textclean.py` sem baixar revisões mais
+novas. O `corpus-rebuild` baixa por `revid` as revisões dos artigos mantidos em
+`data/corpus/manifest.csv`, limpa-as com o mesmo código e na mesma ordem do `corpus` e reescreve
+`articles.jsonl` e `paragraphs.jsonl`. Como o manifest não registra a busca por categorias, os
+campos `themes_reached`, `depth` e `origin` de `articles.jsonl` ficam vazios. A primeira
+reconstrução precisa de rede, porque o cache do `corpus` está indexado por título.
 
 `--config configs/experiment.yaml` é o padrão. Para o ensaio de ponta a ponta (2 temas, cerca de
 1.500 vértices), use `--config configs/mini.yaml`. O ensaio usa o mesmo corpus da execução
@@ -184,8 +195,9 @@ do Hugging Face e são pulados se ele não estiver disponível.
 
 - **Modelo:** `Qwen/Qwen3-4B-Base` na revisão `906bfd4b4dc7f14ee4320094d8b41684abff8539`.
 - **Dados:** `data/corpus/manifest.csv` guarda `pageid` e `revid` de cada artigo, então o mesmo
-  texto pode ser baixado de novo mesmo que os artigos mudem. O cache cru torna a limpeza
-  refazível sem rede.
+  texto pode ser baixado de novo mesmo que os artigos mudem
+  (`uv run gender-networks corpus-rebuild --force`). O cache cru torna a limpeza refazível sem
+  rede (`GENDER_NETWORKS_OFFLINE=1`).
 - **Sementes:** todas vêm do YAML (`corpus.seed`, `sample.seed`, `networks.base_seed`, 438 na
   execução principal). A semente `r` do desempate da representação `rep` com `k` vizinhos usa
   `numpy.random.default_rng([base_seed, crc32(rep), k, r])`.

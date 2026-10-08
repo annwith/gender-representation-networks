@@ -12,7 +12,9 @@ dimensionou a amostra e o desenho final da amostra (etapa \etapa{sample}).
 \paragraph{Por que a Wikipédia.} É texto real, em português, com licença aberta e
 organizado por categorias, o que permite definir \emph{temas} de forma reproduzível. Cada
 artigo tem um identificador de revisão (\cod{revid}); guardando esses identificadores, o mesmo
-texto pode ser baixado de novo no futuro, mesmo que o artigo tenha mudado.
+texto pode ser baixado de novo no futuro, mesmo que o artigo tenha mudado: o comando
+\cod{corpus-rebuild} baixa por \cod{revid} as revisões dos artigos mantidos e as limpa com o
+mesmo código e na mesma ordem da etapa \etapa{corpus}.
 
 \paragraph{Temas.} São oito, cada um definido pela árvore de uma categoria raiz: Física,
 Biologia, Economia, Política, Ciência da computação, Música, Futebol (tema ``esporte'') e
@@ -28,7 +30,9 @@ domínio principal (artigos); subcategorias de manutenção ou de usuário (tít
 ``Artigos'', ``Esboço'', ``Páginas'', ``Predefinições'', ``Wikipédia'', ``Usuário'', ``Listas''
 ou ``Categoria:!'') não são seguidas, e títulos ``Lista de\ldots'' são descartados
 (Seção~\ref{sec:prob-categorias}). Todas as respostas cruas da API ficam num cache em disco
-(\cod{data/raw/wiki}), o que torna o download retomável e a limpeza refazível sem rede.
+(\cod{data/raw/wiki}), o que torna o download retomável e a limpeza refazível sem rede. No
+modo offline (\cod{GENDER\_NETWORKS\_OFFLINE=1}), uma resposta que falta no cache interrompe a
+etapa, em vez de baixar uma revisão mais nova.
 
 \paragraph{Categorias extras para os sentidos fracos.} No estudo de viabilidade, alguns
 sentidos das palavras-alvo apareciam muito pouco no tema que os representa: \emph{nota} em
