@@ -57,16 +57,7 @@
 % ============================================================
 \section*{1. As redes}
 
-Este arquivo traz a visualização (item 9) das quatro redes da entrega parcial. As redes têm os
-mesmos 13.606 vértices: cada vértice é uma \textit{ocorrência} de um token em um parágrafo da
-Wikipédia em português, de 8 temas. Cada ocorrência se liga às $k=10$ ocorrências de vetor
-mais parecido (cosseno), e as redes diferem só no vetor: \textbf{lex}, o \textit{embedding} de
-entrada do token no Qwen3-4B-Base (igual para todas as ocorrências do mesmo token), e
-\textbf{L01}, \textbf{L18} e \textbf{L36}, a saída dos blocos 1, 18 e 36 do modelo. As figuras
-mostram a versão não direcionada por união, com aresta $\{i,j\}$ quando $j$ está entre os
-vizinhos de $i$ ou $i$ entre os de $j$; as arestas não têm peso. Sem o sentido dos arcos, a
-versão direcionada tem exatamente as mesmas arestas, então as figuras valem para as duas
-versões da entrega. A coleta dos dados, a construção das redes e as métricas dos itens 1 a 8
+A coleta dos dados, a construção das redes e as métricas
 estão nos documentos da entrega parcial.
 
 \textbf{Dados:} \url{\repo}; as redes, em GraphML, estão em
@@ -78,7 +69,7 @@ da amostra, comunidade): \url{\pagina}.
 \section*{2. Como as figuras foram feitas}
 
 Cada rede tem o seu próprio layout, calculado pelo UMAP do \texttt{igraph}
-(\texttt{layout\_umap}, sem pesos, \texttt{min\_dist} = 0,1, 500 épocas, semente 438). O UMAP
+(\texttt{layout\_umap}, sem pesos, \texttt{min\_dist} = 0,1, 500 épocas). O UMAP
 aproxima vértices ligados e afasta os não ligados. A distância no desenho só reflete a
 estrutura da rede de forma aproximada, e a posição e a orientação absolutas não têm
 significado: não dá para comparar posições entre os quatro desenhos. Cada painel mostra o
@@ -93,8 +84,8 @@ token na palavra: \emph{continua} quando a palavra segue no token seguinte (o to
 ou o meio de uma palavra de vários tokens), e \emph{termina} nos demais casos (último ou único
 token da palavra, ou pontuação, que não pertence a nenhuma palavra). O \textit{tokenizer} separa
 os números em dígitos, então todo dígito que não é o último do número também é
-\emph{continua}. São 4.004 vértices \emph{continua} (29\% do total). As figuras e as
-Tabelas~\ref{tab:arestas} e~\ref{tab:blocos} são geradas por
+\emph{continua}. São 4.004 vértices \emph{continua} (29\% do total). As figuras e a
+Tabela~\ref{tab:arestas} são geradas por
 \texttt{scripts/partial\_delivery/draw\_networks.py}, a partir dos arquivos GraphML.
 
 \begin{figure}[t]
@@ -136,36 +127,13 @@ por um tema: as arestas entre ocorrências do mesmo tema sobem para 52\%, e a as
 tema passa de 0,09 em lex para 0,45. Em L36, elas caem para 44\% (assortatividade 0,36), e a
 rede se divide em dois blocos.
 
-\textbf{Por posição na palavra (Fig.~\ref{fig:palavra}).} Em L36, o bloco menor é o das
-posições em que a palavra continua no token seguinte. A separação aparece direto nas arestas
-(Tabela~\ref{tab:arestas}): as arestas entre \emph{continua} e \emph{termina} são 10,4\% em L18
-e só 2,6\% em L36, e a assortatividade por posição na palavra sobe de 0,75 para 0,94. Em lex
-ela já é alta (0,62) porque ali a maioria das arestas liga ocorrências do mesmo token, e a
-posição na palavra depende muito do token: um início de palavra, como \textit{Des}, sempre
-continua. Em L36, onde só 21\% das arestas ligam ocorrências do mesmo token, a separação é a
-maior das quatro redes.
-
-\begin{table}[!htb]
-\centering
-\small
-\setlength{\tabcolsep}{3.5pt}
-\caption{Comunidades de Leiden (modularidade, melhor de 10 execuções) em resolução baixa,
-$\gamma=0{,}05$, com o número de comunidades na resolução usual, $\gamma=1$, para comparação.
-Blocos são as comunidades com ao menos 1\% dos vértices, e $B$ é o bloco com mais vértices
-\emph{continua}.}
-\label{tab:blocos}
-\input{tabelas/blocos.tex}
-\end{table}
-
-\textbf{Os dois blocos de L36.} Para delimitar os blocos sem depender do desenho, procuramos
-comunidades com o algoritmo de Leiden numa resolução baixa (Tabela~\ref{tab:blocos}). Com
-$\gamma=1$, ele divide cada rede em dezenas ou centenas de comunidades (de 44 em L36 a 185 em
-lex); com $\gamma=0{,}05$, só separa grupos que quase não se ligam ao resto. Nessa resolução,
-lex e L01 ainda se dividem em mais de cem comunidades, L18 fica num bloco só, com 98\% dos
-vértices, e L36 se divide em dois blocos, de 9.431 e 4.012 vértices, que juntos reúnem 99\% dos
-vértices. Só 1,0\% das arestas sai do bloco menor; 94,3\% dos seus vértices são
-\emph{continua}, e ele reúne 94,5\% desses vértices. A última camada, que prepara a previsão do
-próximo token, agrupa as ocorrências também pelo que deve vir depois, e não só pelo contexto
-anterior.
+\textbf{Por posição na palavra (Fig.~\ref{fig:palavra}).} Em lex, as ocorrências de um mesmo
+token têm o mesmo vetor, e 68\% das arestas as ligam entre si (Tabela~\ref{tab:arestas}). Como
+a posição na palavra quase sempre se repete entre as ocorrências de um token (\textit{Des}
+sempre continua), a assortatividade por posição na palavra já é 0,62 só por isso. Depois, as
+arestas entre \emph{continua} e \emph{termina}, cerca de 40\% ao acaso, caem para 10,4\% em L18
+e 2,6\% em L36, e a assortatividade sobe para 0,75 e 0,94. Em L36, onde só 21\% das arestas
+ligam ocorrências do mesmo token, a rede agrupa tokens diferentes pela posição na palavra: o
+bloco menor do desenho é o das ocorrências \emph{continua}.
 
 \end{document}
