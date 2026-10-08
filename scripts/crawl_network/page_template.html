@@ -3,10 +3,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: one-screen tool with two tabs under a slim bar. "Rede": sidebar of controls and the
+/* Layout: one-screen tool with three tabs under a slim bar. "Rede": sidebar of controls and the
    selected node beside a full-height graph canvas (on phones the canvas comes first and the
    sidebar stacks under it). "Artigos": a scrolling ledger of every candidate article, summary
-   by theme first, then a filterable table whose rows open onto the clean text. */
+   by theme first, then a filterable table whose rows open onto the clean text. "Amostra": the
+   same ledger layout, read top to bottom as the sample is drawn: counts, the core paragraphs
+   token by token, then the studied words with the concordance of their occurrences. */
 :root {
   --bg: #f3f4f6;
   --panel: #ffffff;
@@ -31,6 +33,9 @@
   --kept: #1d7048;
   --kept-bg: #e3f2e9;
   --hit: rgba(36, 89, 168, 0.12);
+  --tok-a: rgba(36, 89, 168, 0.07);
+  --tok-b: rgba(36, 89, 168, 0.17);
+  --studied: #ffd970;
   --font-display: "Crimson Pro", "Linux Libertine", Georgia, "Times New Roman", serif;
   --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -43,6 +48,7 @@
     --t-fisica: #6aa6ec; --t-biologia: #f08a5d; --t-economia: #3cc795; --t-politica: #f2b937;
     --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
     --kept: #6fd39d; --kept-bg: #173326; --hit: rgba(127, 176, 242, 0.14);
+    --tok-a: rgba(127, 176, 242, 0.09); --tok-b: rgba(127, 176, 242, 0.22); --studied: #6b5200;
     color-scheme: dark;
   }
 }
@@ -53,6 +59,7 @@
   --t-fisica: #6aa6ec; --t-biologia: #f08a5d; --t-economia: #3cc795; --t-politica: #f2b937;
   --t-computacao: #ef9cbd; --t-musica: #3fae3f; --t-esporte: #8f80e0; --t-geografia: #ee7372;
   --kept: #6fd39d; --kept-bg: #173326; --hit: rgba(127, 176, 242, 0.14);
+  --tok-a: rgba(127, 176, 242, 0.09); --tok-b: rgba(127, 176, 242, 0.22); --studied: #6b5200;
   color-scheme: dark;
 }
 
@@ -251,11 +258,61 @@ ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); borde
 .card .goto { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .card .goto .linkish { margin-inline-start: 0; }
 
+/* ---- Amostra tab ---- */
+.funnel { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.funnel li { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; position: relative; }
+.funnel .big { display: block; font-family: var(--font-data); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.funnel .what { font-size: 12px; color: var(--muted); }
+.funnel b { font-weight: 600; }
+table.summary td small { display: block; color: var(--muted); font-size: 11px; }
+table.summary.static tbody tr { cursor: default; }
+table.summary.static tbody tr:hover td { background: none; }
+.note { margin: 6px 0 0; color: var(--muted); font-size: 12px; max-width: 86ch; }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); align-items: center; }
+.keys .tk { color: var(--fg); }
+.core-list { display: flex; flex-direction: column; gap: 14px; }
+.core-theme h3 {
+  font-family: var(--font-display); font-weight: 600; font-size: 1.35rem; margin: 6px 0 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.core-art { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.core-art header { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.core-art h4 { font-size: 15px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.core-art .chips { margin: 4px 0 8px; }
+.chip.extra { border-color: var(--fg); font-weight: 600; }
+.para { margin: 0 0 10px; max-width: 80ch; line-height: 1.75; overflow-wrap: anywhere; }
+.para:last-child { margin-bottom: 0; }
+.para .pnum { font-family: var(--font-data); font-size: 11px; color: var(--muted); margin-inline-end: 6px; }
+.tk { border-radius: 2px; }
+.bounds .tk.a { background: var(--tok-a); }
+.bounds .tk.b { background: var(--tok-b); }
+.tk.studied, .bounds .tk.studied { background: var(--studied); font-weight: 600; }
+.tk.cut { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.words-cell { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.quota { font-size: 12px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.quota.low { border-color: var(--fg); border-style: dashed; }
+.quota.other { color: var(--muted); background: none; }
+.quota .swatch { display: inline-block; width: 9px; height: 9px; margin-inline-end: 5px; }
+.quota small { color: var(--muted); }
+.dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+.dots .swatch { width: 10px; height: 10px; }
+.kwic { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.kwic h5 { margin: 0 0 4px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.kwic ol { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.kwic li { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 15em); gap: 0 2px; padding: 2px 0; border-bottom: 1px dashed var(--line); align-items: baseline; }
+.kwic .l { display: flex; justify-content: flex-end; overflow: hidden; white-space: pre; }
+.kwic .r { overflow: hidden; white-space: pre; text-overflow: ellipsis; }
+.kwic .k { font-weight: 600; white-space: pre; background: var(--studied); border-radius: 2px; }
+.kwic .m { font-size: 11px; color: var(--muted); padding-inline-start: 10px; overflow-wrap: anywhere; }
+.kwic .m .linkish { margin-inline-start: 0; }
+
 @media (max-width: 760px) {
   .shell { height: auto; }
   .ledger { height: auto; overflow: visible; }
   .filters input[type="search"] { width: 100%; }
   .filters label.field { flex: 1 1 100%; }
+  .kwic li { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .kwic .m { grid-column: 1 / -1; padding-inline-start: 0; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 62vh auto; height: auto; }
   .stage { order: -1; border-bottom: 1px solid var(--line); }
   .side { border-right: 0; overflow: visible; }
@@ -267,6 +324,7 @@ ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); borde
 <nav class="tabs" role="tablist" aria-label="Vistas">
   <button type="button" role="tab" id="tab-rede" aria-controls="view-rede" aria-selected="true">Rede</button>
   <button type="button" role="tab" id="tab-artigos" aria-controls="view-artigos" aria-selected="false">Artigos<small id="tab-artigos-n"></small></button>
+  <button type="button" role="tab" id="tab-amostra" aria-controls="view-amostra" aria-selected="false">Amostra<small id="tab-amostra-n"></small></button>
 </nav>
 <div class="app" id="view-rede" role="tabpanel" aria-labelledby="tab-rede">
   <aside class="side">
@@ -380,11 +438,76 @@ ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); borde
     <div class="more" id="art-more" hidden><button type="button" id="art-more-btn">Mostrar mais</button></div>
   </div>
 </section>
+
+<section class="ledger" id="view-amostra" role="tabpanel" aria-labelledby="tab-amostra" hidden>
+  <div class="ledger-inner">
+    <header>
+      <h1>Formação da rede</h1>
+      <p class="lede" id="sam-lede"></p>
+      <div class="stats" id="sam-stats"></div>
+    </header>
+    <p class="empty" id="sam-status">Carregando a amostra…</p>
+
+    <section aria-labelledby="sam-funnel-h">
+      <h2 id="sam-funnel-h">Do corpus aos vértices</h2>
+      <ol class="funnel" id="sam-funnel"></ol>
+    </section>
+
+    <section aria-labelledby="sam-grid-h">
+      <h2 id="sam-grid-h">Vértices por estrato e tema</h2>
+      <div class="panel scroll-x">
+        <table class="summary static" id="sam-grid"></table>
+      </div>
+      <p class="note">Em cada célula, vértices e, embaixo, parágrafos de onde eles saem. Um parágrafo
+        fora do núcleo pode dar vértices a mais de um estrato; por isso as linhas não somam os
+        parágrafos do total.</p>
+    </section>
+
+    <section aria-labelledby="sam-core-h">
+      <h2 id="sam-core-h">Núcleo</h2>
+      <p class="lede" id="sam-core-lede"></p>
+      <div class="filters">
+        <label class="field" for="sam-core-theme">Tema
+          <select id="sam-core-theme"><option value="">Todos</option></select>
+        </label>
+        <label class="check"><input type="checkbox" id="sam-bounds" checked> mostrar onde cada token começa</label>
+      </div>
+      <p class="keys" id="sam-keys"></p>
+      <div class="core-list" id="sam-core"></div>
+    </section>
+
+    <section aria-labelledby="sam-words-h">
+      <h2 id="sam-words-h">Palavras-alvo e controles</h2>
+      <p class="lede" id="sam-words-lede"></p>
+      <div class="scroll-x">
+        <table class="list" id="sam-words"></table>
+      </div>
+    </section>
+
+    <section aria-labelledby="sam-multi-h">
+      <h2 id="sam-multi-h">Palavras multitema</h2>
+      <p class="lede" id="sam-multi-lede"></p>
+      <div class="filters">
+        <label class="field" for="sam-multi-q">Procurar
+          <input id="sam-multi-q" type="search" autocomplete="off" placeholder="palavra">
+        </label>
+        <label class="field" for="sam-multi-theme">Tema
+          <select id="sam-multi-theme"><option value="">Todos</option></select>
+        </label>
+      </div>
+      <p class="count" id="sam-multi-count" aria-live="polite"></p>
+      <div class="scroll-x">
+        <table class="list" id="sam-multi"></table>
+      </div>
+    </section>
+  </div>
+</section>
 </div>
 
 <script type="application/json" id="crawl-data">/*__DATA__*/</script>
 <script type="application/json" id="articles-data">/*__ARTICLES__*/</script>
 <script type="application/octet-stream" id="text-data">/*__TEXT__*/</script>
+<script type="application/octet-stream" id="sample-data">/*__SAMPLE__*/</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
 <script>
@@ -491,18 +614,20 @@ ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); borde
   const revUrl = (revid) => "https://pt.wikipedia.org/w/index.php?oldid=" + revid;
   const isKept = (r) => r[F.reason] == null;
 
+  // gzip+base64 JSON embedded in a <script> island
+  async function inflate(id) {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("Este navegador não descomprime os dados (falta DecompressionStream). Use uma versão recente do Chrome, Firefox ou Safari.");
+    }
+    const b64 = document.getElementById(id).textContent.trim();
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return JSON.parse(await new Response(stream).text());
+  }
   let textsPromise = null;
   function loadTexts() {
     if (!textsPromise) {
-      textsPromise = (async () => {
-        if (typeof DecompressionStream === "undefined") {
-          throw new Error("Este navegador não descomprime o texto (falta DecompressionStream). Use uma versão recente do Chrome, Firefox ou Safari.");
-        }
-        const b64 = document.getElementById("text-data").textContent.trim();
-        const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-        const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"));
-        return JSON.parse(await new Response(stream).text());
-      })();
+      textsPromise = inflate("text-data");
       textsPromise.catch(() => { textsPromise = null; });
     }
     return textsPromise;
@@ -766,22 +891,264 @@ ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); borde
     });
   }
 
+
+  // ---- sample tab ---------------------------------------------------------------------------
+  // How the occurrence sample of the sample stage forms the networks: counts, the core
+  // paragraphs token by token and the studied words with their concordance (gzip+base64 JSON).
+  const REDES_URL = "https://annwith.github.io/gender-representation-networks/redes/";
+  const artByPageid = new Map(rows.map((r, i) => [r[F.pageid], i]));
+  const themeLabel = (t) => (themeById[t] ? themeById[t].label : t);
+  const swatch = (t) => `<span class="swatch" style="display:inline-block;background:var(--t-${t})"></span>`;
+  const showSpace = (t) => t.replace(/^ /, "␣");
+  const viewSample = document.getElementById("view-amostra");
+  let SAM = null;
+  let sampleReady = null;
+  const kwicBy = new Map();  // "w:<word>" or "m:<token id>" -> concordance rows
+  let stratumLabel = {};
+  function loadSample() {
+    if (!sampleReady) {
+      sampleReady = inflate("sample-data").then((d) => { SAM = d; renderSample(); });
+      sampleReady.catch((err) => { document.getElementById("sam-status").textContent = err.message; });
+    }
+    return sampleReady;
+  }
+  function articleLink(pageid) {
+    const i = artByPageid.get(pageid);
+    if (i == null) return escapeHtml(String(pageid));
+    return `<button type="button" class="linkish" data-article="${i}">${escapeHtml(rows[i][F.title])}</button>`;
+  }
+
+  function renderSample() {
+    const T = SAM.totals;
+    stratumLabel = Object.fromEntries(SAM.strata.map((x) => [x.id, x.label]));
+    const cell = (stratum, theme) => SAM.grid[`${stratum}|${theme}`] || [0, 0, 0, 0];
+    const n = (v) => fmt.format(v);
+    const coreVertices = cell("core", "")[0];
+    document.getElementById("sam-status").remove();
+    document.getElementById("tab-amostra-n").textContent = n(T.vertices);
+    document.getElementById("sam-lede").innerHTML =
+      `Como saem do corpus os ${n(T.vertices)} vértices das redes por ocorrência. Cada vértice é uma ` +
+      `<em>ocorrência</em>: um token do Qwen3 numa posição de um parágrafo. As redes lex, L01, L18 e L36 ` +
+      `têm exatamente estes vértices e diferem só no vetor de cada um (<a href="${REDES_URL}" target="_blank" rel="noopener">desenho das redes</a>). ` +
+      `A amostra tem quatro estratos, sorteados nesta ordem por um único gerador (semente ${SAM.seed}).`;
+    document.getElementById("sam-stats").innerHTML =
+      `<span><b>${n(T.vertices)}</b> vértices</span><span><b>${n(T.types)}</b> tipos</span>` +
+      `<span><b>${n(T.paragraphs)}</b> parágrafos</span><span><b>${n(T.articles)}</b> artigos</span>` +
+      `<span><b>${n(T.tokens_to_process)}</b> tokens processados pelo modelo</span>`;
+
+    document.getElementById("sam-funnel").innerHTML = [
+      [`${n(T.corpus_articles)} artigos`, `${n(T.corpus_paragraphs)} parágrafos de prosa no corpus (aba Artigos)`],
+      [`${n(T.paragraphs)} parágrafos`, `de ${n(T.articles)} artigos entram na amostra; cada um vira uma sequência, cortada depois da última posição escolhida nele`],
+      [`${n(T.core_paragraphs)} inteiros`, `o <b>núcleo</b>: ${n(coreVertices)} vértices, todo token que não é espaço, menos os cortados pelo limite por tipo`],
+      [`${n(T.paragraphs - T.core_paragraphs)} esparsos`, `${n(T.vertices - coreVertices)} vértices: só as posições sorteadas de alvos, controles e multitema; o resto do parágrafo é contexto`],
+      [`${n(T.vertices)} vértices`, `${n(T.types)} tipos de token, no máximo ${SAM.f_max} ocorrências por tipo`],
+    ].map(([big, what]) => `<li><span class="big">${big}</span><span class="what">${what}</span></li>`).join("");
+
+    const themes = DATA.themes.map((t) => t.id);
+    const td = (c) => `<td class="n${c[0] ? "" : " zero"}">${n(c[0])}<small>${n(c[1])} par.</small></td>`;
+    const gridRow = (stratum, label) => `<tr><td>${label}</td>${themes.map((t) => td(cell(stratum, t))).join("")}${td(cell(stratum, ""))}</tr>`;
+    document.getElementById("sam-grid").innerHTML =
+      `<thead><tr><th>Estrato</th>${themes.map((t) => `<th class="n">${escapeHtml(themeLabel(t))}</th>`).join("")}<th class="n">Total</th></tr></thead>` +
+      `<tbody>${SAM.strata.map((x) => gridRow(x.id, escapeHtml(x.label))).join("")}</tbody>` +
+      `<tfoot>${gridRow("", "Total")}</tfoot>`;
+
+    // core
+    const D = SAM.core_design;
+    const cutBy = new Map();
+    for (const a of SAM.core) for (const p of a.paragraphs) p.s.forEach((st, j) => { if (st === 2) cutBy.set(p.t[j], (cutBy.get(p.t[j]) || 0) + 1); });
+    const topCut = [...cutBy].sort((x, y) => y[1] - x[1]).slice(0, 8)
+      .map(([t, c]) => `<code>“${escapeHtml(showSpace(t))}”</code> ${n(c)}`).join("; ");
+    const extra = {};
+    for (const a of SAM.core) {
+      const i = artByPageid.get(a.pageid);
+      if (i != null && rows[i][F.origin] !== "root") extra[a.theme] = (extra[a.theme] || 0) + 1;
+    }
+    const nExtra = Object.values(extra).reduce((x, y) => x + y, 0);
+    const extraList = themes.filter((t) => extra[t]).map((t) => `${escapeHtml(themeLabel(t))} ${extra[t]} de ${D.articles_per_theme}`).join(", ");
+    document.getElementById("sam-core-lede").innerHTML =
+      `Por tema, ${D.articles_per_theme} artigos sorteados entre os que têm pelo menos ${D.paragraphs_per_article} parágrafos no corpus, ` +
+      `e ${D.paragraphs_per_article} parágrafos sorteados em cada um: ${n(T.core_paragraphs)} parágrafos e ${n(T.core_before_cap)} tokens que não são espaço. ` +
+      `Para que nenhum tipo passe de f<sub>max</sub> = ${SAM.f_max} ocorrências, as ocorrências que ficam dos ${n(T.core_capped_types)} tipos acima do limite ` +
+      `são sorteadas entre todas as do núcleo: ${n(T.core_cut)} ficam de fora (riscadas no texto; as mais cortadas: ${topCut}) e sobram ${n(coreVertices)} vértices. ` +
+      `É o único estrato com parágrafos inteiros, e a P3 é analisada só nele.` +
+      (nExtra ? ` <b>${nExtra} dos ${SAM.core.length} artigos do núcleo vêm de categorias extras</b>, que entraram no corpus para reforçar sentidos raros ` +
+        `das palavras-alvo, e não da busca a partir da raiz do tema: ${extraList}.` : "");
+    document.getElementById("sam-keys").innerHTML =
+      `<span><span class="tk a">compos</span><span class="tk b">ição</span>: uma palavra, dois tokens e dois vértices</span>` +
+      `<span><span class="tk studied">alvo ou controle</span></span>` +
+      `<span><span class="tk cut">cortado por f<sub>max</sub></span></span>` +
+      `<span>Passe o mouse num token para ver a categoria e a frequência na amostra.</span>`;
+    const coreTheme = document.getElementById("sam-core-theme");
+    for (const t of themes) coreTheme.insertAdjacentHTML("beforeend", `<option value="${t}">${escapeHtml(themeLabel(t))}</option>`);
+    renderCore();
+
+    // target and control words
+    for (const k of SAM.kwic) { if (!kwicBy.has(k[0])) kwicBy.set(k[0], []); kwicBy.get(k[0]).push(k); }
+    const dropped = Object.fromEntries(SAM.dropped.map((x) => [x.word, x]));
+    const nTargets = SAM.words.filter((w) => w.kind === "target").length;
+    const L = SAM.limits;
+    document.getElementById("sam-words-lede").innerHTML =
+      `${nTargets} palavras com sentidos diferentes em temas diferentes (<b>alvos</b>) e ${SAM.words.length - nTargets} de sentido estável ` +
+      `(<b>controles</b>), com a mesma alocação por tema. Cada palavra tem uma cota por tema de sentido: as ocorrências que já estão no núcleo ` +
+      `contam, e só a diferença é sorteada em parágrafos fora dele, com no máximo ${L.per_type_paragraph} por parágrafo e ${L.per_type_article} por artigo. ` +
+      `Só conta a palavra inteira (<code>␣banco</code>, e não <code>␣banco</code> seguido de <code>s</code>). Uma palavra que não chega a ` +
+      `${SAM.min_per_sense} ocorrências em pelo menos 2 temas sai da análise. Em cada tema, obtidas/pedidas; borda tracejada: abaixo de ${SAM.min_per_sense}; ` +
+      `em cinza, ocorrências do núcleo em outros temas, que são vértices com a palavra mas não contam nas cotas. ` +
+      `Clique numa linha para ver todas as ocorrências.`;
+    const quota = ([t, req, core, drawn, fin]) =>
+      `<span class="quota${fin < SAM.min_per_sense ? " low" : ""}" title="${escapeHtml(themeLabel(t))}: ${req} pedidas; ${core} já no núcleo, ${drawn} sorteadas fora dele; ficaram ${fin}">` +
+      `${swatch(t)}${escapeHtml(themeLabel(t))} <b>${fin}</b><small>/${req}</small></span>`;
+    const outside = ([t, count]) =>
+      `<span class="quota other" title="${escapeHtml(themeLabel(t))}: ${count} no núcleo, fora dos temas de sentido">${swatch(t)}${escapeHtml(themeLabel(t))} ${count}</span>`;
+    const wordsTable = document.getElementById("sam-words");
+    wordsTable.innerHTML =
+      `<thead><tr><th>Palavra</th><th>Papel</th><th>Temas de sentido</th><th class="n">Ocorrências</th><th>Situação</th></tr></thead><tbody>` +
+      SAM.words.map((w) => {
+        const total = w.quotas.reduce((x, q) => x + q[4], 0) + w.other.reduce((x, o) => x + o[1], 0);
+        const d = dropped[w.word];
+        const status = w.kept ? '<span class="status kept">mantida</span>'
+          : `<span class="status">descartada</span>${d ? `<span class="hits">só ${d.themes_reaching_min.map(themeLabel).join(", ")} com ≥ ${SAM.min_per_sense}; ${d.removed_occurrences} ocorrências retiradas</span>` : ""}`;
+        return `<tr class="row" tabindex="0" aria-expanded="false" data-key="w:${escapeHtml(w.word)}"><td class="title"><b>${escapeHtml(w.word)}</b></td>` +
+          `<td>${w.kind === "target" ? "alvo" : "controle"}</td><td><div class="words-cell">${w.quotas.map(quota).join("")}${w.other.map(outside).join("")}</div></td>` +
+          `<td class="n">${n(total)}</td><td>${status}</td></tr>`;
+      }).join("") + `</tbody>`;
+
+    // multitheme words
+    const M = SAM.multitheme_design;
+    document.getElementById("sam-multi-lede").innerHTML =
+      `${n(SAM.multi.length)} palavras de conteúdo sorteadas entre as ${n(T.multitheme_eligible)} elegíveis: as que aparecem, como palavra inteira, ` +
+      `pelo menos ${M.min_per_theme} vezes em pelo menos ${M.min_themes} temas fora do núcleo. Cada uma é completada até ${M.per_type} ocorrências, ` +
+      `contando as que já estavam na amostra (no núcleo ou como alvo e controle), em rodízio entre os seus temas. ` +
+      `Elas ampliam a P4 para além das palavras escolhidas à mão. Clique numa linha para ver as ocorrências.`;
+    const multiTheme = document.getElementById("sam-multi-theme");
+    for (const t of themes) multiTheme.insertAdjacentHTML("beforeend", `<option value="${t}">${escapeHtml(themeLabel(t))}</option>`);
+    SAM.multi.sort((x, y) => norm(x.word).localeCompare(norm(y.word), "pt"));
+    renderMulti();
+  }
+
+  function kwicHtml(key) {
+    const items = kwicBy.get(key) || [];
+    const groups = DATA.themes.map((t) => [t.id, items.filter((k) => k[2] === t.id)]).filter(([, list]) => list.length);
+    return `<div class="kwic">` + groups.map(([t, list]) =>
+      `<div><h5>${swatch(t)}${escapeHtml(themeLabel(t))} · ${fmt.format(list.length)}</h5><ol>` + list.map((k) => {
+        const [, stratum, , pageid, left, token, right] = k;
+        const lead = token.match(/^\s*/)[0];
+        return `<li><span class="l">${escapeHtml(left + lead)}</span><span class="k">${escapeHtml(token.slice(lead.length))}</span>` +
+          `<span class="r">${escapeHtml(right)}</span><span class="m">${escapeHtml(stratumLabel[stratum])} · ${articleLink(pageid)}</span></li>`;
+      }).join("") + `</ol></div>`).join("") + `</div>`;
+  }
+
+  function renderCore() {
+    const theme = document.getElementById("sam-core-theme").value;
+    const out = [];
+    for (const t of DATA.themes) {
+      if (theme && t.id !== theme) continue;
+      const arts = SAM.core.filter((a) => a.theme === t.id);
+      if (!arts.length) continue;
+      out.push(`<div class="core-theme"><h3>${swatch(t.id)}${escapeHtml(t.label)}</h3>${arts.map(coreArticle).join("")}</div>`);
+    }
+    document.getElementById("sam-core").innerHTML = out.join("");
+  }
+  function coreArticle(a) {
+    const i = artByPageid.get(a.pageid);
+    const r = rows[i];
+    const origin = r[F.origin];
+    const chips = [
+      origin === "root" ? '<span class="chip">busca a partir da raiz do tema</span>'
+        : `<span class="chip extra">categoria extra: ${escapeHtml(stripCat(origin))}</span>`,
+      `<span class="chip">${escapeHtml(stripCat(r[F.source_category] || ""))}</span>`,
+      `<span class="chip">profundidade ${r[F.depth]}</span>`,
+      `<span class="chip">parágrafos ${a.paragraphs.map((p) => p.idx + 1).join(" e ")} de ${r[F.paragraphs]}</span>`,
+    ].join("");
+    const inGraph = info0.has(r[F.title]) ? `<button type="button" class="linkish" data-graph-title="${i}">na rede</button>` : "";
+    return `<article class="core-art"><header><h4>${escapeHtml(r[F.title])}</h4><span>` +
+      `<button type="button" class="linkish" data-article="${i}">ler o artigo</button>${inGraph}` +
+      `<a class="linkish" href="${revUrl(r[F.revid])}" target="_blank" rel="noopener">revisão</a></span></header>` +
+      `<div class="chips">${chips}</div>${a.paragraphs.map(coreParagraph).join("")}</article>`;
+  }
+  function coreParagraph(p) {
+    let html = "";
+    let k = 0;
+    for (let j = 0; j < p.t.length; j++) {
+      const text = p.t[j], st = p.s[j];
+      if (st === 0) { html += escapeHtml(text); continue; }
+      const lead = text.match(/^\s*/)[0];
+      let cls = "tk", tip;
+      if (st === 2) {
+        cls += " cut"; tip = `cortado: tipo com mais de ${SAM.f_max} ocorrências no núcleo`;
+      } else {
+        cls += k++ % 2 ? " b" : " a";
+        if (st === 3) cls += " studied";
+        tip = `${SAM.categories[p.c[j]]} · ${p.f[j]} na amostra`;
+      }
+      html += escapeHtml(lead) + `<span class="${cls}" title="${escapeHtml(showSpace(text) + " · " + tip)}">${escapeHtml(text.slice(lead.length))}</span>`;
+    }
+    return `<p class="para"><span class="pnum">§${p.idx + 1}</span>${html}</p>`;
+  }
+
+  function renderMulti() {
+    const term = norm(document.getElementById("sam-multi-q").value.trim());
+    const theme = document.getElementById("sam-multi-theme").value;
+    const list = SAM.multi.filter((m) => (!term || norm(m.word).includes(term)) && (!theme || m.themes.includes(theme)));
+    document.getElementById("sam-multi-count").textContent =
+      list.length === SAM.multi.length ? `${fmt.format(list.length)} palavras` : `${fmt.format(list.length)} de ${fmt.format(SAM.multi.length)} palavras`;
+    document.getElementById("sam-multi").innerHTML =
+      `<thead><tr><th>Palavra</th><th>Temas</th><th class="n">Já na amostra</th><th class="n">Sorteadas</th><th class="n">Total</th></tr></thead><tbody>` +
+      (list.map((m) =>
+        `<tr class="row" tabindex="0" aria-expanded="false" data-key="m:${m.id}"><td class="title"><b>${escapeHtml(m.word)}</b></td>` +
+        `<td><span class="dots" title="${escapeHtml(m.themes.map(themeLabel).join(", "))}">${m.themes.map(swatch).join("")}</span> ` +
+        `<small class="sub">${m.themes.length} temas</small></td>` +
+        `<td class="n">${fmt.format(m.before)}</td><td class="n">${fmt.format(m.drawn)}</td><td class="n">${fmt.format(m.before + m.drawn)}</td></tr>`
+      ).join("") || `<tr><td colspan="5" class="empty">Nenhuma palavra com esses filtros.</td></tr>`) + `</tbody>`;
+  }
+
+  function toggleKwic(tr) {
+    const open = tr.getAttribute("aria-expanded") === "true";
+    if (open) tr.nextElementSibling?.remove();
+    else tr.insertAdjacentHTML("afterend", `<tr class="detail"><td colspan="${tr.children.length}">${kwicHtml(tr.dataset.key)}</td></tr>`);
+    tr.setAttribute("aria-expanded", String(!open));
+  }
+  viewSample.addEventListener("click", (e) => {
+    const a = e.target.closest("button[data-article]");
+    if (a) { showArticle(rows[+a.dataset.article][F.title]); return; }
+    const g = e.target.closest("button[data-graph-title]");
+    if (g) { showInGraph(rows[+g.dataset.graphTitle][F.title]); return; }
+    if (e.target.closest("a")) return;
+    const tr = e.target.closest("tr.row[data-key]");
+    if (tr) toggleKwic(tr);
+  });
+  viewSample.addEventListener("keydown", (e) => {
+    const tr = e.target.closest("tr.row[data-key]");
+    if (tr && e.target === tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleKwic(tr); }
+  });
+  document.getElementById("sam-core-theme").addEventListener("change", renderCore);
+  const bounds = document.getElementById("sam-bounds");
+  const syncBounds = () => {
+    for (const id of ["sam-core", "sam-keys"]) document.getElementById(id).classList.toggle("bounds", bounds.checked);
+  };
+  bounds.addEventListener("change", syncBounds);
+  syncBounds();
+  let multiTimer = 0;
+  document.getElementById("sam-multi-q").addEventListener("input", () => { clearTimeout(multiTimer); multiTimer = setTimeout(renderMulti, 150); });
+  document.getElementById("sam-multi-theme").addEventListener("change", renderMulti);
+
   // ---- tabs ---------------------------------------------------------------------------------
-  const views = { rede: document.getElementById("view-rede"), artigos: document.getElementById("view-artigos") };
+  const TABS = ["rede", "artigos", "amostra"];
+  const views = Object.fromEntries(TABS.map((k) => [k, document.getElementById("view-" + k)]));
   let onShowGraph = () => {};
   function showTab(name) {
     for (const [k, el] of Object.entries(views)) {
       el.hidden = k !== name;
       document.getElementById("tab-" + k).setAttribute("aria-selected", String(k === name));
     }
-    try { history.replaceState(null, "", name === "artigos" ? "#artigos" : location.pathname + location.search); } catch (_) { /* sandboxed */ }
+    try { history.replaceState(null, "", name === "rede" ? location.pathname + location.search : "#" + name); } catch (_) { /* sandboxed */ }
     if (name === "rede") onShowGraph();
   }
-  document.getElementById("tab-rede").addEventListener("click", () => showTab("rede"));
-  document.getElementById("tab-artigos").addEventListener("click", () => showTab("artigos"));
+  for (const k of TABS) document.getElementById("tab-" + k).addEventListener("click", () => showTab(k));
   document.querySelector(".tabs").addEventListener("keydown", (e) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    const next = views.rede.hidden ? "rede" : "artigos";
+    const at = TABS.findIndex((k) => !views[k].hidden);
+    const next = TABS[(at + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
     showTab(next); document.getElementById("tab-" + next).focus();
   });
   let showInGraph = () => {};
@@ -789,7 +1156,9 @@ ol.paras li.hit { background: var(--hit); box-shadow: -8px 0 0 var(--hit); borde
 
   renderHead();
   applyFilters();
-  if (location.hash === "#artigos") showTab("artigos");
+  loadSample();
+  const startTab = location.hash.slice(1);
+  if (startTab !== "rede" && TABS.includes(startTab)) showTab(startTab);
 
   // ---- graph --------------------------------------------------------------------------------
   if (!window.graphology || !window.Sigma) {

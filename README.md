@@ -52,9 +52,9 @@ tests/                 testes offline (não baixam pesos)
 data/
   corpus/manifest.csv  pageid e revid de cada artigo do corpus
   graphml/             redes da entrega parcial em GraphML (ver data/graphml/README.md)
-  crawl/               rede da coleta de categorias e a página interativa (rede e artigos)
+  crawl/               rede da coleta e a página interativa (rede, artigos e amostra)
 docs/redes/            página interativa das redes da entrega parcial (GitHub Pages)
-docs/coleta/           cópia da página da coleta e dos artigos do corpus (GitHub Pages)
+docs/coleta/           cópia da página da coleta, do corpus e da amostra (GitHub Pages)
 report/
   report.tex           proposta revisada
   plano-de-execucao.md plano de execução
@@ -65,7 +65,7 @@ report/
 scripts/
   feasibility/         estudo de viabilidade: scripts, saídas (sim_*.txt, hyb_*.txt) e figuras
   partial_delivery/    GraphML, figuras, tabelas e página interativa da entrega parcial
-  crawl_network/       rede da coleta e página dos artigos (data/crawl/, docs/coleta/)
+  crawl_network/       rede da coleta e página da coleta, do corpus e da amostra
   run_network_pilot.py piloto congelado
 ```
 
@@ -133,18 +133,29 @@ principal e grava suas redes e seu relatório gerado separados.
 `_manifest.json` com a configuração, as versões das bibliotecas, os tempos e as estatísticas da
 etapa.
 
-### Conferir os artigos coletados
+### Conferir os artigos coletados e a amostra
 
-A página `data/crawl/rede-de-coleta.html` mostra a coleta em duas abas:
+A página `data/crawl/rede-de-coleta.html` mostra a coleta em três abas:
 
 - **Rede:** as buscas por categorias.
 - **Artigos:** os 2.631 candidatos da etapa `corpus`, com resumo por tema e motivo de descarte,
   busca no título ou no texto, filtros, o link para a revisão exata usada (`oldid`) e o texto
   limpo dos artigos mantidos.
+- **Amostra:** como a etapa `sample` forma os 13.606 vértices das redes. A aba tem:
+  - as contagens por estrato e tema;
+  - os 80 parágrafos do núcleo token a token: vértice, cortado pelo limite `f_max` ou espaço, e
+    se o artigo veio da raiz do tema ou de uma categoria extra;
+  - as cotas das palavras-alvo e de controle e as 150 palavras multitema, cada uma com a
+    concordância de todas as suas ocorrências.
 
 A página é um arquivo único que abre direto no navegador. Uma cópia fica em `docs/coleta/` e é
-publicada em <https://annwith.github.io/gender-representation-networks/coleta/> (abre direto na
-lista com `#artigos`). Para regerar as duas a partir do cache e de `data/corpus/`:
+publicada em <https://annwith.github.io/gender-representation-networks/coleta/>. O endereço
+abre direto numa aba com `#artigos` ou `#amostra`.
+
+Para regerar as duas, o script usa três coisas locais: o cache da API, `data/corpus/` e a
+amostra em `outputs/experiment/main/sample/` (escolha outra pasta com `--sample`). Ele também
+precisa do tokenizer do Qwen3 no cache do Hugging Face e não acessa a rede. Antes de gravar, o
+script confere a amostra contra o corpus e o `_manifest.json`.
 
 ```bash
 .venv/bin/python scripts/crawl_network/build_crawl_network.py
