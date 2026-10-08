@@ -49,12 +49,16 @@ def _nx_avg_clustering(graph: nx.Graph) -> float:
     return float(np.mean([nx.clustering(graph, v) for v in defined]))
 
 
-def _load_export_networks():
-    path = Path(__file__).parents[1] / "scripts" / "partial_delivery" / "export_networks.py"
-    spec = importlib.util.spec_from_file_location("export_networks", path)
+def _load_partial_delivery(name: str):
+    path = Path(__file__).parents[1] / "scripts" / "partial_delivery" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _load_export_networks():
+    return _load_partial_delivery("export_networks")
 
 
 def _edge_set(g: ig.Graph) -> set[tuple[int, int]]:
@@ -157,6 +161,61 @@ def test_directed_clustering_is_undefined_below_two_neighbours() -> None:
     assert reference[3] == reference[4] == 0
     mean = export.measure_directed(g)["avg_local_clustering"]
     assert mean == pytest.approx(np.mean([reference[i] for i in defined]))
+
+
+def test_partial_delivery_compares_networks_edge_by_edge() -> None:
+    export = _load_export_networks()
+    # Undirected edges ignore the order of their ends: 0-1 is shared, 1-2 and 2-3 are not.
+    first = ig.Graph(n=4, edges=[(0, 1), (1, 2)])
+    second = ig.Graph(n=4, edges=[(1, 0), (3, 2)])
+    for g in (first, second):
+        g.vs["occurrence_id"] = [0, 1, 2, 3]
+        g.vs["token_id"] = [7, 7, 8, 9]
+    result = export.compare_networks({"first": first, "second": second})
+    assert math.isnan(result["first"]["jaccard_previous"])
+    assert result["second"]["jaccard_previous"] == pytest.approx(1 / 3)
+    assert result["first"]["same_token_share"] == pytest.approx(1 / 2)
+    assert result["second"]["same_token_share"] == pytest.approx(1 / 2)
+    # Arcs keep their direction.
+    forward = ig.Graph(n=2, edges=[(0, 1)], directed=True)
+    backward = ig.Graph(n=2, edges=[(1, 0)], directed=True)
+    assert export.jaccard(export.edge_keys(forward), export.edge_keys(backward)) == 0
+    second.vs["occurrence_id"] = [0, 1, 3, 2]
+    with pytest.raises(ValueError, match="vertices differ"):
+        export.compare_networks({"first": first, "second": second})
+
+
+def test_visualization_word_position_and_edge_composition() -> None:
+    draw = _load_partial_delivery("draw_networks")
+    # A word of three tokens, a word of one token and a punctuation token (no word).
+    g = ig.Graph(n=5, edges=[(0, 1), (1, 2), (2, 3), (3, 4), (0, 4)])
+    g.vs["pos_in_word"] = [0, 1, 2, 0, -1]
+    g.vs["word_n_tokens"] = [3, 3, 3, 1, 0]
+    g.vs["token_id"] = [1, 2, 3, 4, 5]
+    g.vs["theme"] = ["a", "a", "b", "b", "b"]
+    continues = draw.word_continues(g)
+    assert continues.tolist() == [True, True, False, False, False]
+    composition = draw.edge_composition(g, continues)
+    assert composition["continua_termina"] == pytest.approx(2 / 5)  # 1-2 and 0-4
+    assert composition["mesmo_tema"] == pytest.approx(3 / 5)  # 0-1, 2-3 and 3-4
+    assert composition["mesmo_token"] == 0
+    graph = _nx_from_igraph(g)
+    nx.set_node_attributes(graph, dict(enumerate(continues.tolist())), "continues")
+    expected = nx.attribute_assortativity_coefficient(graph, "continues")
+    assert composition["assortatividade_palavra"] == pytest.approx(expected)
+
+
+def test_visualization_block_of_the_continuing_positions() -> None:
+    draw = _load_partial_delivery("draw_networks")
+    g = ig.Graph.Full(6) + ig.Graph.Full(6)  # two cliques, no edge between them
+    g.vs["community"] = [0] * 6 + [1] * 6
+    continues = np.array([False] * 6 + [True] * 5 + [False])
+    blocks = draw.coarse_blocks(g, continues)
+    assert blocks["comunidades"] == blocks["blocos"] == 2
+    assert blocks["bloco_b_vertices"] == 6
+    assert blocks["bloco_b_continua"] == pytest.approx(5 / 6)
+    assert blocks["bloco_b_cobertura"] == 1
+    assert blocks["bloco_b_arestas_saem"] == 0
 
 
 def test_sampled_distances_close_to_exact_on_small_world() -> None:

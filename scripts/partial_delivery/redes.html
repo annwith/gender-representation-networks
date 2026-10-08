@@ -145,6 +145,7 @@ a { color: var(--accent); }
       <select id="colorBy">
         <option value="theme">tema do artigo</option>
         <option value="token_category">categoria do token</option>
+        <option value="word_position">posição na palavra</option>
         <option value="stratum">estrato da amostra</option>
         <option value="community">comunidade Leiden (8 maiores)</option>
       </select>
@@ -189,6 +190,12 @@ const LABELS = {
       punctuation: "pontuação", number: "número" },
     title: "Categoria do token",
   },
+  word_position: {
+    order: ["continues", "ends"],
+    names: { continues: "a palavra continua no token seguinte", ends: "a palavra termina no token (ou é pontuação)" },
+    colors: { ends: GRAY },
+    title: "Posição do token na palavra",
+  },
   stratum: {
     order: ["core", "target", "control", "multitheme"],
     names: { core: "núcleo (parágrafos inteiros)", target: "alvo (polissêmica)", control: "controle",
@@ -203,8 +210,8 @@ as arestas dela ficam destacadas e os vizinhos aparecem listados aqui.</p>
 muda entre a entrada (lex) e as camadas.</p>
 <p>Em <b>lex</b>, todas as ocorrências de um token têm o mesmo vetor, então formam grupos fechados
 de um token só. Nas camadas, o contexto entra no vetor, e os grupos passam a misturar tokens e a
-seguir o tema. Em <b>L36</b>, o bloco menor reúne as posições no meio de uma palavra (tokens que
-ainda não a terminam): pinte por <i>categoria do token</i> para ver.</p>
+seguir o tema. Em <b>L36</b>, o bloco menor reúne as posições em que a palavra continua no token
+seguinte: pinte por <i>posição na palavra</i> para ver.</p>
 <p>A busca encontra a palavra inteira ou o token exato, sem diferenciar maiúsculas
 (ex.: <i>banco</i>, <i>nota</i>, <i>campo</i>, <i>estado</i>).</p>`;
 
@@ -309,7 +316,7 @@ function computeColors() {
     state.legend.push({ key: "rest", name: `outras ${counts.size - top.length} comunidades`, color: GRAY, n: rest });
   } else {
     const spec = LABELS[kind];
-    const color = new Map(spec.order.map((k, j) => [k, PALETTE[j]]));
+    const color = new Map(spec.order.map((k, j) => [k, (spec.colors && spec.colors[k]) || PALETTE[j]]));
     for (let i = 0; i < n; i++) {
       const k = attr(kind, i);
       keys[i] = k; colors[i] = color.get(k) || GRAY;

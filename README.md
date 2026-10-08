@@ -4,8 +4,8 @@ Projeto da disciplina MO438 (Redes Complexas, Unicamp). Ele usa redes complexas 
 como as representações de tokens de um Transformer passam do espaço lexical de entrada para os
 espaços contextuais das camadas internas.
 
-- **Vértices:** *ocorrências* de tokens (cerca de 15 mil) em parágrafos da Wikipédia em
-  português, escolhidos em 8 temas.
+- **Vértices:** *ocorrências* de tokens (13.606 na execução principal) em parágrafos da
+  Wikipédia em português, escolhidos em 8 temas.
 - **Arestas:** k vizinhos mais próximos (k-NN) pelo cosseno, calculado em `float64`, com três
   tratamentos explícitos de empate, nas versões direcionada, por união e mútua.
 - **Representações:** os mesmos vértices recebem o *embedding* de entrada do seu token e a saída
@@ -18,9 +18,12 @@ As perguntas de pesquisa (P1–P4) estão na proposta (`report/report.tex`). As 
 e o cronograma estão no plano de execução (`report/plano-de-execucao.md`). O relatório técnico,
 escrito junto com a implementação, fica em `report/relatorio/`.
 
-> Estado: todas as etapas estão implementadas e testadas. O corpus foi baixado e o ensaio
-> `configs/mini.yaml` já rodou `sample` e `extract` no modelo real; a execução principal ainda
-> não. Até lá, o relatório marca como *[pendente]* tudo o que depende de uma execução.
+> Estado: todas as etapas estão implementadas e testadas, e a execução principal
+> (`configs/experiment.yaml`) já rodou de ponta a ponta. As figuras, tabelas e números do
+> relatório técnico vêm dela. A entrega parcial da disciplina está pronta (veja
+> [Entrega parcial](#entrega-parcial)). Faltam a anotação manual dos sentidos
+> (`sample/senses.csv`) e parte da escrita do relatório técnico (resultados, robustez e
+> discussão).
 
 ## Estrutura
 
@@ -46,12 +49,22 @@ src/gender_networks/
                                      piloto congelado (não alterar)
   modeling.py, config.py             utilitários herdados de carregamento do modelo
 tests/                 testes offline (não baixam pesos)
+data/
+  corpus/manifest.csv  pageid e revid de cada artigo do corpus
+  graphml/             redes da entrega parcial em GraphML (ver data/graphml/README.md)
+  crawl/               rede da coleta de categorias e a sua página interativa
+docs/redes/            página interativa das redes da entrega parcial (GitHub Pages)
 report/
   report.tex           proposta revisada
   plano-de-execucao.md plano de execução
   relatorio/           relatório técnico vivo (ver report/relatorio/README.md)
+  entrega-parcial/               entrega parcial: redes não direcionadas (itens 1 a 8)
+  entrega-parcial-direcionada/   entrega parcial: redes direcionadas (itens 1 a 8)
+  entrega-parcial-visualizacao/  entrega parcial: visualização das redes (item 9)
 scripts/
   feasibility/         estudo de viabilidade: scripts, saídas (sim_*.txt, hyb_*.txt) e figuras
+  partial_delivery/    GraphML, figuras, tabelas e página interativa da entrega parcial
+  crawl_network/       rede da coleta de categorias (data/crawl/)
   run_network_pilot.py piloto congelado
 ```
 
@@ -99,6 +112,9 @@ principal e grava suas redes e seu relatório gerado separados.
 | `outputs/experiment/<nome>/knn/` | candidatos e conjuntos de vizinhos (`.npz`) |
 | `outputs/experiment/<nome>/metrics/`, `analysis/`, `lens/` | tabelas CSV/JSON |
 | `report/relatorio/figuras/`, `tabelas/` | material gerado para o relatório |
+| `data/graphml/` | redes da entrega parcial em GraphML (versionadas) |
+| `report/entrega-parcial*/figuras/`, `tabelas/` | material gerado para a entrega parcial |
+| `docs/redes/` | página interativa das redes da entrega parcial e os seus dados |
 
 `<nome>` é o campo `name` do YAML (`main` ou `mini`). Cada pasta de etapa tem um
 `_manifest.json` com a configuração, as versões das bibliotecas, os tempos e as estatísticas da
@@ -126,6 +142,34 @@ uv run python scripts/feasibility/plot_feasibility.py
 
 Detalhes em `report/relatorio/README.md`.
 
+## Entrega parcial
+
+A entrega parcial da disciplina tem três documentos, cada um com o seu PDF compilado:
+
+| Documento | Conteúdo |
+|---|---|
+| `report/entrega-parcial/entrega-parcial.pdf` | dados, construção das redes e itens 1 a 8 nas redes não direcionadas por união |
+| `report/entrega-parcial-direcionada/entrega-parcial-direcionada.pdf` | os mesmos itens nas redes direcionadas |
+| `report/entrega-parcial-visualizacao/entrega-parcial-visualizacao.pdf` | visualização das redes (item 9) |
+
+As quatro redes (lex, L01, L18 e L36, com k = 10) estão em GraphML em `data/graphml/`, nas duas
+versões, com os atributos descritos em `data/graphml/README.md`. A versão interativa da
+visualização fica em `docs/redes/` e é publicada pelo GitHub Pages em
+<https://annwith.github.io/gender-representation-networks/redes/>.
+
+`export_networks.py` lê os artefatos da execução principal (`outputs/experiment/main/`) e grava
+os GraphML, as figuras e a tabela de métricas de uma versão; `draw_networks.py` parte dos GraphML
+e grava as figuras e tabelas da visualização e a página interativa:
+
+```bash
+.venv/bin/python scripts/partial_delivery/export_networks.py --sym union
+.venv/bin/python scripts/partial_delivery/export_networks.py --sym directed
+.venv/bin/python scripts/partial_delivery/draw_networks.py
+cd report/entrega-parcial && latexmk -pdf entrega-parcial.tex  # idem nas outras duas pastas
+```
+
+Os textos dos três documentos são escritos à mão, a partir das tabelas geradas.
+
 ## Testes e lint
 
 ```bash
@@ -149,12 +193,13 @@ do Hugging Face e são pulados se ele não estiver disponível.
 
 ## Hardware
 
-A execução foi planejada para uma RTX 4070 de notebook (8 GiB), 20 núcleos e 15 GiB de RAM. Os
-pesos não cabem inteiros na GPU junto com as ativações. Por isso a extração usa
-`device_map="auto"` com `max_memory` (6 GiB na GPU e 10 GiB na CPU, em `configs/experiment.yaml`):
-parte dos blocos fica na CPU e é transferida durante o *forward*. Isso muda o tempo, não o
-resultado. Se faltar memória, reduza `max_memory`. As similaridades do k-NN são calculadas na
-CPU em `float64`, em blocos. A rede do vocabulário ocupa cerca de 3 GB de memória nesse cálculo.
+A execução principal usou uma única RTX A5500 (24 GiB). A extração usa `device_map="auto"` com
+`max_memory` (20 GiB na GPU e 10 GiB na CPU, em `configs/experiment.yaml`), e os pesos (cerca de
+7,5 GiB em bf16) cabem inteiros na GPU. Numa GPU de 8 GiB, como a RTX 4070 de notebook usada no
+desenvolvimento, use 6 GiB na GPU: parte dos blocos fica na CPU e é transferida durante o
+*forward*. Isso muda o tempo, não o resultado. Se faltar memória, reduza `max_memory`. As
+similaridades do k-NN são calculadas na CPU em `float64`, em blocos. A rede do vocabulário ocupa
+cerca de 3 GB de memória nesse cálculo.
 
 ## Piloto congelado
 

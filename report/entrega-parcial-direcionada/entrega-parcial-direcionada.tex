@@ -38,6 +38,7 @@
 
 \newcommand{\repo}{https://github.com/annwith/gender-representation-networks}
 \newcommand{\dados}{\repo/tree/main/data/graphml}
+\newcommand{\visual}{\repo/blob/main/report/entrega-parcial-visualizacao/entrega-parcial-visualizacao.pdf}
 
 % ------------------------------------------------------------
 % Documento
@@ -68,7 +69,8 @@ que são o objeto produzido diretamente pelo k-NN.
 \textbf{Dados do projeto:} \url{\repo}. As redes, em GraphML, estão em
 \href{\dados}{\texttt{data/graphml/}}. Esta versão é gerada pelo script
 \texttt{export\_networks.py}, em \texttt{scripts/partial\_delivery/}, com a opção
-\texttt{-{}-sym directed}.
+\texttt{-{}-sym directed}. A visualização das redes (item 9) é entregue em um arquivo separado,
+\href{\visual}{\texttt{entrega-parcial-visualizacao.pdf}}.
 
 % ============================================================
 \section*{2. Origem dos dados e construção das redes}
@@ -146,8 +148,11 @@ $j\in N_i$). O modelo nunca processa dois parágrafos juntos: a comparação ent
 ocorrências de parágrafos diferentes acontece só no espaço dos vetores. As redes diferem só em $x_i$: \textbf{lex}, o
 \textit{embedding} de entrada (ocorrências do mesmo token são idênticas; empates desfeitos ao
 acaso, semente 0), e \textbf{L01}, \textbf{L18} e \textbf{L36}, a saída dos blocos 1, 18 e
-36. \textbf{Arquivos:} \texttt{\textit{rede}\_k10\_directed.graphml} (cerca de 17,5\,MB
-cada); cada vértice traz token, palavra, tema, artigo, contexto textual e as medidas abaixo.
+36. Os arcos não têm peso: registram só que $j$ está entre os $k$ mais próximos de $i$, sem
+o valor do cosseno. \textbf{Arquivos:} \texttt{\textit{rede}\_k10\_directed.graphml} (cerca de
+19\,MB cada); cada vértice traz token, palavra e posição do token nela, tema, artigo, contexto
+textual e as medidas abaixo, e os arcos não têm atributos (descrição dos atributos em
+\texttt{data/graphml/README.md}).
 
 % ============================================================
 \section*{3. Definições para a rede direcionada}
@@ -186,8 +191,10 @@ $E=\frac{1}{|V|(|V|-1)}\sum_{i\neq j}1/d(i,j)$, com $1/\infty=0$, e sua inversa 
 \begin{table}[h]
 \centering
 \small
+\setlength{\tabcolsep}{3.5pt}
 \caption{Métricas das quatro redes direcionadas ($k=10$). Distâncias exatas, por busca em
-largura a partir de cada vértice.}
+largura a partir de cada vértice. As duas últimas linhas comparam as redes; o Jaccard é
+$|A\cap A'|/|A\cup A'|$, com $A$ os arcos da rede e $A'$ os da coluna anterior.}
 \label{tab:metricas}
 \input{tabelas/metricas.tex}
 \end{table}
@@ -256,32 +263,18 @@ Também há efeitos que a versão não direcionada não mostra: em L36 a maior d
 é 50 (11 na rede de união), e a média (a) sobe de 7,0 em L18 para 10,0 em L36, ao passo que
 na rede de união as duas camadas ficam próximas (5,1 e 5,3).
 
-\begin{figure}[h]
-\centering
-\includegraphics{figuras/redes.pdf}
-\caption{As quatro redes (item 9), cada uma com o seu layout UMAP (\texttt{igraph}, semente
-438), com os vértices coloridos pelo tema do artigo. O recorte é o disco que contém 99\% dos
-vértices; os 137 restantes de cada rede, grupos pequenos empurrados para a periferia, ficam
-de fora. Os arcos aparecem sem sentido; sem ele, as arestas são exatamente as da rede de união,
-e a figura é a mesma da entrega não direcionada. Versão interativa, com todos os vértices, busca por palavra e a lista de
-vizinhos de cada ocorrência: \url{https://annwith.github.io/gender-representation-networks/redes/}.}
-\label{fig:redes}
-\end{figure}
-
-\textbf{Visualização (item 9, Fig.~\ref{fig:redes}).} Em lex e L01, a rede se espalha em
-centenas de grupos pequenos, em geral as ocorrências de um mesmo token, com temas misturados:
-em lex, 68\% das arestas ligam ocorrências do mesmo token e só 20\% ligam ocorrências do
-mesmo tema. Em L18, os grupos se fundem num bloco central com regiões dominadas por um tema,
-e as arestas entre ocorrências do mesmo tema sobem para 52\% (a assortatividade por tema
-passa de 0,09 em lex para 0,45). Em L36 elas caem para 44\%, e a rede se divide em dois
-blocos, ligados por só 1,1\% das arestas. O bloco menor (3.984 vértices) é quase todo de
-posições no meio de uma palavra, isto é, tokens que ainda não a terminam (94\% dos seus
-vértices), e reúne 94\% dessas posições. A última camada, que prepara a previsão do próximo
-token, separa as ocorrências também pelo que deve vir depois, e não só pelo contexto
-anterior.
+\textbf{Comparação entre as redes.} As duas últimas linhas da Tabela~\ref{tab:metricas}
+comparam as redes arco a arco. Como todo vértice tem $k$ arcos de saída, a fração dos arcos
+entre ocorrências do mesmo token é a média, sobre os vértices, da fração dos seus vizinhos que
+são do mesmo token: 70\% em lex, 69\% em L01, 43\% em L18 e 25\% em L36. O índice de Jaccard
+com a rede anterior é 0,18 de L01 para L18 e 0,16 de L18 para L36, ou seja, os arcos mudam
+tanto entre os blocos 18 e 36 quanto entre os blocos 1 e 18. Entre lex e L01 (0,32), o índice
+subestima a semelhança, porque em lex as ocorrências de um token são idênticas, e quais delas
+se ligam é decidido pelo sorteio do desempate.
 
 \textbf{Síntese.} A versão direcionada confirma a reorganização lex/L01 $\to$ L18/L36
-(clusterização menor, componente forte gigante, \textit{hubs} em L36), mas suas distâncias
+(clusterização menor, componente forte gigante, \textit{hubs} em L36) e mostra, arco a arco,
+que ela continua entre os blocos 18 e 36. Mas suas distâncias
 medem sobretudo \emph{alcançabilidade}: os grupos fechados por token em lex e os vértices
 não escolhidos em L36 tornam a maioria ou uma parte grande dos pares inalcançável. Por isso,
 no restante do projeto, as distâncias serão comparadas na rede não direcionada por união, e

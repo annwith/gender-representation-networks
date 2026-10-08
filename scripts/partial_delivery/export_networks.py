@@ -17,7 +17,12 @@ igraph), so the delivered files are exactly what was measured:
 2. global clustering: transitivity (ratio of closed triples) and mean local clustering;
 3. local clustering of every vertex and its distribution;
 4. mean distance and 5. diameter;
-6. density; 7. degree distribution; 8. components and their size distribution.
+6. density; 7. degree distribution; 8. components and their size distribution;
+
+and two comparisons that rely on the four networks sharing their vertices: the share of the
+edges (arcs) that join two occurrences of the same token, and the Jaccard index between the edge
+(arc) sets of consecutive networks (lex -> L01 -> L18 -> L36). The drawings of item 9 and their
+numbers come from ``draw_networks.py``.
 
 Local clustering is undefined (NaN) for a vertex with fewer than two neighbours, and such
 vertices are left out of the mean, the median and the distribution of item 3.
@@ -92,6 +97,8 @@ VERTEX_COLUMNS = {
     "token_category": str,
     "is_function_word": bool,
     "word": str,
+    "word_n_tokens": int,
+    "pos_in_word": int,
     "stratum": str,
     "theme": str,
     "target_word": str,
@@ -320,6 +327,52 @@ def measure(path: Path) -> tuple[dict[str, Any], ig.Graph]:
     g = ig.Graph.Read_GraphML(str(path))
     g.simplify()
     return (measure_directed if g.is_directed() else measure_union)(g), g
+
+
+def edge_keys(g: ig.Graph) -> np.ndarray:
+    """Sorted distinct ``i * n + j`` keys of the edges (``i < j`` when undirected)."""
+
+    e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
+    if not g.is_directed():
+        e = np.sort(e, axis=1)
+    return np.unique(e[:, 0] * g.vcount() + e[:, 1])
+
+
+def jaccard(a: np.ndarray, b: np.ndarray) -> float:
+    """Jaccard index of two arrays of distinct keys."""
+
+    common = np.intersect1d(a, b, assume_unique=True).size
+    return common / (a.size + b.size - common)
+
+
+def same_token_share(g: ig.Graph) -> float:
+    """Share of the edges (arcs) whose two ends are occurrences of the same token."""
+
+    e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
+    token = np.asarray(g.vs["token_id"], dtype=np.int64)
+    return float(np.mean(token[e[:, 0]] == token[e[:, 1]]))
+
+
+def compare_networks(graphs: Mapping[str, ig.Graph]) -> dict[str, dict[str, float]]:
+    """Same-token share of every network and the Jaccard index of its edges with the previous.
+
+    The networks must list the same vertices in the same order (the previous of the first one
+    does not exist, so its Jaccard index is NaN).
+    """
+
+    reps = list(graphs)
+    first = graphs[reps[0]].vs["occurrence_id"]
+    for rep in reps[1:]:
+        if graphs[rep].vs["occurrence_id"] != first:
+            raise ValueError(f"{rep}: the vertices differ from those of {reps[0]}")
+    keys = {rep: edge_keys(g) for rep, g in graphs.items()}
+    return {
+        rep: {
+            "same_token_share": same_token_share(graphs[rep]),
+            "jaccard_previous": jaccard(keys[reps[i - 1]], keys[rep]) if i else math.nan,
+        }
+        for i, rep in enumerate(reps)
+    }
 
 
 REFERENCE_KEYS = {
@@ -646,6 +699,10 @@ def metrics_table(results: Mapping[str, Mapping[str, Any]], sym: str) -> pd.Data
                 "eficiencia_global": r["efficiency"],
                 "distancia_harmonica": 1 / r["efficiency"],
             }
+        row |= {
+            "fracao_mesmo_token": r["same_token_share"],
+            "jaccard_rede_anterior": r["jaccard_previous"],
+        }
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -666,6 +723,11 @@ def _pct(row: Mapping[str, Any], key: str) -> str:
     return f"{plots.fmt_dec(100 * row[key], 1)}\\%"
 
 
+def _dec_or_dash(digits: int) -> Any:
+    return lambda row, key: "---" if pd.isna(row[key]) else plots.fmt_dec(row[key], digits)
+
+
+# ``None`` draws a rule between groups of rows.
 LATEX_ROWS = {
     "union": [
         ("Vértices", "vertices", _int),
@@ -687,6 +749,9 @@ LATEX_ROWS = {
         ),
         ("Distância média$^\\ast$", "distancia_media", _dec(2)),
         ("Diâmetro$^\\ast$", "diametro", _int),
+        None,
+        ("Arestas entre ocorrências do mesmo token", "fracao_mesmo_token", _pct),
+        ("Jaccard das arestas com a rede anterior", "jaccard_rede_anterior", _dec_or_dash(3)),
     ],
     "directed": [
         ("Vértices", "vertices", _int),
@@ -720,6 +785,9 @@ LATEX_ROWS = {
         ("(b) Diâmetro da maior comp.\\ forte", "diametro_cfc", _int),
         ("(c) Eficiência global $E$", "eficiencia_global", _dec(3)),
         ("(c) Distância harmônica $1/E$", "distancia_harmonica", _dec(2)),
+        None,
+        ("Arcos entre ocorrências do mesmo token", "fracao_mesmo_token", _pct),
+        ("Jaccard dos arcos com a rede anterior", "jaccard_rede_anterior", _dec_or_dash(3)),
     ],
 }
 
@@ -734,7 +802,11 @@ def latex_table(table: pd.DataFrame, sym: str) -> str:
         "Métrica & " + " & ".join(reps) + " \\\\",
         "\\midrule",
     ]
-    for name, key, cell in LATEX_ROWS[sym]:
+    for entry in LATEX_ROWS[sym]:
+        if entry is None:
+            lines.append("\\midrule")
+            continue
+        name, key, cell = entry
         cells = [cell(row, key) for _, row in table.iterrows()]
         lines.append(f"{name} & " + " & ".join(cells) + " \\\\")
     lines += ["\\bottomrule", "\\end{tabular}", ""]
@@ -754,6 +826,7 @@ def main() -> None:
     vertices = vertex_table(args.run)
     args.graphml.mkdir(parents=True, exist_ok=True)
     results: dict[str, dict[str, Any]] = {}
+    graphs: dict[str, ig.Graph] = {}
     for rep in REPS:
         g, fingerprint = build_graph(args.run, rep, vertices, sym)
         add_vertex_measures(g)
@@ -769,11 +842,14 @@ def main() -> None:
         if sym == "directed":
             check_clustering_with_networkx(rep, path, result["local_clustering"])
         results[rep] = result
+        graphs[rep] = back
         size = path.stat().st_size / 2**20
         print(
             f"{path.relative_to(REPO)}: {result['n_vertices']} vértices, "
             f"{result['n_edges']} arestas, {size:.1f} MiB, arestas = metrics ({fingerprint[:10]})"
         )
+    for rep, comparison in compare_networks(graphs).items():
+        results[rep].update(comparison)
 
     write_figures(results, sym, out / "figuras")
     table = metrics_table(results, sym)
