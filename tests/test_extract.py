@@ -24,6 +24,7 @@ from gender_networks.artifacts import (
     write_csv,
     write_jsonl,
 )
+from gender_networks.representations import FINAL_NORM
 from gender_networks.settings import ModelSettings, PathsSettings, Settings
 
 N_LAYERS = 4
@@ -501,7 +502,7 @@ def test_run_writes_every_artifact(
         x = load_bf16(paths.rep(name), "x")
         assert x.shape == (n, HIDDEN)
         assert torch.equal(x, all_layers[layer - 1])
-    l36n = load_bf16(paths.rep(ex.NORM_REP), "x")
+    l36n = load_bf16(paths.rep(FINAL_NORM.name), "x")
     assert torch.equal(l36n, norm.to(torch.bfloat16))
     weight = load_bf16(paths.embeddings, "weight")
     assert weight.shape == (VOCAB, HIDDEN)
@@ -696,7 +697,7 @@ def test_run_in_bfloat16_matches_the_saved_artifacts(
 
     raw_blocks, raw_norm = reference(bf16_model, occurrences)
     groups = occurrences["prefix_group"].to_numpy()
-    l36n = load_bf16(paths.rep(ex.NORM_REP), "x")
+    l36n = load_bf16(paths.rep(FINAL_NORM.name), "x")
     assert torch.equal(l36n, align_groups(raw_norm, groups, axis=0).to(torch.bfloat16))
     weight = load_bf16(paths.embeddings, "weight")
     # production dtype: pred_next is reproducible from the stored bf16 artifacts

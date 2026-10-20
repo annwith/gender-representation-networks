@@ -27,7 +27,6 @@ from gender_networks.knn import (
     normalize_rows,
     output_paths,
     rep_rng,
-    representation_specs,
     run,
     select_neighbors,
     select_row,
@@ -35,6 +34,7 @@ from gender_networks.knn import (
     vocab_candidates_path,
     vocab_neighbors_path,
 )
+from gender_networks.representations import occurrence_names
 from gender_networks.settings import (
     NetworkSettings,
     PathsSettings,
@@ -543,7 +543,7 @@ def test_run_end_to_end(tmp_path: Path) -> None:
     n = token_ids.size
     run(settings, paths)
 
-    reps = list(representation_specs(settings))
+    reps = occurrence_names(settings)
     assert reps == ["lex", "L01", "L18", "L36", "L36n", "L01c", "L18c", "L36c"]
     assert all(path.exists() for path in output_paths(settings, paths))
     for rep in reps:

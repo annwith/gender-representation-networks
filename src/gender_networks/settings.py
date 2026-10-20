@@ -13,6 +13,8 @@ from typing import Any
 
 import yaml
 
+from gender_networks.representations import FINAL_NORM, try_parse
+
 
 @dataclass(frozen=True)
 class PathsSettings:
@@ -236,11 +238,22 @@ def _validate(settings: Settings) -> None:
         raise ValueError("networks.candidates must exceed the largest k")
     if networks.seeds < 2:
         raise ValueError("networks.seeds must be at least 2 (noise floor needs seed pairs)")
-    unknown_layers = set(networks.representations + networks.robust_representations) - (
-        {"lex", "L36n"} | set(settings.model.layers)
-    )
+    unknown_layers = {
+        name
+        for name in networks.representations + networks.robust_representations
+        if not _known_representation(name, settings.model.layers)
+    }
     if unknown_layers:
         raise ValueError(f"Unknown representations: {', '.join(sorted(unknown_layers))}")
+
+
+def _known_representation(name: str, layers: dict[str, int]) -> bool:
+    """``lex``, the final RMSNorm output, or a configured block (uncentered)."""
+
+    rep = try_parse(name)
+    if rep is None or rep.centered:
+        return False
+    return rep.is_lexical or rep == FINAL_NORM or (rep.kind == "layer" and name in layers)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

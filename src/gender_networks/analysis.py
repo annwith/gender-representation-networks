@@ -4,9 +4,11 @@ Outputs in ``paths.analysis_dir`` (all CSV unless noted), read by the ``report``
 
 - ``vertex_measures.csv``: one row per occurrence (main configuration, ``k = k_main``):
   ``D_{rep}`` and ``Dn_{rep}`` (dominance and dominance over its ceiling) for every main
-  representation, ``NF_lex`` (tie noise floor), and for every pair ``a→b`` in :data:`PAIRS`
-  the Jaccard ``J_{a}_{b}``, the type-composition Jaccard ``Jw_{a}_{b}`` and the
-  distinct-type Jaccard ``Jc_{a}_{b}``. Lexical sets are averaged over the tie seeds.
+  representation, ``NF_lex`` (tie noise floor), and for every pair ``a→b`` of
+  :func:`~gender_networks.representations.transition_pairs` (consecutive representations and
+  ``lex`` to each later block) the Jaccard ``J_{a}_{b}``, the type-composition Jaccard
+  ``Jw_{a}_{b}`` and the distinct-type Jaccard ``Jc_{a}_{b}``. Lexical sets are averaged over
+  the tie seeds.
 - ``p1_summary.csv``: long table ``measure, group, value, count, mean, median, std, q25, q75``
   of the vertex measures by ``all``, band, category, stratum, position bucket and
   band x category.
@@ -45,12 +47,15 @@ from gender_networks.neighborhood import (
     type_set_jaccard,
 )
 from gender_networks.partitions import agreement, nmi
+from gender_networks.representations import (
+    LEX,
+    is_lexical,
+    occurrence_names,
+    transition_pairs,
+)
 from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
-LEXICAL = "lex"
-PAIRS = [("lex", "L01"), ("L01", "L18"), ("L18", "L36"), ("lex", "L18"), ("lex", "L36")]
-CONSECUTIVE = PAIRS[:3]
 GROUPINGS: list[tuple[str, list[str]]] = [
     ("all", []),
     ("band_sample", ["band_sample"]),
@@ -111,7 +116,7 @@ def seed_sets(data: Mapping[str, np.ndarray], rep: str) -> list[np.ndarray]:
     """Neighbour sets of the main tie treatment: every seed for ``lex``, seed 0 otherwise."""
 
     rand = data["rand"]
-    return [rand[r] for r in range(rand.shape[0])] if rep == LEXICAL else [rand[0]]
+    return [rand[r] for r in range(rand.shape[0])] if is_lexical(rep) else [rand[0]]
 
 
 def type_sets(data: Mapping[str, np.ndarray]) -> np.ndarray:
@@ -123,9 +128,13 @@ def type_sets(data: Mapping[str, np.ndarray]) -> np.ndarray:
 
 
 def vertex_measures(
-    occurrences: pd.DataFrame, nbrs: Mapping[str, Mapping[str, np.ndarray]], k: int
+    occurrences: pd.DataFrame,
+    nbrs: Mapping[str, Mapping[str, np.ndarray]],
+    k: int,
+    pairs: Sequence[tuple[str, str]],
 ) -> pd.DataFrame:
-    """Per-occurrence dominance, noise floor and change between representations."""
+    """Per-occurrence dominance, noise floor and change between the representations of
+    each pair."""
 
     token_ids = occurrences["token_id"].to_numpy(dtype=np.int64)
     f_sample = occurrences["f_sample"].to_numpy(dtype=np.int64)
@@ -137,9 +146,9 @@ def vertex_measures(
         dom = np.mean([dominance(s, token_ids) for s in rep_sets], axis=0)
         out[f"D_{rep}"] = dom
         out[f"Dn_{rep}"] = normalized_dominance(dom, ceiling)
-    if LEXICAL in nbrs and nbrs[LEXICAL]["rand"].shape[0] >= 2:
-        out["NF_lex"] = noise_floor(nbrs[LEXICAL]["rand"])
-    for a, b in PAIRS:
+    if LEX in nbrs and nbrs[LEX]["rand"].shape[0] >= 2:
+        out["NF_lex"] = noise_floor(nbrs[LEX]["rand"])
+    for a, b in pairs:
         if a not in sets or b not in sets:
             continue
         pairs = [(sa, sets[b][i % len(sets[b])]) for i, sa in enumerate(sets[a])]
@@ -183,12 +192,15 @@ def summarize(
 
 
 def transitions_table(
-    measures: pd.DataFrame, occurrences: pd.DataFrame
+    measures: pd.DataFrame,
+    occurrences: pd.DataFrame,
+    consecutive_pairs: Sequence[tuple[str, str]],
+    pairs: Sequence[tuple[str, str]],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Change per transition overall and by band x category (P2)."""
 
-    available = [(a, b) for a, b in PAIRS if f"J_{a}_{b}" in measures]
-    consecutive = [(a, b) for a, b in CONSECUTIVE if (a, b) in available]
+    available = [(a, b) for a, b in pairs if f"J_{a}_{b}" in measures]
+    consecutive = [(a, b) for a, b in consecutive_pairs if (a, b) in available]
     largest = None
     if consecutive:
         stacked = np.vstack([measures[f"J_{a}_{b}"].to_numpy() for a, b in consecutive])
@@ -200,7 +212,7 @@ def transitions_table(
             j = measures.loc[mask, f"J_{a}_{b}"].to_numpy()
             floor = (
                 measures.loc[mask, "NF_lex"].to_numpy()
-                if a == LEXICAL and "NF_lex" in measures
+                if is_lexical(a) and "NF_lex" in measures
                 else np.ones_like(j)
             )
             da = measures.loc[mask, f"D_{a}"].to_numpy()
@@ -367,8 +379,8 @@ def robustness_neighbors(
     rows: list[dict[str, Any]] = []
     lexical: dict[tuple[int, str], Any] = {}
     for k in net.k_values:
-        if paths.nbr(LEXICAL, k).exists():
-            data = load_npz(paths.nbr(LEXICAL, k))
+        if paths.nbr(LEX, k).exists():
+            data = load_npz(paths.nbr(LEX, k))
             lexical[(k, "pos")] = data["pos"]
             lexical[(k, "rand")] = data["rand"][0]
             lexical[(k, "all")] = (data["all_indptr"], data["all_idx"])
@@ -398,7 +410,7 @@ def robustness_neighbors(
                     if isinstance(sets, tuple)
                     else float(k),
                 }
-                if rep != LEXICAL and (k, tie) in lexical:
+                if not is_lexical(rep) and (k, tie) in lexical:
                     row["J_vs_lex_mean"] = float(np.nanmean(jaccard(lexical[(k, tie)], sets)))
                 rows.append(row)
             eps_path = paths.nbr(rep, k, sensitivity=True)
@@ -534,10 +546,10 @@ def p3_tables(
     ordered = [rep for rep in reps if rep in memberships]
     for a, b in zip(ordered, ordered[1:], strict=False):
         layer_rows.append({"from": a, "to": b, "nmi": nmi(memberships[a], memberships[b])})
-    seed1 = community_membership(paths, f"{LEXICAL}|k{k}|union|rand|s1", res)
-    if seed1 is not None and LEXICAL in memberships:
+    seed1 = community_membership(paths, f"{LEX}|k{k}|union|rand|s1", res)
+    if seed1 is not None and LEX in memberships:
         layer_rows.append(
-            {"from": "lex(s0)", "to": "lex(s1)", "nmi": nmi(memberships[LEXICAL], seed1[0])}
+            {"from": "lex(s0)", "to": "lex(s1)", "nmi": nmi(memberships[LEX], seed1[0])}
         )
     return pd.DataFrame(rows), pd.DataFrame(layer_rows)
 
@@ -606,7 +618,7 @@ def p4_tables(
     for rep in reps:
         found = community_membership(paths, f"{rep}|k{k}|union|rand|s0", res)
         membership = found[0] if found else None
-        if rep == LEXICAL:
+        if is_lexical(rep):
             weight = load_embeddings(paths.embeddings)
             vectors = None
             lexical_rows = weight
@@ -793,13 +805,14 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
     timings: dict[str, float] = {}
 
     tick = time.perf_counter()
-    measures = vertex_measures(occurrences, nbrs, k)
+    consecutive, pairs = transition_pairs(settings.networks.representations)
+    measures = vertex_measures(occurrences, nbrs, k, pairs)
     labelled = pd.concat(
         [measures, occurrences[["band_sample", "token_category", "stratum", "pos_bucket"]]], axis=1
     )
     _write(measures, out_dir / "vertex_measures.csv")
     _write(summarize(labelled, measure_columns(measures), GROUPINGS), out_dir / "p1_summary.csv")
-    overall, grouped = transitions_table(measures, occurrences)
+    overall, grouped = transitions_table(measures, occurrences, consecutive, pairs)
     _write(overall, out_dir / "p2_transitions.csv")
     _write(grouped, out_dir / "p2_transitions_groups.csv")
     timings["p1_p2_s"] = round(time.perf_counter() - tick, 2)
@@ -814,10 +827,9 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
     _write(hubs_table(paths, occurrences, settings), out_dir / "p1_hubs.csv")
 
     tick = time.perf_counter()
-    from gender_networks.metrics import occurrence_representations
 
     _write(
-        robustness_neighbors(paths, settings, occurrences, occurrence_representations(settings)),
+        robustness_neighbors(paths, settings, occurrences, occurrence_names(settings)),
         out_dir / "robustness_neighbors.csv",
     )
     _write(core_metrics(paths, settings, occurrences, reps), out_dir / "core_metrics.csv")
@@ -846,7 +858,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
     layer_rows = 0
     if settings.analysis.layer_sweep and paths.all_layers.exists():
         tick = time.perf_counter()
-        lexical_pos = nbrs[LEXICAL]["pos"] if LEXICAL in nbrs else None
+        lexical_pos = nbrs[LEX]["pos"] if LEX in nbrs else None
         sweep = layer_sweep(
             paths,
             settings,

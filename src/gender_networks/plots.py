@@ -43,6 +43,8 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 from matplotlib.ticker import FuncFormatter, MaxNLocator, ScalarFormatter  # noqa: E402
 
+from gender_networks.representations import is_lexical, parse, try_parse  # noqa: E402
+
 # --------------------------------------------------------------------------------------------
 # palette (dataviz reference palette, light mode: the report is printed on white)
 
@@ -87,14 +89,8 @@ WIDTH_IN = 6.3
 # --------------------------------------------------------------------------------------------
 # Portuguese labels shared with the tables
 
-REP_LABELS = {
-    "lex": "lex",
-    "L01": "L01",
-    "L18": "L18",
-    "L36": "L36",
-    "L36n": "L36n",
-    "vocab": "vocabulário",
-}
+# Representations are shown by their name (lex, L01, L36n...); only the vocabulary is translated.
+REP_LABELS = {"vocab": "vocabulário"}
 CATEGORY_ORDER = ["whole_word", "word_start", "continuation", "punctuation", "number"]
 CATEGORY_LABELS = {
     "whole_word": "palavra inteira",
@@ -341,9 +337,10 @@ class Style:
 def rep_styles(reps: Sequence[str]) -> dict[str, Style]:
     """lex in gray, the blocks on the ordinal blue ramp (by depth), robust variants after."""
 
+    parsed = {r: try_parse(r) for r in reps}
     blocks = sorted(
-        (r for r in reps if r.startswith("L") and r[1:3].isdigit() and not r[3:]),
-        key=lambda r: int(r[1:3]),
+        (r for r, rep in parsed.items() if rep is not None and rep.is_block),
+        key=lambda r: parse(r).sort_key(),
     )
     if len(blocks) == 1:
         ramp = [BLUE_RAMP[6]]
@@ -357,8 +354,8 @@ def rep_styles(reps: Sequence[str]) -> dict[str, Style]:
     for rep in reps:
         if rep in styles:
             continue
-        if rep == "lex":
-            styles[rep] = Style(MUTED, "o", label="lex")
+        if is_lexical(rep):
+            styles[rep] = Style(MUTED, "o", label=rep)
         elif rep == "vocab":
             styles[rep] = Style(INK_SECONDARY, "o", label=REP_LABELS["vocab"])
         else:

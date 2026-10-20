@@ -116,7 +116,7 @@ def compare_pdf(a: Path, b: Path) -> str | None:
 
 def stable_lines(path: Path) -> list[str]:
     lines = path.read_text(encoding="utf-8").splitlines()
-    kept = [line for line in lines if not line.lstrip().startswith(VOLATILE_MACROS)]
+    kept = [line for line in lines if not any(macro in line for macro in VOLATILE_MACROS)]
     return [DURATION.sub("<duration>", line) for line in kept]
 
 

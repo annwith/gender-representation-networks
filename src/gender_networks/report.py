@@ -66,11 +66,11 @@ from gender_networks.plots import (
     ordered,
     theme_label,
 )
+from gender_networks.representations import LEX, is_lexical, parse, sort_names
 from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
 
-LEXICAL = "lex"
 STAGE = "report"
 # Every file the report expects (\figuraopcional / \tabelaopcional in report/relatorio/secoes).
 FIGURES = [
@@ -525,7 +525,7 @@ class Context:
 
     @property
     def contextual_reps(self) -> list[str]:
-        return [rep for rep in self.settings.networks.representations if rep != LEXICAL]
+        return [rep for rep in self.settings.networks.representations if not is_lexical(rep)]
 
     def nbr(self, rep: str, k: int | None = None) -> dict[str, np.ndarray]:
         return self.npz(self.paths.nbr(rep, self.k if k is None else k))
@@ -980,11 +980,7 @@ def _diagnostics(ctx: Context) -> dict[str, Any]:
 
 
 def _rep_order(names: Iterable[str]) -> list[str]:
-    order = [LEXICAL, "L01", "L18", "L36", "L36n"]
-    names = list(names)
-    known = [n for n in order if n in names]
-    blocks = sorted((n for n in names if n not in known), key=lambda n: (len(n), n))
-    return known + blocks
+    return sort_names(names)
 
 
 def table_extracao_diagnosticos(ctx: Context) -> Tabular:
@@ -1055,7 +1051,7 @@ def figure_extracao_camadas(ctx: Context) -> Any:
     curve = pd.DataFrame(diagnostics.get("layer_curve") or [])
     if curve.empty:
         raise Skip("diagnostics.json não tem a curva por camada (capture_all_layers desligado?)")
-    lexical = (diagnostics.get("representations") or {}).get(LEXICAL)
+    lexical = (diagnostics.get("representations") or {}).get(LEX)
     marked = {name: layer for name, layer in ctx.settings.model.layers.items()}
     return plots.extraction_layers_figure(curve, lexical, marked)
 
@@ -1300,7 +1296,7 @@ def table_metricas_globais(ctx: Context) -> Tabular:
     columns: list[tuple[str, pd.DataFrame, pd.DataFrame, str]] = []
     for rep in ctx.settings.networks.representations:
         main = metrics[(metrics["rep"] == rep) & (metrics["k"] == k) & (metrics["tie"] == "rand")]
-        if rep != LEXICAL:
+        if not is_lexical(rep):
             main = main[main["seed"] == 0]
         union, directed = main[main["sym"] == "union"], main[main["sym"] == "directed"]
         if union.empty and directed.empty:
@@ -1413,7 +1409,8 @@ def _ego_panels(
 
 
 def _drawing_reps(ctx: Context) -> list[str]:
-    reps = [r for r in ctx.main_reps if r in (LEXICAL, "L01", "L18", "L36")] or ctx.main_reps
+    drawable = [r for r in ctx.main_reps if parse(r).is_lexical or parse(r).is_block]
+    reps = drawable or ctx.main_reps
     return reps[:4]
 
 
@@ -1889,7 +1886,7 @@ def table_p4_alvos(ctx: Context) -> Tabular:
         if previous_group is not None and group != previous_group:
             rows.append(r"\midrule")
         previous_group = group
-        ref = part.loc[LEXICAL] if LEXICAL in part.index else None
+        ref = part.loc[LEX] if LEX in part.index else None
         cur = part.loc[last] if last in part.index else None
 
         def pair(column: str, digits: int = 2, ref=ref, cur=cur) -> list[str]:
@@ -1975,6 +1972,9 @@ def table_robustez(ctx: Context) -> Tabular:
         ]
         return hit["J_vs_lex_mean"].iat[0] if len(hit) else np.nan
 
+    def centered_name(rep: str) -> str:
+        return parse(rep).with_centering().name
+
     def graph_cells(rep: str | None, kk: int, sym: str, tie: str, j: Any) -> list[str]:
         if rep is None:
             return [DASH] * 4
@@ -2019,7 +2019,8 @@ def table_robustez(ctx: Context) -> Tabular:
     ]
     robust = [r for r in net.robust_representations]
     for variant in robust:
-        base = variant[:-1] if variant.endswith("n") else None
+        rep = parse(variant)
+        base = rep.raw().name if rep.kind == "final_norm" else None
         variations.append(
             (
                 f"\\texttt{{{tex_text(variant)}}} (RMSNorm final)",
@@ -2033,11 +2034,11 @@ def table_robustez(ctx: Context) -> Tabular:
             (
                 "Cosseno centrado",
                 lambda r: graph_cells(
-                    f"{r}c" if r in ctx.settings.model.layers else None,
+                    centered_name(r) if parse(r).is_block else None,
                     k,
                     "union",
                     "rand",
-                    j_vs_lex(f"{r}c", k, "rand"),
+                    j_vs_lex(centered_name(r), k, "rand"),
                 ),
             )
         )
@@ -2088,7 +2089,7 @@ def table_robustez(ctx: Context) -> Tabular:
 
 def figure_robustez_empates(ctx: Context) -> Any:
     occ = ctx.occurrences
-    lex = ctx.nbr(LEXICAL)
+    lex = ctx.nbr(LEX)
     reps = [r for r in ctx.contextual_reps if ctx.paths.nbr(r, ctx.k).exists()]
     if not reps:
         raise Skip("faltam os vizinhos das camadas contextuais")

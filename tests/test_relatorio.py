@@ -122,15 +122,16 @@ def test_readme_flags_stages_without_a_module() -> None:
 def test_seed_claims_match_metrics_plan() -> None:
     """Only the lexical network is measured over every tie seed; the text must say so."""
 
-    from gender_networks.metrics import LEXICAL, plan_communities, plan_graphs
+    from gender_networks.metrics import plan_communities, plan_graphs
+    from gender_networks.representations import LEX
     from gender_networks.settings import load_settings
 
     settings = load_settings(REPO / "configs" / "experiment.yaml")
     specs = plan_graphs(settings)
     k_main = settings.networks.k_main
     main_rand = [s for s in specs if s.group == "main" and s.tie == "rand" and s.k == k_main]
-    lex_seeds = {s.seed for s in main_rand if s.rep == LEXICAL}
-    other_seeds = {s.seed for s in main_rand if s.rep != LEXICAL}
+    lex_seeds = {s.seed for s in main_rand if s.rep == LEX}
+    other_seeds = {s.seed for s in main_rand if s.rep != LEX}
     assert lex_seeds == set(range(settings.networks.seeds))
     assert other_seeds == {0}
     requests = plan_communities(settings, specs)

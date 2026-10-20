@@ -42,12 +42,11 @@ from gender_networks.artifacts import (
     write_json,
     write_manifest,
 )
+from gender_networks.representations import FINAL_NORM, LEX, is_lexical, layer_name
 from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
 
-LEXICAL = "lex"
-NORMALIZED = "L36n"
 PRED_NEXT_FILE = "pred_next.npy"  # kept for backwards compatibility; use RunPaths.pred_next
 OCCURRENCE_FIELDS = ["occurrence_id", "token_id", "next_token_id", "token_category", "stratum"]
 RANK_COLUMNS = [
@@ -279,17 +278,17 @@ def representations(settings: Settings) -> list[str]:
     """Representations of the stage in depth order: lexical, the chosen blocks, then ``L36n``."""
 
     layers = sorted(settings.model.layers.items(), key=lambda item: item[1])
-    return [LEXICAL, *(name for name, _ in layers), NORMALIZED]
+    return [LEX, *(name for name, _ in layers), FINAL_NORM.name]
 
 
 def transitions(reps: Sequence[str]) -> list[tuple[str, str]]:
     """Consecutive pairs along the depth chain, plus the final RMSNorm step (``L36 -> L36n``)."""
 
-    chain = [rep for rep in reps if rep != NORMALIZED]
+    chain = [rep for rep in reps if rep != FINAL_NORM.name]
     pairs = list(zip(chain, chain[1:], strict=False))
-    raw_final = NORMALIZED[:-1]
-    if NORMALIZED in reps and raw_final in chain:
-        pairs.append((raw_final, NORMALIZED))
+    raw_final = FINAL_NORM.raw().name
+    if FINAL_NORM.name in reps and raw_final in chain:
+        pairs.append((raw_final, FINAL_NORM.name))
     return pairs
 
 
@@ -584,8 +583,8 @@ def _layer_curve(
         if same and rep in results
     }
 
-    lexical = results[LEXICAL]
-    rows = curve_rows(LEXICAL, 0, with_groups(rank_frame(lexical, LEXICAL), occurrences))
+    lexical = results[LEX]
+    rows = curve_rows(LEX, 0, with_groups(rank_frame(lexical, LEX), occurrences))
     for layer in range(1, layers.shape[0] + 1):
         result = known.get(layer)
         if result is None:
@@ -597,7 +596,7 @@ def _layer_curve(
                 settings.lens.k,
                 settings.lens.batch_size,
             )
-        rep = f"L{layer:02d}"
+        rep = layer_name(layer)
         rows += curve_rows(rep, layer, with_groups(rank_frame(result, rep), occurrences))
         if layer % 6 == 0:
             LOGGER.info("Curva camada a camada: %d/%d camadas", layer, layers.shape[0])
@@ -636,7 +635,7 @@ def run(
         return
 
     required = [paths.occurrences, paths.embeddings]
-    required += [paths.rep(rep) for rep in reps if rep != LEXICAL]
+    required += [paths.rep(rep) for rep in reps if not is_lexical(rep)]
     missing = [str(p) for p in required if not p.exists()]
     if missing:
         raise FileNotFoundError("Faltam artefatos das etapas sample/extract: " + ", ".join(missing))
@@ -665,9 +664,9 @@ def run(
     timings: dict[str, float] = {}
     for rep in reps:
         rep_started = time.time()
-        queries = None if rep == LEXICAL else load_representation(paths.rep(rep), n, index.dim)
+        queries = None if is_lexical(rep) else load_representation(paths.rep(rep), n, index.dim)
         result = lens_ranks(
-            index, queries, own, nxt, k, batch_size, logit_argmax=(rep == NORMALIZED)
+            index, queries, own, nxt, k, batch_size, logit_argmax=(rep == FINAL_NORM.name)
         )
         del queries
         np.save(out_dir / f"topk_{rep}.npy", result.topk)
@@ -682,7 +681,7 @@ def run(
             timings[rep],
         )
 
-    lex_info = lexical_sanity(results[LEXICAL], own, index)
+    lex_info = lexical_sanity(results[LEX], own, index)
     if lex_info["unexplained"]:
         LOGGER.warning("Postos lexicais > 0 sem empate que os explique: %s", lex_info)
     elif lex_info["own_rank_nonzero"]:
@@ -690,8 +689,8 @@ def run(
 
     agreement: dict[str, Any] | None = None
     pred_path = paths.pred_next
-    if NORMALIZED in results and pred_path.exists():
-        final = results[NORMALIZED]
+    if FINAL_NORM.name in results and pred_path.exists():
+        final = results[FINAL_NORM.name]
         agreement = pred_next_agreement(final.logit_argmax, np.load(pred_path), final.topk[:, 0])
         log = LOGGER.warning if (agreement["rate"] or 0.0) < AGREEMENT_WARN else LOGGER.info
         log("Concordância com pred_next: %s de %s", agreement["agree"], agreement["n"])

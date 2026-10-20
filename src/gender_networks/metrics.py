@@ -58,11 +58,11 @@ from gender_networks.graphs import (
 )
 from gender_networks.neighborhood import Neighbors, neighbor_rows
 from gender_networks.partitions import Partition, leiden, louvain, nmi
+from gender_networks.representations import is_lexical, occurrence_names
 from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
 
-LEXICAL = "lex"
 VOCAB = "vocab"
 SYMS = ("union", "directed", "mutual")
 TIES = ("rand", "pos", "all", "rand_eps", "pos_eps")
@@ -208,28 +208,6 @@ class CommunityRequest:
     method: str = "leiden"  # leiden | louvain
 
 
-def centered_representations(settings: Settings) -> list[str]:
-    """Centered variants written by ``knn`` (``L01c``...), one per main contextual layer."""
-
-    if not settings.networks.centered:
-        return []
-    return [f"{rep}c" for rep in settings.networks.representations if rep in settings.model.layers]
-
-
-def occurrence_representations(settings: Settings) -> list[str]:
-    """Every occurrence-level representation: main, robust and centered, in that order."""
-
-    reps: list[str] = []
-    for rep in (
-        list(settings.networks.representations)
-        + list(settings.networks.robust_representations)
-        + centered_representations(settings)
-    ):
-        if rep not in reps:
-            reps.append(rep)
-    return reps
-
-
 def vocab_community_k(settings: Settings) -> int | None:
     """k of the vocabulary graph that gets communities: ``k_main`` or the closest vocab k."""
 
@@ -269,15 +247,15 @@ def plan_graphs(settings: Settings) -> list[GraphSpec]:
             add(rep, k, "union", "all", 0, source, "robust")
 
     for rep in net.representations:
-        seeds = range(net.seeds) if rep == LEXICAL else [0]
+        seeds = range(net.seeds) if is_lexical(rep) else [0]
         block(rep, k_main, list(seeds), "main", with_main=True)
     for rep in net.representations:
         for k in net.k_values:
             block(rep, k, [0], "robust", with_main=k != k_main)
-    extra = [rep for rep in occurrence_representations(settings) if rep not in net.representations]
+    extra = [rep for rep in occurrence_names(settings) if rep not in net.representations]
     for rep in extra:
         block(rep, k_main, [0], "robust", with_main=True)
-    for rep in occurrence_representations(settings):
+    for rep in occurrence_names(settings):
         for sym in MAIN_SYMS:
             add(rep, k_main, sym, "rand_eps", 0, eps_file(rep, k_main), "robust")
     for k in net.vocab.k_values:
@@ -300,9 +278,9 @@ def plan_communities(settings: Settings, specs: Sequence[GraphSpec]) -> list[Com
         if gid in available and request not in requests:
             requests.append(request)
 
-    for rep in occurrence_representations(settings):
+    for rep in occurrence_names(settings):
         add(graph_id(rep, k_main, "union", "rand", 0), res)
-        if rep == LEXICAL and net.seeds > 1:
+        if is_lexical(rep) and net.seeds > 1:
             add(graph_id(rep, k_main, "union", "rand", 1), res)
         add(graph_id(rep, k_main, "union", "pos", 0), res)
     for rep in net.representations:

@@ -53,13 +53,13 @@ import torch
 from safetensors.torch import load_file
 
 from gender_networks.artifacts import RunPaths, ensure_dir, stage_is_fresh, write_manifest
+from gender_networks.representations import is_lexical, occurrence_representations
 from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
 
 Tie = Literal["position", "random", "all"]
 TIE_RULES: tuple[str, ...] = ("position", "random", "all")
-LEX = "lex"
 VOCAB = "vocab"
 TYPES_SUFFIX = "/types"
 # Budget for one float64 block of similarities; with the vocabulary (151 643 columns) this gives
@@ -591,30 +591,12 @@ def vocab_neighbors_path(paths: RunPaths, k: int) -> Path:
     return paths.vocab_nbr(k)
 
 
-def representation_specs(settings: Settings) -> dict[str, tuple[str, bool]]:
-    """Occurrence representations of a run: ``name -> (source representation, centered)``.
-
-    Main ones first, then the robust ones, then the centered variants of the main contextual
-    layers (``L01c``...).
-    """
-
-    net = settings.networks
-    specs: dict[str, tuple[str, bool]] = {}
-    for rep in [*net.representations, *net.robust_representations]:
-        specs.setdefault(rep, (rep, False))
-    if net.centered:
-        for rep in net.representations:
-            if rep in settings.model.layers:
-                specs.setdefault(f"{rep}c", (rep, True))
-    return specs
-
-
 def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
     """Every file of a complete ``knn`` stage (the manifest is written last)."""
 
     net = settings.networks
     files: list[Path] = []
-    for rep in representation_specs(settings):
+    for rep in (r.name for r in occurrence_representations(settings)):
         files.append(candidates_path(paths, rep))
         files += [neighbors_path(paths, rep, k) for k in net.k_values]
         files.append(neighbors_path(paths, rep, net.k_main, sensitivity=True))
@@ -848,7 +830,7 @@ def _occurrence_candidates(
     net = settings.networks
     k_max = max(net.k_values)
     eps = max(net.eps, net.eps_sensitivity)
-    if rep == LEX:
+    if is_lexical(rep):
         unit = normalize_rows(weight[torch.from_numpy(types.ids)])
         sim_types = type_similarity(unit)
         return (
@@ -901,10 +883,11 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         LOGGER.info("k-NN já existe em %s; use --force para refazer", paths.knn_dir)
         return
     check_settings(settings)
-    specs = representation_specs(settings)
+    specs = occurrence_representations(settings)
     needed = [paths.occurrences, paths.embeddings]
-    for rep, (source, _centered) in specs.items():
-        if rep != LEX and not (
+    for spec in specs:
+        source = spec.source.name
+        if not spec.is_lexical and not (
             paths.rep(source).exists()
             or (source in settings.model.layers and paths.all_layers.exists())
         ):
@@ -930,7 +913,8 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
     )
 
     rep_stats: dict[str, Any] = {}
-    for rep, (source, centered) in specs.items():
+    for spec in specs:
+        rep, source, centered = spec.name, spec.source.name, spec.centered
         tick = time.perf_counter()
         candidates, type_candidates = _occurrence_candidates(
             rep, source, centered, types, weight, settings, paths
@@ -943,7 +927,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         rep_stats[rep] = {
             "source": source,
             "centered": centered,
-            "exact_lexical": rep == LEX,
+            "exact_lexical": spec.is_lexical,
             "timings_s": {
                 "candidates": round(candidates_s, 3),
                 "neighbors": round(neighbors_s, 3),

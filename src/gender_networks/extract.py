@@ -50,12 +50,11 @@ from gender_networks.artifacts import (
     write_json,
     write_manifest,
 )
+from gender_networks.representations import FINAL_NORM, LEX
 from gender_networks.settings import ModelSettings, Settings
 
 LOGGER = logging.getLogger(__name__)
 
-NORM_REP = "L36n"
-LEX_REP = "lex"
 PRED_NEXT_FILE = "pred_next.npy"  # kept for backwards compatibility; use RunPaths.pred_next
 DIAGNOSTICS_FILE = "diagnostics.json"
 VERIFY_FILE = "verify.json"
@@ -119,7 +118,7 @@ def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
 
     files = [paths.rep(name) for name in settings.model.layers]
     files += [
-        paths.rep(NORM_REP),
+        paths.rep(FINAL_NORM.name),
         paths.embeddings,
         pred_next_path(paths),
         diagnostics_path(paths),
@@ -985,12 +984,12 @@ def build_diagnostics(
     for name, layer in rep_layers.items():
         x = bits_to_float32(result.blocks[result.block_layers.index(layer)])
         representations[name] = representation_summary(x, pos_bucket, pairs)
-    representations[NORM_REP] = representation_summary(
+    representations[FINAL_NORM.name] = representation_summary(
         bits_to_float32(result.norm), pos_bucket, pairs
     )
     # np.array copies: pandas (copy-on-write) hands out read-only arrays that torch warns about
     lexical = weight[torch.from_numpy(np.array(token_ids, dtype=np.int64))].float().numpy()
-    representations[LEX_REP] = representation_summary(lexical, pos_bucket, pairs)
+    representations[LEX] = representation_summary(lexical, pos_bucket, pairs)
     diagnostics: dict[str, Any] = {
         "n_vertices": int(n),
         "hidden_size": int(result.norm.shape[1]),
@@ -1060,7 +1059,7 @@ def extract_to_directory(
 
     layers, _, embedding = decoder_parts(model)
     n_layers = len(layers)
-    reserved = {NORM_REP, LEX_REP} & set(rep_layers)
+    reserved = {FINAL_NORM.name, LEX} & set(rep_layers)
     if reserved:
         raise ValueError(f"Representation names {sorted(reserved)} are reserved")
     if any(not 1 <= layer <= n_layers for layer in rep_layers.values()):
@@ -1113,7 +1112,7 @@ def extract_to_directory(
     )
     per_layer = prefix["per_layer_max_abs_diff"]
     prefix["max_abs_diff"] = {name: per_layer[str(layer)] for name, layer in rep_layers.items()}
-    prefix["max_abs_diff"][NORM_REP] = prefix["norm_max_abs_diff"]
+    prefix["max_abs_diff"][FINAL_NORM.name] = prefix["norm_max_abs_diff"]
     prefix["max_abs_diff"]["all_layers"] = max(per_layer.values(), default=0.0)
     LOGGER.info(
         "Grupos de prefixo: %d grupos, %d linhas copiadas, maior diferença %s",
@@ -1137,8 +1136,8 @@ def extract_to_directory(
         )
     save_file(
         {"x": bits_to_tensor(result.norm)},
-        str(paths.rep(NORM_REP)),
-        metadata={"representation": NORM_REP, "source": "final RMSNorm output"},
+        str(paths.rep(FINAL_NORM.name)),
+        metadata={"representation": FINAL_NORM.name, "source": "final RMSNorm output"},
     )
     weight = embedding_weight(model)[:vocab_size].detach().to("cpu", torch.bfloat16).contiguous()
     save_file(
@@ -1188,7 +1187,7 @@ def extract_to_directory(
         "tokens": result.tokens,
         "hidden_size": hidden,
         "vocab_size": vocab_size,
-        "representations": [*rep_layers, NORM_REP],
+        "representations": [*rep_layers, FINAL_NORM.name],
         "all_layers": capture_all_layers,
         "prefix_groups": prefix["n_groups"],
         "prefix_rows_copied": prefix["n_rows_copied"],

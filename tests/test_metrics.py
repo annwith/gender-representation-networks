@@ -13,7 +13,6 @@ from gender_networks.artifacts import OCCURRENCE_COLUMNS, RunPaths
 from gender_networks.metrics import (
     GraphJob,
     GraphSpec,
-    centered_representations,
     community_file,
     distance_mode,
     file_safe,
@@ -25,6 +24,7 @@ from gender_networks.metrics import (
     run,
     select_neighbors,
 )
+from gender_networks.representations import centered_names
 from gender_networks.settings import (
     AnalysisSettings,
     CorpusSettings,
@@ -364,7 +364,7 @@ def test_plan_for_the_experiment_configs() -> None:
     lex_main = [s for s in specs if s.rep == "lex" and s.group == "main" and s.tie == "rand"]
     assert len(lex_main) == 2 * settings.networks.seeds
     assert {s.seed for s in specs if s.rep == "L18" and s.tie == "rand"} == {0}
-    assert centered_representations(settings) == ["L01c", "L18c", "L36c"]
+    assert centered_names(settings) == ["L01c", "L18c", "L36c"]
     assert {s.rep for s in specs if s.tie == "rand_eps"} == {
         "lex", "L01", "L18", "L36", "L36n", "L01c", "L18c", "L36c"
     }
