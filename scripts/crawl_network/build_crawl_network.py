@@ -17,14 +17,13 @@ The walk loop is a copy of ``WikiClient.crawl`` with bookkeeping; the script che
 records exactly the same titles as ``WikiClient.crawl`` and the same category, depth and themes
 as ``data/corpus/articles.jsonl``.
 
-Outputs (``data/crawl/``): ``crawl_network.graphml``, ``crawl_network.json`` (with a
-precomputed layout: one radial tree per walk) and ``rede-de-coleta.html``, the interactive page
-built from ``page_template.html`` with the JSON embedded. The page has a second tab, "Artigos",
+Outputs: ``data/crawl/crawl_network.graphml`` and ``docs/coleta/index.html``, the interactive
+page published on GitHub Pages, built from ``page_template.html`` with the network embedded as
+JSON (with a precomputed layout: one radial tree per walk). The page has a second tab, "Artigos",
 with every candidate article of ``data/corpus/articles.jsonl`` (status, revision, paragraph and
 word counts) and the clean text of the kept ones from ``paragraphs.jsonl``. The text goes in as
 gzip-compressed, base64-encoded JSON (about 4.6 MB instead of 10 MB), which the browser inflates
-on first use, so the page stays a single file that also works from ``file://``. A copy of the
-page goes to ``docs/coleta/index.html`` for GitHub Pages.
+on first use, so the page stays a single file that also works from ``file://``.
 
 A third tab, "Amostra", shows how the occurrence sample of the ``sample`` stage forms the
 networks: how each count, from the corpus articles to the vertices, is chosen or extracted (a
@@ -53,7 +52,6 @@ import csv
 import gzip
 import json
 import math
-import shutil
 from collections import Counter, defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -758,7 +756,7 @@ def main() -> None:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument(
-        "--docs", type=Path, default=DEFAULT_DOCS, help="Pasta da cópia para o GitHub Pages"
+        "--docs", type=Path, default=DEFAULT_DOCS, help="Pasta da página (GitHub Pages)"
     )
     parser.add_argument(
         "--sample", type=Path, default=None,
@@ -794,7 +792,6 @@ def main() -> None:
         raise AssertionError("GraphML read back with a different size")
     data = to_json(g, walk_list, traces, positions)
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    (args.out / "crawl_network.json").write_text(payload, encoding="utf-8")
     corpus_dir = REPO / settings.paths.corpus_dir
     table, text = articles_payload(corpus_dir / "articles.jsonl", corpus_dir / "paragraphs.jsonl")
     kept = sum(row[7] is None for row in table["rows"])
@@ -809,14 +806,13 @@ def main() -> None:
         f"{stats['words']} alvos e controles, {stats['multitheme']} multitema, "
         f"{stats['concordance']} linhas de concordância; {len(sample):,} bytes"
     )
-    page = args.out / "rede-de-coleta.html"
+    args.docs.mkdir(parents=True, exist_ok=True)
+    page = args.docs / "index.html"
     articles = json.dumps(table, ensure_ascii=False, separators=(",", ":"))
     write_page(
         {DATA_MARK: payload, ARTICLES_MARK: articles, TEXT_MARK: text, SAMPLE_MARK: sample}, page
     )
-    args.docs.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(page, args.docs / "index.html")
-    print(f"gravado: {graphml}, {args.out / 'crawl_network.json'}, {page} e {args.docs}/index.html")
+    print(f"gravado: {graphml} e {page}")
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ from collections import Counter, defaultdict, deque
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 import numpy as np
 
@@ -96,8 +96,6 @@ MIN_SENSE_THEMES = 2  # a target must reach min_per_sense in at least this many 
 CONTEXT_TOKENS = 8
 WHITESPACE = CATEGORY_CODES["whitespace"]
 WHOLE_WORD = CATEGORY_CODES["whole_word"]
-
-T = TypeVar("T")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -260,7 +258,7 @@ def is_content_type(decoded: str) -> bool:
     )
 
 
-def cap_uniform(
+def cap_uniform[T](
     groups: Mapping[int, Sequence[T]], f_max: int, rng: random.Random
 ) -> tuple[list[T], int, int]:
     """Keep at most ``f_max`` items per key, drawn uniformly among that key's items.

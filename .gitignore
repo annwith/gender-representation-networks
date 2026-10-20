@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+*.egg-info/
+.vscode/
 
 # Artefatos do experimento (grandes e reproduzíveis pela CLI)
 outputs/experiment/
@@ -23,6 +25,8 @@ report/**/*.out
 report/**/*.toc
 report/**/*.bbl
 report/**/*.blg
+report/**/*.xdv
 
-# PDF compilado do relatório técnico (gerado com latexmk)
+# PDFs: só os documentos entregues (proposta e entregas parciais) são versionados; o do
+# relatório técnico é gerado com latexmk.
 report/relatorio/relatorio.pdf

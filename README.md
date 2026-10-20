@@ -14,7 +14,7 @@ espaços contextuais das camadas internas.
   camada a camada). Assim as redes podem ser comparadas vértice a vértice.
 - **Rede lexical de tipos:** k-NN entre os cerca de 151,6 mil tokens do vocabulário do modelo.
 
-As perguntas de pesquisa (P1–P4) estão na proposta (`report/report.tex`). As decisões de método
+As perguntas de pesquisa (P1–P4) estão na proposta (`report/proposta-revisada.tex`). As decisões de método
 e o cronograma estão no plano de execução (`report/plano-de-execucao.md`). O relatório técnico,
 escrito junto com a implementação, fica em `report/relatorio/`.
 
@@ -48,20 +48,22 @@ tests/                 testes offline (não baixam pesos)
 data/
   corpus/manifest.csv  pageid e revid de cada artigo do corpus
   graphml/             redes da entrega parcial em GraphML (ver data/graphml/README.md)
-  crawl/               rede da coleta e a página interativa (rede, artigos e amostra)
+  crawl/               rede da coleta em GraphML
 docs/redes/            página interativa das redes da entrega parcial (GitHub Pages)
-docs/coleta/           cópia da página da coleta, do corpus e da amostra (GitHub Pages)
+docs/coleta/           página da coleta, do corpus e da amostra (GitHub Pages)
 report/
-  report.tex           proposta revisada
-  plano-de-execucao.md plano de execução
-  relatorio/           relatório técnico vivo (ver report/relatorio/README.md)
+  proposta-revisada.tex          proposta revisada
+  plano-de-execucao.md           plano de execução
+  relatorio/                     relatório técnico vivo (ver report/relatorio/README.md)
   entrega-parcial/               entrega parcial: redes não direcionadas (itens 1 a 8)
   entrega-parcial-direcionada/   entrega parcial: redes direcionadas (itens 1 a 8)
   entrega-parcial-visualizacao/  entrega parcial: visualização das redes (item 9)
 scripts/
   feasibility/         estudo de viabilidade: scripts, saídas (sim_*.txt, hyb_*.txt) e figuras
-  partial_delivery/    GraphML, figuras, tabelas e página interativa da entrega parcial
+  partial_delivery/    GraphML, figuras, tabelas e dados da página interativa da entrega parcial
   crawl_network/       rede da coleta e página da coleta, do corpus e da amostra
+  cluster/             scripts das etapas de CPU da execução principal no cluster
+  dev/                 ferramentas de desenvolvimento (compare_runs.py: compara duas execuções)
 ```
 
 ## Preparação
@@ -122,7 +124,8 @@ principal e grava suas redes e seu relatório gerado separados.
 | `data/graphml/` | redes da entrega parcial em GraphML (versionadas) |
 | `report/entrega-parcial*/figuras/`, `tabelas/` | material gerado para a entrega parcial |
 | `docs/redes/` | página interativa das redes da entrega parcial e os seus dados |
-| `data/crawl/`, `docs/coleta/` | rede da coleta e página dos artigos do corpus |
+| `data/crawl/` | rede da coleta em GraphML |
+| `docs/coleta/` | página da coleta, dos artigos do corpus e da amostra |
 
 `<nome>` é o campo `name` do YAML (`main` ou `mini`). Cada pasta de etapa tem um
 `_manifest.json` com a configuração, as versões das bibliotecas, os tempos e as estatísticas da
@@ -130,7 +133,7 @@ etapa.
 
 ### Conferir os artigos coletados e a amostra
 
-A página `data/crawl/rede-de-coleta.html` mostra a coleta em três abas:
+A página `docs/coleta/index.html` mostra a coleta em três abas:
 
 - **Rede:** as buscas por categorias.
 - **Artigos:** os 2.631 candidatos da etapa `corpus`, com resumo por tema e motivo de descarte,
@@ -143,11 +146,11 @@ A página `data/crawl/rede-de-coleta.html` mostra a coleta em três abas:
   - as cotas das palavras-alvo e de controle e as 150 palavras multitema, cada uma com a
     concordância de todas as suas ocorrências.
 
-A página é um arquivo único que abre direto no navegador. Uma cópia fica em `docs/coleta/` e é
-publicada em <https://annwith.github.io/gender-representation-networks/coleta/>. O endereço
-abre direto numa aba com `#artigos` ou `#amostra`.
+A página é um arquivo único que abre direto no navegador e é publicada em
+<https://annwith.github.io/gender-representation-networks/coleta/>. O endereço abre direto numa
+aba com `#artigos` ou `#amostra`.
 
-Para regerar as duas, o script usa três coisas locais: o cache da API, `data/corpus/` e a
+Para regerar a página e a rede em GraphML, o script usa três coisas locais: o cache da API, `data/corpus/` e a
 amostra em `outputs/experiment/main/sample/` (escolha outra pasta com `--sample`). Ele também
 precisa do tokenizer do Qwen3 no cache do Hugging Face e não acessa a rede. Antes de gravar, o
 script confere a amostra contra o corpus e o `_manifest.json`.
@@ -195,7 +198,8 @@ visualização fica em `docs/redes/` e é publicada pelo GitHub Pages em
 
 `export_networks.py` lê os artefatos da execução principal (`outputs/experiment/main/`) e grava
 os GraphML, as figuras e a tabela de métricas de uma versão; `draw_networks.py` parte dos GraphML
-e grava as figuras e tabelas da visualização e a página interativa:
+e grava as figuras e tabelas da visualização e os dados da página interativa
+(`docs/redes/index.html`, editada à mão):
 
 ```bash
 .venv/bin/python scripts/partial_delivery/export_networks.py --sym union

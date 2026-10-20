@@ -3,13 +3,14 @@ name = "gender-representation-networks"
 version = "0.1.0"
 description = "Complex networks of Transformer token representations: from the lexical to the contextual network."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "accelerate>=1.0",
     "igraph>=1.0.0",
     "matplotlib>=3.8",
     "mwparserfromhell>=0.7.2",
     "networkx>=3.2",
+    "numpy>=2.0",
     "pandas>=3.0.6",
     "pyyaml>=6.0",
     "safetensors>=0.4",
@@ -39,7 +40,7 @@ addopts = "-q"
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 # Scripts do estudo de viabilidade ficam como registro, no estado em que foram usados.
 extend-exclude = ["scripts/feasibility"]
 

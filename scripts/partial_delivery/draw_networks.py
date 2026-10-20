@@ -19,9 +19,10 @@ seeded through Python's ``random``). The visualization is delivered as a documen
 
 The view of both figures is the disc around the median position that holds 99% of the
 vertices; the rest are small groups pushed to the periphery, and the caption says how many are
-left out. The script also writes ``docs/redes/``: the interactive page (``index.html``, copied
-from ``redes.html`` next to this script) and its data files, one with the vertex attributes and
-one per network with the positions and edges, so the page shows the same drawing as the PDF.
+left out. The script also writes the data files of the interactive page
+``docs/redes/index.html`` (the page itself is edited by hand there): one with the vertex
+attributes and one per network with the positions and edges, so the page shows the same drawing
+as the PDF.
 
 The directed GraphML of each network, with the arc directions dropped, must give exactly the
 union edges: the same drawings therefore serve the directed version, with the arcs undirected.
@@ -39,7 +40,6 @@ from __future__ import annotations
 import argparse
 import json
 import random
-import shutil
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -60,7 +60,6 @@ GRAPHML = REPO / "data" / "graphml"
 LAYOUTS = REPO / "outputs" / "experiment" / "main" / "layout"
 REPORT = REPO / "report" / "entrega-parcial-visualizacao"
 PAGE = REPO / "docs" / "redes"
-TEMPLATE = Path(__file__).with_name("redes.html")
 
 REPS = ["lex", "L01", "L18", "L36"]
 K = 10
@@ -387,7 +386,6 @@ def write_page(
         (data / f"{rep}.json").write_text(
             json.dumps(network, separators=(",", ":")), encoding="utf-8"
         )
-    shutil.copyfile(TEMPLATE, PAGE / "index.html")
 
 
 def main() -> None:

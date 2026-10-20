@@ -2,7 +2,7 @@
 
 ## Contexto
 
-A proposta revisada ([report.tex](report.tex)) define as perguntas P1–P4, três tipos de rede,
+A proposta revisada ([proposta-revisada.tex](proposta-revisada.tex)) define as perguntas P1–P4, três tipos de rede,
 cerca de 1,5×10⁴ ocorrências da Wikipédia em português, k-NN por cosseno, três tratamentos de
 empate, versões direcionada, por união e mútua, e comunidades comparadas por NMI/ARI. O
 repositório tem hoje três pilotos independentes. Nenhum implementa corpus, amostragem, empates
