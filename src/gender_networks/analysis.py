@@ -34,7 +34,16 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from gender_networks.artifacts import RunPaths, ensure_dir, stage_is_fresh, write_manifest
+from gender_networks.artifacts import (
+    RunPaths,
+    ensure_dir,
+    graph_id,
+    parse_bool,
+    read_occurrences,
+    require_inputs,
+    up_to_date,
+    write_manifest,
+)
 from gender_networks.graphs import directed_edges as graph_directed_edges
 from gender_networks.graphs import graph_metrics, symmetrize, to_igraph, undirected_edges
 from gender_networks.neighborhood import (
@@ -76,16 +85,17 @@ CORE_LABELS = [
 ]
 ALL_LABELS = ["token_id", "theme", "stratum", "token_category"]
 P4_MIN_F = 10
-OUTPUT_FILES = [
-    "vertex_measures.csv",
-    "p1_summary.csv",
-    "p1_global.csv",
-    "p2_transitions.csv",
-    "p2_transitions_groups.csv",
-    "p3_agreement.csv",
-    "p4_types.csv",
-    "p4_groups.csv",
-    "robustness_neighbors.csv",
+# Tables whose presence (with an up-to-date manifest) lets the stage be skipped.
+REQUIRED_OUTPUTS = [
+    "vertex_measures",
+    "p1_summary",
+    "p1_global",
+    "p2_transitions",
+    "p2_transitions_groups",
+    "p3_agreement",
+    "p4_types",
+    "p4_groups",
+    "robustness_neighbors",
 ]
 
 
@@ -94,10 +104,7 @@ OUTPUT_FILES = [
 
 
 def load_occurrences(paths: RunPaths) -> pd.DataFrame:
-    frame = pd.read_csv(paths.occurrences, keep_default_na=False, low_memory=False)
-    if not np.array_equal(frame["occurrence_id"].to_numpy(), np.arange(len(frame))):
-        raise ValueError(f"{paths.occurrences}: occurrence_id must equal the row index")
-    return frame
+    return read_occurrences(paths.occurrences)
 
 
 def load_npz(path: Path) -> dict[str, np.ndarray]:
@@ -340,12 +347,13 @@ def global_table(metrics: pd.DataFrame, settings: Settings) -> pd.DataFrame:
 def hubs_table(
     paths: RunPaths, occurrences: pd.DataFrame, settings: Settings, top: int = 10
 ) -> pd.DataFrame:
-    path = paths.metrics_dir / "hubs.csv"
+    path = paths.metrics_table("hubs")
     if not path.exists():
         return pd.DataFrame()
     hubs = pd.read_csv(path, keep_default_na=False)
     k = settings.networks.k_main
-    wanted = {f"{rep}|k{k}|directed|rand|s0": rep for rep in settings.networks.representations}
+    reps = settings.networks.representations
+    wanted = {graph_id(rep, k, "directed", "rand", 0): rep for rep in reps}
     hubs = hubs[hubs["graph_id"].isin(wanted)].copy()
     hubs["rep"] = hubs["graph_id"].map(wanted)
     hubs = hubs[hubs["rank"].astype(int) <= top]
@@ -495,14 +503,14 @@ def core_metrics(
 
 
 def community_membership(
-    paths: RunPaths, graph_id: str, resolution: float, method: str = "leiden"
+    paths: RunPaths, gid: str, resolution: float, method: str = "leiden"
 ) -> tuple[np.ndarray, float] | None:
-    index_path = paths.metrics_dir / "communities" / "index.csv"
+    index_path = paths.communities_index
     if not index_path.exists():
         return None
     index = pd.read_csv(index_path, keep_default_na=False)
     rows = index[
-        (index["graph_id"] == graph_id)
+        (index["graph_id"] == gid)
         & (index["method"] == method)
         & np.isclose(pd.to_numeric(index["resolution"]), resolution)
     ]
@@ -528,7 +536,7 @@ def p3_tables(
     rows: list[dict[str, Any]] = []
     memberships: dict[str, np.ndarray] = {}
     for rep in reps:
-        found = community_membership(paths, f"{rep}|k{k}|union|rand|s0", res)
+        found = community_membership(paths, graph_id(rep, k, "union", "rand", 0), res)
         if found is None:
             continue
         membership, stability = found
@@ -546,7 +554,7 @@ def p3_tables(
     ordered = [rep for rep in reps if rep in memberships]
     for a, b in zip(ordered, ordered[1:], strict=False):
         layer_rows.append({"from": a, "to": b, "nmi": nmi(memberships[a], memberships[b])})
-    seed1 = community_membership(paths, f"{LEX}|k{k}|union|rand|s1", res)
+    seed1 = community_membership(paths, graph_id(LEX, k, "union", "rand", 1), res)
     if seed1 is not None and LEX in memberships:
         layer_rows.append(
             {"from": "lex(s0)", "to": "lex(s1)", "nmi": nmi(memberships[LEX], seed1[0])}
@@ -573,7 +581,7 @@ def type_groups(occurrences: pd.DataFrame, settings: Settings) -> dict[int, tupl
     for token_id in multitheme:
         groups.setdefault(int(token_id), ("multitheme", ""))
     function = occurrences.groupby("token_id")["is_function_word"].agg(
-        lambda s: s.astype(str).str.lower().isin(["true", "1"]).mean() > 0.5
+        lambda s: parse_bool(s).mean() > 0.5
     )
     for token_id, is_function in function.items():
         if is_function:
@@ -616,7 +624,7 @@ def p4_tables(
     rows: list[dict[str, Any]] = []
     sense_rows: list[dict[str, Any]] = []
     for rep in reps:
-        found = community_membership(paths, f"{rep}|k{k}|union|rand|s0", res)
+        found = community_membership(paths, graph_id(rep, k, "union", "rand", 0), res)
         membership = found[0] if found else None
         if is_lexical(rep):
             weight = load_embeddings(paths.embeddings)
@@ -718,7 +726,7 @@ def vocab_tables(
     neighbor_rows: list[dict[str, Any]] = []
     if k is not None:
         found = community_membership(
-            paths, f"vocab|k{k}|union|rand|s0", float(settings.analysis.resolution)
+            paths, graph_id("vocab", k, "union", "rand", 0), float(settings.analysis.resolution)
         )
         if found is not None:
             membership, stability = found
@@ -788,16 +796,13 @@ def _write(frame: pd.DataFrame, path: Path) -> None:
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
     out_dir = paths.analysis_dir
     inputs = analysis_inputs(paths)
-    outputs = [out_dir / name for name in OUTPUT_FILES]
-    if not force and stage_is_fresh(out_dir, settings, inputs, outputs):
-        LOGGER.info("Análises já existem em %s; use --force para refazer", out_dir)
+    outputs = [paths.analysis_table(name) for name in REQUIRED_OUTPUTS]
+    if up_to_date("analyze", paths, settings, inputs, outputs, force):
         return
-    for path in (paths.occurrences, paths.manifest("knn")):
-        if not path.exists():
-            raise FileNotFoundError(f"{path} não existe; rode as etapas anteriores")
+    require_inputs([paths.occurrences, paths.manifest("knn")], "as etapas anteriores")
     started = time.time()
     ensure_dir(out_dir)
-    (out_dir / "_manifest.json").unlink(missing_ok=True)
+    paths.manifest("analysis").unlink(missing_ok=True)
     occurrences = load_occurrences(paths)
     k = settings.networks.k_main
     reps = main_reps(settings, paths)
@@ -810,49 +815,50 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
     labelled = pd.concat(
         [measures, occurrences[["band_sample", "token_category", "stratum", "pos_bucket"]]], axis=1
     )
-    _write(measures, out_dir / "vertex_measures.csv")
-    _write(summarize(labelled, measure_columns(measures), GROUPINGS), out_dir / "p1_summary.csv")
+    _write(measures, paths.analysis_table("vertex_measures"))
+    summary = summarize(labelled, measure_columns(measures), GROUPINGS)
+    _write(summary, paths.analysis_table("p1_summary"))
     overall, grouped = transitions_table(measures, occurrences, consecutive, pairs)
-    _write(overall, out_dir / "p2_transitions.csv")
-    _write(grouped, out_dir / "p2_transitions_groups.csv")
+    _write(overall, paths.analysis_table("p2_transitions"))
+    _write(grouped, paths.analysis_table("p2_transitions_groups"))
     timings["p1_p2_s"] = round(time.perf_counter() - tick, 2)
 
-    metrics_path = paths.metrics_dir / "graph_metrics.csv"
+    metrics_path = paths.metrics_table("graph_metrics")
     metrics = pd.read_csv(metrics_path) if metrics_path.exists() else pd.DataFrame()
     if not metrics.empty:
-        _write(global_table(metrics, settings), out_dir / "p1_global.csv")
-        _write(robustness_graphs(metrics, settings), out_dir / "robustness_graphs.csv")
+        _write(global_table(metrics, settings), paths.analysis_table("p1_global"))
+        _write(robustness_graphs(metrics, settings), paths.analysis_table("robustness_graphs"))
     else:
-        _write(pd.DataFrame(), out_dir / "p1_global.csv")
-    _write(hubs_table(paths, occurrences, settings), out_dir / "p1_hubs.csv")
+        _write(pd.DataFrame(), paths.analysis_table("p1_global"))
+    _write(hubs_table(paths, occurrences, settings), paths.analysis_table("p1_hubs"))
 
     tick = time.perf_counter()
 
     _write(
         robustness_neighbors(paths, settings, occurrences, occurrence_names(settings)),
-        out_dir / "robustness_neighbors.csv",
+        paths.analysis_table("robustness_neighbors"),
     )
-    _write(core_metrics(paths, settings, occurrences, reps), out_dir / "core_metrics.csv")
+    _write(core_metrics(paths, settings, occurrences, reps), paths.analysis_table("core_metrics"))
     timings["robustness_s"] = round(time.perf_counter() - tick, 2)
 
     tick = time.perf_counter()
     agreement_table, layer_nmi = p3_tables(paths, settings, occurrences, reps)
-    _write(agreement_table, out_dir / "p3_agreement.csv")
-    _write(layer_nmi, out_dir / "p3_layer_nmi.csv")
+    _write(agreement_table, paths.analysis_table("p3_agreement"))
+    _write(layer_nmi, paths.analysis_table("p3_layer_nmi"))
     timings["p3_s"] = round(time.perf_counter() - tick, 2)
 
     tick = time.perf_counter()
     types, groups, senses = p4_tables(paths, settings, occurrences, reps)
-    _write(types, out_dir / "p4_types.csv")
-    _write(groups, out_dir / "p4_groups.csv")
-    _write(senses, out_dir / "p4_senses.csv")
+    _write(types, paths.analysis_table("p4_types"))
+    _write(groups, paths.analysis_table("p4_groups"))
+    _write(senses, paths.analysis_table("p4_senses"))
     timings["p4_s"] = round(time.perf_counter() - tick, 2)
 
     tick = time.perf_counter()
     vocab_summary, vocab_communities, vocab_neighbors = vocab_tables(paths, settings, occurrences)
-    _write(vocab_summary, out_dir / "vocab_summary.csv")
-    _write(vocab_communities, out_dir / "vocab_communities.csv")
-    _write(vocab_neighbors, out_dir / "vocab_target_neighbors.csv")
+    _write(vocab_summary, paths.analysis_table("vocab_summary"))
+    _write(vocab_communities, paths.analysis_table("vocab_communities"))
+    _write(vocab_neighbors, paths.analysis_table("vocab_target_neighbors"))
     timings["vocab_s"] = round(time.perf_counter() - tick, 2)
 
     layer_rows = 0
@@ -866,7 +872,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
             occurrences["token_category"].to_numpy(),
             lexical_pos,
         )
-        _write(sweep, out_dir / "p2_layers.csv")
+        _write(sweep, paths.analysis_table("p2_layers"))
         layer_rows = len(sweep)
         timings["layer_sweep_s"] = round(time.perf_counter() - tick, 2)
 

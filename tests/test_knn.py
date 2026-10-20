@@ -17,13 +17,11 @@ from gender_networks.knn import (
     Candidates,
     SampleTypes,
     _block_candidates,
-    candidates_path,
     knn_candidates,
     lexical_candidates,
     lexical_type_candidates,
     load_layer,
     load_representation,
-    neighbors_path,
     normalize_rows,
     output_paths,
     rep_rng,
@@ -31,8 +29,6 @@ from gender_networks.knn import (
     select_neighbors,
     select_row,
     type_similarity,
-    vocab_candidates_path,
-    vocab_neighbors_path,
 )
 from gender_networks.representations import occurrence_names
 from gender_networks.settings import (
@@ -547,12 +543,12 @@ def test_run_end_to_end(tmp_path: Path) -> None:
     assert reps == ["lex", "L01", "L18", "L36", "L36n", "L01c", "L18c", "L36c"]
     assert all(path.exists() for path in output_paths(settings, paths))
     for rep in reps:
-        with np.load(candidates_path(paths, rep)) as data:
+        with np.load(paths.cand(rep)) as data:
             assert set(data.files) == {"indptr", "idx", "sim"}
             assert data["indptr"].shape == (n + 1,) and data["indptr"].dtype == np.int64
             assert data["idx"].dtype == np.int32 and data["sim"].dtype == np.float64
         for k in (2, 3):
-            with np.load(neighbors_path(paths, rep, k)) as data:
+            with np.load(paths.nbr(rep, k)) as data:
                 assert set(data.files) == {
                     "pos",
                     "rand",
@@ -571,12 +567,12 @@ def test_run_end_to_end(tmp_path: Path) -> None:
                 assert (data["pos"] != np.arange(n)[:, None]).all()
                 assert (data["types_pos"] != token_ids[:, None]).all()
                 assert np.isin(data["types_pos"], token_ids).all()
-        with np.load(neighbors_path(paths, rep, 3, sensitivity=True)) as data:
+        with np.load(paths.nbr(rep, 3, sensitivity=True)) as data:
             assert set(data.files) == {"pos", "rand"}
             assert data["pos"].shape == (n, 3) and data["rand"].shape == (2, n, 3)
 
     # lexical: occurrences of a frequent type see the smallest other occurrence ids of the type
-    with np.load(neighbors_path(paths, "lex", 3)) as data:
+    with np.load(paths.nbr("lex", 3)) as data:
         lex_pos, lex_rand = data["pos"], data["rand"]
     for i in range(n):
         same = np.flatnonzero(token_ids == token_ids[i])
@@ -584,7 +580,7 @@ def test_run_end_to_end(tmp_path: Path) -> None:
         if same.size >= 3:
             assert lex_pos[i].tolist() == same[:3].tolist()
             assert np.isin(lex_rand[:, i], same).all()
-    lex_cand = Candidates.load(candidates_path(paths, "lex"))
+    lex_cand = Candidates.load(paths.cand("lex"))
     for r in range(2):
         rng = np.random.default_rng([438, zlib.crc32(b"lex"), 3, r])
         np.testing.assert_array_equal(
@@ -596,7 +592,7 @@ def test_run_end_to_end(tmp_path: Path) -> None:
     x = load_representation(paths, settings, "L01")
     for rep, center in (("L01", False), ("L01c", True)):
         cand, _ = knn_candidates(normalize_rows(x, center=center), 3, 6, 1e-4, block_size=7)
-        with np.load(neighbors_path(paths, rep, 3)) as data:
+        with np.load(paths.nbr(rep, 3)) as data:
             np.testing.assert_array_equal(data["pos"], select_neighbors(cand, 3, 1e-6))
             rng = rep_rng(438, rep, 3, 1)
             np.testing.assert_array_equal(
@@ -604,13 +600,13 @@ def test_run_end_to_end(tmp_path: Path) -> None:
             )
 
     # vocabulary network: special ids excluded, rows are indices into vocab_ids
-    with np.load(vocab_candidates_path(paths)) as data:
+    with np.load(paths.vocab_cand) as data:
         assert set(data.files) == {"vocab_ids", "indptr", "idx", "sim"}
         vocab_ids = data["vocab_ids"]
     np.testing.assert_array_equal(vocab_ids, np.arange(38))
     expected = np.stack(brute_rows(exact_cosine(weight[:38]), 3, 1e-6, "position"))
     for k in (2, 3):
-        with np.load(vocab_neighbors_path(paths, k)) as data:
+        with np.load(paths.vocab_nbr(k)) as data:
             assert set(data.files) == {"vocab_ids", "pos", "rand"}
             assert data["pos"].shape == (38, k) and data["rand"].shape == (1, 38, k)
             np.testing.assert_array_equal(data["pos"], expected[:, :k])
@@ -625,11 +621,11 @@ def test_run_end_to_end(tmp_path: Path) -> None:
     assert manifest["vocab"]["rows"] == 38 and manifest["vocab"]["special_excluded"] == 2
 
     # a second run is skipped; force recomputes
-    stamp = candidates_path(paths, "L01").stat().st_mtime_ns
+    stamp = paths.cand("L01").stat().st_mtime_ns
     run(settings, paths)
-    assert candidates_path(paths, "L01").stat().st_mtime_ns == stamp
+    assert paths.cand("L01").stat().st_mtime_ns == stamp
     run(settings, paths, force=True)
-    assert candidates_path(paths, "L01").stat().st_mtime_ns != stamp
+    assert paths.cand("L01").stat().st_mtime_ns != stamp
 
 
 def test_run_requires_inputs(tmp_path: Path) -> None:

@@ -257,7 +257,7 @@ def test_bf16_bits_round_trip() -> None:
 
     assert bits.dtype == np.uint16 and bits.shape == (5, 7)
     np.testing.assert_array_equal(ex.bits_to_float32(bits), x.to(torch.bfloat16).float().numpy())
-    assert torch.equal(ex.bits_to_tensor(bits), x.to(torch.bfloat16))
+    assert torch.equal(artifacts.bf16_tensor(bits), x.to(torch.bfloat16))
     # the loading recipe documented for all_layers.npy
     documented = torch.from_numpy(bits.view(np.int16)).view(torch.bfloat16)
     assert torch.equal(documented, x.to(torch.bfloat16))
@@ -508,7 +508,7 @@ def test_run_writes_every_artifact(
     assert weight.shape == (VOCAB, HIDDEN)
     assert torch.equal(weight, model.embed_tokens.weight[:VOCAB].detach().to(torch.bfloat16))
 
-    pred_next = np.load(ex.pred_next_path(paths))
+    pred_next = np.load(paths.pred_next)
     assert pred_next.dtype == np.int32 and pred_next.shape == (n,)
     logits = norm @ model.embed_tokens.weight[:VOCAB].detach().double().T
     assert pred_next.tolist() == logits.argmax(1).tolist()
@@ -518,7 +518,7 @@ def test_run_writes_every_artifact(
         for x in (l36n, *all_layers):
             assert (x[members] == x[members[0]]).all()
 
-    diagnostics = read_json(ex.diagnostics_path(paths))
+    diagnostics = read_json(paths.diagnostics)
     assert set(diagnostics["representations"]) == {"L01", "L02", "L04", "L36n", "lex"}
     for summary in diagnostics["representations"].values():
         assert summary["n"] == n
@@ -551,7 +551,7 @@ def test_run_writes_every_artifact(
     assert diagnostics["devices"]["input_device"] == "cpu"
     assert diagnostics["vocab_size"] == VOCAB and diagnostics["embedding_rows"] == EMBEDDING_ROWS
 
-    verify = read_json(ex.verify_path(paths))
+    verify = read_json(paths.verify_report)
     assert verify["passed"] is True and verify["n_sequences"] == 2
     manifest = read_json(paths.reps_dir / "_manifest.json")
     assert manifest["stage"] == "extract" and manifest["n_vertices"] == n
@@ -643,7 +643,7 @@ def test_failed_forced_verification_drops_the_old_manifest(
     with pytest.raises(RuntimeError, match="final_norm"):
         ex.run(settings, paths, force=True)
 
-    assert read_json(ex.verify_path(paths))["passed"] is False
+    assert read_json(paths.verify_report)["passed"] is False
     assert not (paths.reps_dir / "_manifest.json").exists()
 
 
@@ -655,8 +655,8 @@ def test_run_verify_only_writes_just_the_report(
 
     ex.run(settings, paths, verify_only=True)
 
-    assert read_json(ex.verify_path(paths))["passed"] is True
-    assert sorted(p.name for p in paths.reps_dir.iterdir()) == [ex.VERIFY_FILE]
+    assert read_json(paths.verify_report)["passed"] is True
+    assert sorted(p.name for p in paths.reps_dir.iterdir()) == [paths.verify_report.name]
 
 
 def test_run_aborts_when_verification_fails(
@@ -669,7 +669,7 @@ def test_run_aborts_when_verification_fails(
     with pytest.raises(RuntimeError, match="final_norm"):
         ex.run(settings, paths)
 
-    assert read_json(ex.verify_path(paths))["passed"] is False
+    assert read_json(paths.verify_report)["passed"] is False
     assert not paths.all_layers.exists() and not paths.rep("L01").exists()
 
 
@@ -684,7 +684,7 @@ def test_run_without_all_layers(
     blocks = align_groups(blocks, occurrences["prefix_group"].to_numpy(), axis=1)
     for name, layer in REP_LAYERS.items():
         assert torch.equal(load_bf16(paths.rep(name), "x"), blocks[layer - 1].to(torch.bfloat16))
-    curve = read_json(ex.diagnostics_path(paths))["layer_curve"]
+    curve = read_json(paths.diagnostics)["layer_curve"]
     assert [point["layer"] for point in curve] == [1, 2, 4]
 
 
@@ -702,7 +702,7 @@ def test_run_in_bfloat16_matches_the_saved_artifacts(
     weight = load_bf16(paths.embeddings, "weight")
     # production dtype: pred_next is reproducible from the stored bf16 artifacts
     expected = (l36n.float() @ weight.float().T).argmax(1)
-    assert np.load(ex.pred_next_path(paths)).tolist() == expected.tolist()
+    assert np.load(paths.pred_next).tolist() == expected.tolist()
     blocks = align_groups(raw_blocks, groups, axis=1).to(torch.bfloat16)
     assert torch.equal(load_bf16(paths.rep("L04"), "x"), blocks[3])
 

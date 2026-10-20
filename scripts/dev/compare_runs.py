@@ -12,7 +12,10 @@ other folder must not have extra files. Content is compared by type:
 - ``.tex``: same text, except the lines of the macros that record when and from which revision
   the run was made (``VOLATILE_MACROS``) and durations such as ``0,3 s`` or ``12 min``;
 - ``.csv``: same rows and values, except the columns that time the computation (``elapsed_s``);
-- anything else (JSON, text): same bytes.
+- ``.json``: same content, except the keys that time the computation (``model_load_s``,
+  ``seconds``, ``tokens_per_second``, ``timings``...);
+- ``.safetensors``: same tensors and metadata (the header lists the metadata in no fixed order);
+- anything else: same bytes.
 
 Apart from those timings, two runs of the same code give identical files (checked on the mini
 run before the October refactoring).
@@ -28,6 +31,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -44,6 +48,7 @@ VOLATILE_FILES = {"versoes.tex"}
 VOLATILE_MACROS = ("\\dataExecucao", "\\revisaoGit")
 DURATION = re.compile(r"\d+(?:,\d+)?\s?(?:s|min|h)\b")
 TIMING_COLUMNS = re.compile(r"^elapsed")
+TIMING_KEYS = re.compile(r"(_s|seconds|per_second|^elapsed.*|^timings)$")
 RASTER_DPI = 50
 
 
@@ -153,6 +158,36 @@ def compare_csv(a: Path, b: Path) -> str | None:
     return f"{len(left)} rows != {len(right)} rows"
 
 
+def without_timings(value: object) -> object:
+    if isinstance(value, dict):
+        return {k: without_timings(v) for k, v in value.items() if not TIMING_KEYS.search(k)}
+    if isinstance(value, list):
+        return [without_timings(item) for item in value]
+    return value
+
+
+def compare_json(a: Path, b: Path) -> str | None:
+    left = without_timings(json.loads(a.read_text(encoding="utf-8")))
+    right = without_timings(json.loads(b.read_text(encoding="utf-8")))
+    return None if left == right else "content differs (timings ignored)"
+
+
+def compare_safetensors(a: Path, b: Path) -> str | None:
+    import torch
+    from safetensors import safe_open
+
+    with safe_open(a, framework="pt") as left, safe_open(b, framework="pt") as right:
+        if left.metadata() != right.metadata():
+            return f"metadata {left.metadata()} != {right.metadata()}"
+        if sorted(left.keys()) != sorted(right.keys()):
+            return f"tensors {sorted(left.keys())} != {sorted(right.keys())}"
+        for key in left.keys():
+            x, y = left.get_tensor(key), right.get_tensor(key)
+            if x.dtype != y.dtype or x.shape != y.shape or not torch.equal(x, y):
+                return f"tensor '{key}' differs"
+    return None
+
+
 def compare_bytes(a: Path, b: Path) -> str | None:
     if a.read_bytes() == b.read_bytes():
         return None
@@ -170,6 +205,8 @@ COMPARERS = {
     ".pdf": compare_pdf,
     ".tex": compare_tex,
     ".csv": compare_csv,
+    ".json": compare_json,
+    ".safetensors": compare_safetensors,
 }
 
 

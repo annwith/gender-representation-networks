@@ -42,8 +42,11 @@ import numpy as np
 from gender_networks.artifacts import (
     RunPaths,
     ensure_dir,
+    graph_id,
     neighbors_name,
-    stage_is_fresh,
+    read_token_ids,
+    require_inputs,
+    up_to_date,
     vocab_neighbors_name,
     write_csv,
     write_manifest,
@@ -141,37 +144,6 @@ COMMUNITY_COLUMNS = [
 # graph specifications
 
 
-def graph_id(rep: str, k: int, sym: str, tie: str, seed: int) -> str:
-    """Identifier ``rep|k{k}|{sym}|{tie}|s{seed}`` of a graph specification."""
-
-    return f"{rep}|k{k}|{sym}|{tie}|s{seed}"
-
-
-def file_safe(gid: str) -> str:
-    """File-name version of a graph id (``|`` becomes ``__``)."""
-
-    return gid.replace("|", "__")
-
-
-def neighbor_file(rep: str, k: int) -> str:
-    return neighbors_name(rep, k)
-
-
-def eps_file(rep: str, k: int) -> str:
-    return neighbors_name(rep, k, sensitivity=True)
-
-
-def vocab_file(k: int) -> str:
-    return vocab_neighbors_name(k)
-
-
-def community_file(gid: str, resolution: float, method: str = "leiden") -> str:
-    """Name of a partition file inside ``metrics/communities``."""
-
-    suffix = "" if method == "leiden" else f"__{method}"
-    return f"{file_safe(gid)}__res{float(resolution)}{suffix}.npz"
-
-
 @dataclass(frozen=True)
 class GraphSpec:
     """One graph to measure: which neighbour set, how it is symmetrized, where it lives."""
@@ -235,7 +207,7 @@ def plan_graphs(settings: Settings) -> list[GraphSpec]:
     def block(rep: str, k: int, seeds: Sequence[int], group: str, with_main: bool) -> None:
         """Union/directed graphs (``with_main``) and, for robustness, mutual and variant (b)."""
 
-        source = neighbor_file(rep, k)
+        source = neighbors_name(rep, k)
         if with_main:
             for sym in MAIN_SYMS:
                 for seed in seeds:
@@ -256,12 +228,13 @@ def plan_graphs(settings: Settings) -> list[GraphSpec]:
     for rep in extra:
         block(rep, k_main, [0], "robust", with_main=True)
     for rep in occurrence_names(settings):
+        eps_source = neighbors_name(rep, k_main, sensitivity=True)
         for sym in MAIN_SYMS:
-            add(rep, k_main, sym, "rand_eps", 0, eps_file(rep, k_main), "robust")
+            add(rep, k_main, sym, "rand_eps", 0, eps_source, "robust")
     for k in net.vocab.k_values:
         for sym in MAIN_SYMS:
             for tie in ("rand", "pos"):
-                add(VOCAB, k, sym, tie, 0, vocab_file(k), "vocab")
+                add(VOCAB, k, sym, tie, 0, vocab_neighbors_name(k), "vocab")
     return specs
 
 
@@ -672,12 +645,7 @@ def _save_partition(path: Path, partition: Partition, vocab_ids: np.ndarray | No
 
 
 def _occurrence_token_ids(paths: RunPaths) -> np.ndarray | None:
-    if not paths.occurrences.exists():
-        return None
-    import pandas as pd
-
-    frame = pd.read_csv(paths.occurrences, usecols=["token_id"])
-    return frame["token_id"].to_numpy(dtype=np.int64)
+    return read_token_ids(paths.occurrences) if paths.occurrences.exists() else None
 
 
 def _vocab_ids(knn_dir: Path, specs: Sequence[GraphSpec]) -> dict[str, np.ndarray]:
@@ -744,29 +712,23 @@ def metrics_inputs(paths: RunPaths) -> list[Path]:
     return [paths.manifest("knn"), paths.manifest("sample")]
 
 
-def _outputs_done(settings: Settings, paths: RunPaths) -> bool:
-    outputs = [paths.metrics_dir / "graph_metrics.csv"]
-    return stage_is_fresh(paths.metrics_dir, settings, metrics_inputs(paths), outputs)
-
-
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
     """Measure every graph specification whose neighbour file exists in ``paths.knn_dir``."""
 
     out_dir = paths.metrics_dir
-    if not force and _outputs_done(settings, paths):
-        LOGGER.info("Métricas já existem em %s; use --force para refazer", out_dir)
+    outputs = [paths.metrics_table("graph_metrics")]
+    if up_to_date("metrics", paths, settings, metrics_inputs(paths), outputs, force):
         return
     started = time.time()
     knn_dir = paths.knn_dir
-    if not knn_dir.exists():
-        raise FileNotFoundError(f"knn directory {knn_dir} not found; run the knn stage first")
+    require_inputs([knn_dir], "a etapa knn")
 
     planned = plan_graphs(settings)
     present = {source for source in {s.source for s in planned} if (knn_dir / source).exists()}
     specs = [spec for spec in planned if spec.source in present]
     missing = sorted({spec.source for spec in planned} - present)
     k_main = settings.networks.k_main
-    required = {neighbor_file(rep, k_main) for rep in settings.networks.representations}
+    required = {neighbors_name(rep, k_main) for rep in settings.networks.representations}
     if required - present:
         raise FileNotFoundError(
             f"Main-configuration neighbour files missing in {knn_dir}: "
@@ -854,8 +816,7 @@ def _write_outputs(
 ) -> dict[str, Any]:
     """Write every table and partition file; return statistics for the manifest."""
 
-    out_dir = ensure_dir(paths.metrics_dir)
-    community_dir = ensure_dir(out_dir / "communities")
+    community_dir = ensure_dir(paths.communities_dir)
     for stale in community_dir.glob("*.npz"):
         stale.unlink()
     main_res = float(settings.analysis.resolution)
@@ -897,11 +858,11 @@ def _write_outputs(
                     "token_id": token,
                 }
             )
-    write_csv(out_dir / "graph_metrics.csv", metric_rows, METRIC_COLUMNS)
-    write_csv(out_dir / "degree_hist.csv", degree_rows, DEGREE_COLUMNS)
-    write_csv(out_dir / "components.csv", component_rows, COMPONENT_COLUMNS)
-    write_csv(out_dir / "distance_hist.csv", distance_rows, DISTANCE_COLUMNS)
-    write_csv(out_dir / "hubs.csv", hub_rows, HUB_COLUMNS)
+    write_csv(paths.metrics_table("graph_metrics"), metric_rows, METRIC_COLUMNS)
+    write_csv(paths.metrics_table("degree_hist"), degree_rows, DEGREE_COLUMNS)
+    write_csv(paths.metrics_table("components"), component_rows, COMPONENT_COLUMNS)
+    write_csv(paths.metrics_table("distance_hist"), distance_rows, DISTANCE_COLUMNS)
+    write_csv(paths.metrics_table("hubs"), hub_rows, HUB_COLUMNS)
 
     specs_by_id = {spec.graph_id: spec for spec in plan.specs}
     index_rows, louvain_checks = [], []
@@ -910,9 +871,9 @@ def _write_outputs(
         canonical = plan.canonical(gid)
         partition = results[canonical].partitions[(method, res)]
         spec = specs_by_id[gid]
-        name = community_file(gid, res, method)
+        path = paths.community(gid, res, method)
         ids = vocab_ids.get(spec.source) if spec.rep == VOCAB else None
-        _save_partition(community_dir / name, partition, ids)
+        _save_partition(path, partition, ids)
         nmi_vs_leiden = None
         if method == "louvain":
             reference = results[canonical].partitions.get(("leiden", res))
@@ -937,7 +898,7 @@ def _write_outputs(
                     "graph_id": gid,
                     "method": method,
                     "resolution": res,
-                    "file": f"communities/{name}",
+                    "file": path.relative_to(paths.metrics_dir).as_posix(),
                     "duplicate_of": canonical if canonical != gid else None,
                     "n_vertices": int(partition.membership.size),
                     "modularity": partition.modularity,
@@ -957,7 +918,7 @@ def _write_outputs(
                 }.items()
             }
         )
-    write_csv(community_dir / "index.csv", index_rows, COMMUNITY_COLUMNS)
+    write_csv(paths.communities_index, index_rows, COMMUNITY_COLUMNS)
     return {
         "n_partition_files": len(index_rows),
         "louvain_check": louvain_checks,

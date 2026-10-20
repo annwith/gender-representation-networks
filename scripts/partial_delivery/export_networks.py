@@ -58,9 +58,9 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from gender_networks import plots
-from gender_networks.artifacts import neighbors_name
+from gender_networks.artifacts import community_name, graph_id, neighbors_name
 from gender_networks.graphs import edge_hash, graph_metrics, histogram, symmetrized_edges
-from gender_networks.metrics import community_file, graph_id, select_neighbors
+from gender_networks.metrics import select_neighbors
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_RUN = REPO / "outputs" / "experiment" / "main"
@@ -162,7 +162,7 @@ def build_graph(run: Path, rep: str, vertices: pd.DataFrame, sym: str) -> tuple[
 
     # Communities are always found on the union graph (Leiden optimizes undirected modularity).
     union_gid = graph_id(rep, K, "union", TIE, SEED)
-    with np.load(run / "metrics" / "communities" / community_file(union_gid, RESOLUTION)) as data:
+    with np.load(run / "metrics" / "communities" / community_name(union_gid, RESOLUTION)) as data:
         community = np.asarray(data["membership"], dtype=np.int64)
     in_degree = np.bincount(arcs[:, 1], minlength=n)
 

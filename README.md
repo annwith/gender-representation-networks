@@ -79,8 +79,9 @@ O modelo (cerca de 7,5 GiB em bf16) é baixado do Hugging Face na primeira execu
 
 ## Pipeline
 
-Cada etapa lê os artefatos da anterior e pode ser refeita sozinha. Uma etapa cujas saídas já
-existem é pulada, a menos que se passe `--force`.
+Cada etapa lê os artefatos da anterior e pode ser refeita sozinha. Uma etapa é pulada quando as
+suas saídas existem, as entradas não mudaram e as seções da configuração que ela usa (as suas e
+as das etapas anteriores) também não; `--force` a refaz de qualquer jeito.
 
 ```bash
 uv run gender-networks corpus  --config configs/experiment.yaml  # baixa e limpa a Wikipédia

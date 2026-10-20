@@ -47,7 +47,17 @@ import numpy as np
 import pandas as pd
 
 from gender_networks import plots
-from gender_networks.artifacts import RunPaths, ensure_dir, read_json, read_jsonl, write_manifest
+from gender_networks.artifacts import (
+    MANIFEST,
+    STAGE_DIRS,
+    RunPaths,
+    ensure_dir,
+    graph_id,
+    parse_bool,
+    read_json,
+    read_jsonl,
+    write_manifest,
+)
 from gender_networks.neighborhood import jaccard
 from gender_networks.plots import (
     CATEGORY_LABELS,
@@ -139,14 +149,8 @@ MACROS = [
     "revisaoGit",
 ]
 # Stage manifests in pipeline order: (label, directory name inside the run, or None = corpus).
-STAGE_MANIFESTS = [
-    ("corpus", None),
-    ("sample", "sample"),
-    ("extract", "reps"),
-    ("knn", "knn"),
-    ("metrics", "metrics"),
-    ("analyze", "analysis"),
-    ("lens", "lens"),
+STAGE_MANIFESTS = [("corpus", None)] + [
+    (stage, directory) for stage, directory in STAGE_DIRS.items() if stage != STAGE
 ]
 SUBGRAPH_WINDOW = 14
 SUBGRAPH_TOP_TYPES = 7
@@ -396,10 +400,6 @@ def read_table(path: Path) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def _bool(series: pd.Series) -> pd.Series:
-    return series.astype(str).str.strip().str.lower().isin(["true", "1", "yes"])
-
-
 def band_order(settings: Settings, open_top: bool = False) -> list[str]:
     bands = settings.sample.bands
     out = []
@@ -439,10 +439,10 @@ class Context:
         return frame
 
     def analysis(self, name: str) -> pd.DataFrame:
-        return self.nonempty(self.paths.analysis_dir / name)
+        return self.nonempty(self.paths.analysis_table(name))
 
     def metrics_table(self, name: str) -> pd.DataFrame:
-        return self.nonempty(self.paths.metrics_dir / name)
+        return self.nonempty(self.paths.metrics_table(name))
 
     def npz(self, path: Path) -> dict[str, np.ndarray]:
         if path not in self._npz:
@@ -654,7 +654,7 @@ def collect_numbers(ctx: Context) -> dict[str, str]:
     if vocab_ids is not None and ctx.paths.vocab_types.exists():
         f_corpus = ctx.vocab_types["f_corpus"].to_numpy(dtype=np.int64)
         values["nTiposVocabCorpus"] = integer(int(np.sum(f_corpus[vocab_ids] > 0)))
-    lens = ctx.paths.lens_dir / "summary.json"
+    lens = ctx.paths.lens_file("summary.json")
     if lens.exists():
         agreement = (ctx.json(lens).get("pred_next_agreement") or {}).get("rate")
         if _finite(agreement) is not None:
@@ -1291,7 +1291,7 @@ def _metric_cell(part: pd.DataFrame, column: str, kind: str, digits: int) -> str
 
 
 def table_metricas_globais(ctx: Context) -> Tabular:
-    metrics = ctx.metrics_table("graph_metrics.csv")
+    metrics = ctx.metrics_table("graph_metrics")
     k = ctx.k
     columns: list[tuple[str, pd.DataFrame, pd.DataFrame, str]] = []
     for rep in ctx.settings.networks.representations:
@@ -1350,11 +1350,11 @@ def table_metricas_globais(ctx: Context) -> Tabular:
 
 
 def figure_graus_camadas(ctx: Context) -> Any:
-    hist = ctx.metrics_table("degree_hist.csv")
+    hist = ctx.metrics_table("degree_hist")
     hist = hist[hist["kind"] == "in"]
     series = {}
     for rep in ctx.settings.networks.representations:
-        part = hist[hist["graph_id"] == f"{rep}|k{ctx.k}|directed|rand|s0"]
+        part = hist[hist["graph_id"] == graph_id(rep, ctx.k, "directed", "rand", 0)]
         if not part.empty:
             series[rep] = (
                 part["degree"].to_numpy(dtype=float),
@@ -1492,7 +1492,7 @@ def figure_p4_ego_banco(ctx: Context) -> Any:
 
 
 def _measures(ctx: Context) -> pd.DataFrame:
-    measures = ctx.analysis("vertex_measures.csv")
+    measures = ctx.analysis("vertex_measures")
     occ = ctx.occurrences
     if len(measures) != len(occ):
         raise Skip("vertex_measures.csv e occurrences.csv têm números de linhas diferentes")
@@ -1618,7 +1618,7 @@ def table_p1_resumo(ctx: Context) -> Tabular:
 
 
 def table_p1_hubs(ctx: Context) -> Tabular:
-    hubs = ctx.analysis("p1_hubs.csv")
+    hubs = ctx.analysis("p1_hubs")
     occ = ctx.occurrences
     reps = [r for r in ctx.settings.networks.representations if (hubs["rep"] == r).any()]
     top = int(pd.to_numeric(hubs["rank"]).max())
@@ -1675,11 +1675,11 @@ def table_p1_hubs(ctx: Context) -> Tabular:
 
 
 def _transitions(ctx: Context) -> tuple[pd.DataFrame, pd.DataFrame]:
-    overall = ctx.analysis("p2_transitions.csv")
-    groups = ctx.analysis("p2_transitions_groups.csv")
+    overall = ctx.analysis("p2_transitions")
+    groups = ctx.analysis("p2_transitions_groups")
     for frame in (overall, groups):
         frame["value"] = frame["value"].astype(str)
-        frame["consecutive"] = _bool(frame["consecutive"])
+        frame["consecutive"] = parse_bool(frame["consecutive"])
     return overall, groups
 
 
@@ -1762,7 +1762,7 @@ def table_p2_transicoes(ctx: Context) -> Tabular:
 
 
 def figure_p2_curvas_camadas(ctx: Context) -> Any:
-    layers = ctx.analysis("p2_layers.csv")
+    layers = ctx.analysis("p2_layers")
     layers["token_category"] = layers["token_category"].astype(str)
     categories = ordered([c for c in layers["token_category"] if c != "all"], CATEGORY_ORDER)
     return plots.layer_curves_figure(layers, categories)
@@ -1773,7 +1773,7 @@ def figure_p2_curvas_camadas(ctx: Context) -> Any:
 
 
 def _p3_core(ctx: Context) -> pd.DataFrame:
-    table = ctx.analysis("p3_agreement.csv")
+    table = ctx.analysis("p3_agreement")
     core = table[table["subset"].astype(str) == "core"]
     if core.empty:
         raise Skip("p3_agreement.csv não tem linhas do núcleo")
@@ -1846,7 +1846,7 @@ P4_MEASURES = [
 
 
 def figure_p4_separacao(ctx: Context) -> Any:
-    groups = ctx.analysis("p4_groups.csv")
+    groups = ctx.analysis("p4_groups")
     reps = [r for r in ctx.settings.networks.representations if (groups["rep"] == r).any()]
     keys = ordered([g for g in groups["group"].astype(str) if g in GROUP_ORDER], GROUP_ORDER)
     if not keys:
@@ -1856,7 +1856,7 @@ def figure_p4_separacao(ctx: Context) -> Any:
 
 
 def table_p4_alvos(ctx: Context) -> Tabular:
-    types = ctx.analysis("p4_types.csv")
+    types = ctx.analysis("p4_types")
     types["group"] = types["group"].astype(str)
     types["word"] = types["word"].fillna("").astype(str)
     chosen = types[types["group"].isin(["target", "control"])]
@@ -1867,7 +1867,7 @@ def table_p4_alvos(ctx: Context) -> Tabular:
         raise Skip("p4_types.csv não tem camadas contextuais")
     last = deepest[-1]
     senses = None
-    sense_path = ctx.paths.analysis_dir / "p4_senses.csv"
+    sense_path = ctx.paths.analysis_table("p4_senses")
     if sense_path.exists():
         frame = ctx.table(sense_path)
         if not frame.empty:
@@ -1939,20 +1939,20 @@ def table_p4_alvos(ctx: Context) -> Tabular:
 
 
 def _graph_row(metrics: pd.DataFrame, rep: str, k: int, sym: str, tie: str) -> pd.Series | None:
-    hit = metrics[metrics["graph_id"] == f"{rep}|k{k}|{sym}|{tie}|s0"]
+    hit = metrics[metrics["graph_id"] == graph_id(rep, k, sym, tie, 0)]
     return None if hit.empty else hit.iloc[0]
 
 
 def table_robustez(ctx: Context) -> Tabular:
-    metrics = ctx.metrics_table("graph_metrics.csv")
+    metrics = ctx.metrics_table("graph_metrics")
     net = ctx.settings.networks
     k = ctx.k
     neighbors = pd.DataFrame()
-    path = ctx.paths.analysis_dir / "robustness_neighbors.csv"
+    path = ctx.paths.analysis_table("robustness_neighbors")
     if path.exists():
         neighbors = ctx.table(path)
     index = pd.DataFrame()
-    index_path = ctx.paths.metrics_dir / "communities" / "index.csv"
+    index_path = ctx.paths.communities_index
     if index_path.exists():
         index = ctx.table(index_path)
     reps = [
@@ -2062,7 +2062,7 @@ def table_robustez(ctx: Context) -> Tabular:
             found = False
             for rep in reps:
                 hit = index[
-                    (index["graph_id"] == f"{rep}|k{k}|union|rand|s0")
+                    (index["graph_id"] == graph_id(rep, k, "union", "rand", 0))
                     & (index["method"] == method)
                     & np.isclose(pd.to_numeric(index["resolution"]), resolution)
                 ]
@@ -2182,8 +2182,8 @@ def figure_vocab_graus(ctx: Context) -> Any:
 
 
 def _vocab_partition(ctx: Context) -> tuple[np.ndarray, np.ndarray]:
-    index = ctx.metrics_table("communities/index.csv")
-    gid = f"vocab|k{ctx.vocab_k}|union|rand|s0"
+    index = ctx.nonempty(ctx.paths.communities_index)
+    gid = graph_id("vocab", ctx.vocab_k, "union", "rand", 0)
     hit = index[
         (index["graph_id"] == gid)
         & (index["method"] == "leiden")
@@ -2214,7 +2214,7 @@ def figure_vocab_comunidades(ctx: Context) -> Any:
 
 
 def table_vocab_comunidades(ctx: Context) -> Tabular:
-    communities = ctx.analysis("vocab_communities.csv")
+    communities = ctx.analysis("vocab_communities")
     communities = communities.sort_values("size", ascending=False, kind="stable").head(10)
     total = None
     try:
@@ -2237,7 +2237,7 @@ def table_vocab_comunidades(ctx: Context) -> Tabular:
             ]
         )
     notes = []
-    summary_path = ctx.paths.analysis_dir / "vocab_summary.csv"
+    summary_path = ctx.paths.analysis_table("vocab_summary")
     if summary_path.exists():
         summary = ctx.table(summary_path)
         for name, text in (
@@ -2334,7 +2334,7 @@ def table_vocab_vizinhos_alvos(ctx: Context) -> Tabular:
 
 
 def figure_lente_ranking(ctx: Context) -> Any:
-    curve_path = ctx.paths.lens_dir / "layer_curve.csv"
+    curve_path = ctx.paths.lens_file("layer_curve.csv")
     if curve_path.exists() and not ctx.table(curve_path).empty:
         curve = ctx.table(curve_path).copy()
         curve = curve[curve["group_by"].isin(["all", "token_category"])]
@@ -2345,7 +2345,7 @@ def figure_lente_ranking(ctx: Context) -> Any:
         )
         discrete = False
     else:
-        summary = ctx.json(ctx.paths.lens_dir / "summary.json")
+        summary = ctx.json(ctx.paths.lens_file("summary.json"))
         ranks = summary.get("ranks") or {}
         if not ranks:
             raise Skip("lens/summary.json não tem postos")
@@ -2575,7 +2575,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         paths.report_dir,
     )
     manifest_inputs = sorted(
-        {path for path in ctx.read if path.name == "_manifest.json"}
+        {path for path in ctx.read if path.name == MANIFEST}
         | {p for p in (paths.manifest(d) for _, d in STAGE_MANIFESTS if d) if p.exists()}
     )
     write_manifest(

@@ -21,7 +21,10 @@ import unicodedata
 from bisect import bisect_right
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from gender_networks.settings import ModelSettings
 
 # Categories of a token inside a paragraph. The order matters: ``CATEGORY_CODES`` is used by
 # the sampler to store categories compactly, and ``whole_word`` comes last so that argmax over
@@ -333,3 +336,18 @@ def tokenize_paragraphs(
         for text, (ids, offsets) in zip(chunk, encode_with_offsets(tokenizer, chunk), strict=True):
             result.append(label_tokens(text, ids, offsets))
     return result
+
+
+def load_tokenizer(model: ModelSettings) -> Any:
+    """Fast tokenizer of the configured model, at the pinned revision.
+
+    ``transformers`` is imported lazily to keep the CLI light. The fast tokenizer is required:
+    token categories come from character offsets.
+    """
+
+    from transformers import AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(model.name_or_path, revision=model.revision)
+    if not getattr(tokenizer, "is_fast", False):
+        raise ValueError(f"{model.name_or_path} has no fast tokenizer (offsets are required)")
+    return tokenizer

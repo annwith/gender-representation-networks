@@ -37,27 +37,28 @@ import torch
 from numpy.lib.format import open_memmap
 from safetensors.torch import save_file
 from torch import nn
-from transformers import AutoModel, AutoTokenizer, PreTrainedModel, PreTrainedTokenizerBase
+from transformers import AutoModel, PreTrainedModel
 
 from gender_networks.artifacts import (
     POS_BUCKETS,
     RunPaths,
+    bf16_tensor,
     ensure_dir,
     library_versions,
     position_bucket,
     read_jsonl,
-    stage_is_fresh,
+    read_occurrences,
+    require_inputs,
+    up_to_date,
     write_json,
     write_manifest,
 )
 from gender_networks.representations import FINAL_NORM, LEX
 from gender_networks.settings import ModelSettings, Settings
+from gender_networks.tokens import load_tokenizer
 
 LOGGER = logging.getLogger(__name__)
 
-PRED_NEXT_FILE = "pred_next.npy"  # kept for backwards compatibility; use RunPaths.pred_next
-DIAGNOSTICS_FILE = "diagnostics.json"
-VERIFY_FILE = "verify.json"
 OCCURRENCE_INPUT_COLUMNS = [
     "occurrence_id",
     "sequence_id",
@@ -95,18 +96,6 @@ _TOLERANCES: dict[torch.dtype, tuple[float, float]] = {
 # ---------------------------------------------------------------------------------------------
 
 
-def pred_next_path(paths: RunPaths) -> Path:
-    return paths.pred_next
-
-
-def diagnostics_path(paths: RunPaths) -> Path:
-    return paths.diagnostics
-
-
-def verify_path(paths: RunPaths) -> Path:
-    return paths.verify_report
-
-
 def partial_all_layers_path(paths: RunPaths) -> Path:
     """Where all_layers.npy is filled before it is renamed into place."""
 
@@ -120,13 +109,13 @@ def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
     files += [
         paths.rep(FINAL_NORM.name),
         paths.embeddings,
-        pred_next_path(paths),
-        diagnostics_path(paths),
-        verify_path(paths),
+        paths.pred_next,
+        paths.diagnostics,
+        paths.verify_report,
     ]
     if settings.model.capture_all_layers:
         files.append(paths.all_layers)
-    files.append(paths.reps_dir / "_manifest.json")
+    files.append(paths.manifest("reps"))
     return files
 
 
@@ -166,12 +155,6 @@ def load_model(model_settings: ModelSettings) -> PreTrainedModel:
     model = AutoModel.from_pretrained(model_settings.name_or_path, **kwargs)
     model.eval()
     return model
-
-
-def load_tokenizer(model_settings: ModelSettings) -> PreTrainedTokenizerBase:
-    return AutoTokenizer.from_pretrained(
-        model_settings.name_or_path, revision=model_settings.revision
-    )
 
 
 def decoder_parts(model: nn.Module) -> tuple[nn.ModuleList, nn.Module, nn.Module]:
@@ -404,13 +387,6 @@ def bits_to_float32(bits: np.ndarray) -> np.ndarray:
     """Exact float32 values of raw bfloat16 bits."""
 
     return (np.asarray(bits, dtype=np.uint16).astype(np.uint32) << 16).view(np.float32)
-
-
-def bits_to_tensor(bits: np.ndarray) -> torch.Tensor:
-    """bfloat16 tensor sharing nothing with ``bits`` (a contiguous copy)."""
-
-    array = np.array(bits, dtype=np.uint16, copy=True, order="C")
-    return torch.from_numpy(array.view(np.int16)).view(torch.bfloat16)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1016,15 +992,10 @@ def build_diagnostics(
 # ---------------------------------------------------------------------------------------------
 
 
-def read_occurrences(path: Path) -> pd.DataFrame:
-    """The columns of ``occurrences.csv`` this stage needs."""
+def load_occurrences(path: Path) -> pd.DataFrame:
+    """The columns of ``occurrences.csv`` this stage needs, as integers where numeric."""
 
-    frame = pd.read_csv(
-        path,
-        usecols=lambda column: column in OCCURRENCE_INPUT_COLUMNS,
-        dtype={"pos_bucket": str},
-        keep_default_na=False,
-    )
+    frame = read_occurrences(path, OCCURRENCE_INPUT_COLUMNS, dtype={"pos_bucket": str})
     for column in ("occurrence_id", "sequence_id", "pos_in_sequence", "token_id"):
         frame[column] = pd.to_numeric(frame[column]).astype(np.int64)
     for column in ("prefix_group", "next_token_id"):
@@ -1128,14 +1099,14 @@ def extract_to_directory(
 
     tick = time.perf_counter()
     for name, layer in rep_layers.items():
-        tensor = bits_to_tensor(result.blocks[result.block_layers.index(layer)])
+        tensor = bf16_tensor(result.blocks[result.block_layers.index(layer)])
         save_file(
             {"x": tensor},
             str(paths.rep(name)),
             metadata={"representation": name, "layer": str(layer), "source": "raw block output"},
         )
     save_file(
-        {"x": bits_to_tensor(result.norm)},
+        {"x": bf16_tensor(result.norm)},
         str(paths.rep(FINAL_NORM.name)),
         metadata={"representation": FINAL_NORM.name, "source": "final RMSNorm output"},
     )
@@ -1145,7 +1116,7 @@ def extract_to_directory(
         str(paths.embeddings),
         metadata={"vocab_size": str(vocab_size), "embedding_rows": str(embedding.weight.shape[0])},
     )
-    np.save(pred_next_path(paths), result.pred_next.astype(np.int32))
+    np.save(paths.pred_next, result.pred_next.astype(np.int32))
     write_seconds = time.perf_counter() - tick
 
     tick = time.perf_counter()
@@ -1179,7 +1150,7 @@ def extract_to_directory(
     diagnostics["vocab_size"] = vocab_size
     diagnostics["embedding_rows"] = int(embedding.weight.shape[0])
     diagnostics["block_layers"] = result.block_layers
-    write_json(diagnostics_path(paths), diagnostics)
+    write_json(paths.diagnostics, diagnostics)
 
     return {
         "n_vertices": n_vertices,
@@ -1206,17 +1177,14 @@ def run(
 ) -> None:
     targets = output_paths(settings, paths)
     inputs = [paths.manifest("sample")]
-    if not verify_only and not force and stage_is_fresh(paths.reps_dir, settings, inputs, targets):
-        LOGGER.info("Representações já existem em %s; use --force para refazer", paths.reps_dir)
+    if not verify_only and up_to_date("extract", paths, settings, inputs, targets, force):
         return
     needed = [paths.sequences] if verify_only else [paths.sequences, paths.occurrences]
-    missing = [str(path) for path in needed if not path.exists()]
-    if missing:
-        raise FileNotFoundError("Rode a etapa sample antes; faltam: " + ", ".join(missing))
+    require_inputs(needed, "a etapa sample")
     if not verify_only:
         # Only a run that finishes writes a new manifest; dropping the old one first means a
         # forced run that dies midway is redone by the next normal run instead of skipped.
-        (paths.reps_dir / "_manifest.json").unlink(missing_ok=True)
+        (paths.manifest("reps")).unlink(missing_ok=True)
     started = time.time()
     model_settings = settings.model
     sequences = list(read_jsonl(paths.sequences))
@@ -1233,7 +1201,7 @@ def run(
             raise ValueError(
                 f"Prefix token {model_settings.prefix_token!r} is not in the vocabulary"
             )
-        occurrences = read_occurrences(paths.occurrences)
+        occurrences = load_occurrences(paths.occurrences)
         tasks = build_tasks(sequences, occurrences, vocab_size, prefix_id)
         if "prefix_group" in occurrences:
             check_prefix_groups(tasks, occurrences["prefix_group"].to_numpy(dtype=np.int64))
@@ -1258,14 +1226,14 @@ def run(
     report["devices"] = describe_devices(model)
     report["versions"] = library_versions()
     ensure_dir(paths.reps_dir)
-    write_json(verify_path(paths), report)
+    write_json(paths.verify_report, report)
     if verify_only:
         status = "ok" if report["passed"] else "FALHOU"
-        LOGGER.info("Verificação %s; veja %s", status, verify_path(paths))
+        LOGGER.info("Verificação %s; veja %s", status, paths.verify_report)
         return
     if not report["passed"]:
         failed = [name for name in GATING_CHECKS if not report["checks"][name]["passed"]]
-        raise RuntimeError(f"Verificação falhou ({', '.join(failed)}); veja {verify_path(paths)}")
+        raise RuntimeError(f"Verificação falhou ({', '.join(failed)}); veja {paths.verify_report}")
 
     stats = extract_to_directory(
         model,

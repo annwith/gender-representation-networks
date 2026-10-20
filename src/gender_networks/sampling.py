@@ -46,12 +46,13 @@ from gender_networks.artifacts import (
     ensure_dir,
     position_bucket,
     read_jsonl,
-    stage_is_fresh,
+    require_inputs,
+    up_to_date,
     write_csv,
     write_jsonl,
     write_manifest,
 )
-from gender_networks.settings import ModelSettings, SampleSettings, Settings
+from gender_networks.settings import SampleSettings, Settings
 from gender_networks.tokens import (
     CATEGORIES,
     CATEGORY_CODES,
@@ -59,6 +60,7 @@ from gender_networks.tokens import (
     decode_vocabulary,
     encode_with_offsets,
     is_function_word,
+    load_tokenizer,
     script_class,
     special_token_ids,
     token_categories,
@@ -1077,17 +1079,6 @@ def vocab_rows(
     return rows
 
 
-def load_tokenizer(model: ModelSettings) -> Any:
-    """Fast tokenizer of the configured model (imported lazily to keep the CLI light)."""
-
-    from transformers import AutoTokenizer
-
-    tokenizer = AutoTokenizer.from_pretrained(model.name_or_path, revision=model.revision)
-    if not getattr(tokenizer, "is_fast", False):
-        raise ValueError(f"{model.name_or_path} has no fast tokenizer (offsets are required)")
-    return tokenizer
-
-
 def resolve_prefix_id(tokenizer: Any, prefix_token: str) -> int:
     """Id of the prefix token, refusing a silent fallback to the unknown token."""
 
@@ -1119,11 +1110,9 @@ def sample_inputs(paths: RunPaths) -> list[Path]:
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
     outputs = [paths.occurrences, paths.sequences, paths.vocab_types, paths.senses]
     inputs = sample_inputs(paths)
-    if not force and stage_is_fresh(paths.sample_dir, settings, inputs, outputs):
-        LOGGER.info("Amostra já existe em %s; use --force para refazer", paths.sample_dir)
+    if up_to_date("sample", paths, settings, inputs, outputs, force):
         return
-    if not paths.paragraphs.exists():
-        raise FileNotFoundError(f"{paths.paragraphs} não existe; rode a etapa corpus antes")
+    require_inputs([paths.paragraphs], "a etapa corpus")
     started = time.time()
     tokenizer = load_tokenizer(settings.model)
     prefix_id = resolve_prefix_id(tokenizer, settings.model.prefix_token)

@@ -153,7 +153,8 @@ que os artigos tenham mudado. As respostas cruas da API ficam em cache em \cod{d
 \end{itemize}
 
 \paragraph{Comandos.} Cada etapa lê os artefatos da anterior e pode ser refeita sozinha; uma
-etapa cujas saídas já existem é pulada, a menos que se passe \cod{--force}.
+etapa é pulada quando as suas saídas existem e nem as entradas nem as seções da configuração que
+ela usa mudaram, a menos que se passe \cod{--force}.
 
 \begin{center}
 \small

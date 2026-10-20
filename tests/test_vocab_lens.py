@@ -14,7 +14,6 @@ from gender_networks import artifacts
 from gender_networks.artifacts import OCCURRENCE_COLUMNS, RunPaths, ensure_dir
 from gender_networks.settings import LensSettings, PathsSettings, Settings
 from gender_networks.vocab_lens import (
-    PRED_NEXT_FILE,
     RANK_COLUMNS,
     LensResult,
     VocabIndex,
@@ -363,7 +362,7 @@ def make_run(tmp_path: Path) -> tuple[Settings, RunPaths, dict[str, np.ndarray]]
         save_file({"x": layers[layer - 1].contiguous()}, str(paths.rep(rep)))
     save_file({"x": normalized}, str(paths.rep("L36n")))
     np.save(paths.all_layers, layers.view(torch.int16).numpy().view(np.uint16))
-    np.save(paths.reps_dir / PRED_NEXT_FILE, pred_next)
+    np.save(paths.pred_next, pred_next)
     data = {"weight": weight.float().numpy(), "token_ids": token_ids, "next_ids": next_ids}
     data["layers"] = layers.float().numpy()
     data["L18"] = data["layers"][17]
@@ -447,23 +446,23 @@ def test_run_end_to_end(tmp_path: Path, no_git: None, caplog: pytest.LogCaptureF
 
     # cached: a second run is skipped; a missing output or --force recomputes
     stamp = (out / "_manifest.json").stat().st_mtime_ns
-    with caplog.at_level(logging.INFO, logger="gender_networks.vocab_lens"):
+    with caplog.at_level(logging.INFO, logger="gender_networks.artifacts"):
         run(settings, paths, device="cpu")
-    assert "já existem" in caplog.text
+    assert "já está atualizada" in caplog.text
     assert (out / "_manifest.json").stat().st_mtime_ns == stamp
     (out / "summary.json").unlink()
     run(settings, paths, device="cpu")
     assert (out / "summary.json").exists()
     caplog.clear()
-    with caplog.at_level(logging.INFO, logger="gender_networks.vocab_lens"):
+    with caplog.at_level(logging.INFO, logger="gender_networks.artifacts"):
         run(settings, paths, force=True, device="cpu", layer_curve=False)
-    assert "já existem" not in caplog.text
+    assert "já está atualizada" not in caplog.text
 
 
 def test_run_without_all_layers_or_pred_next(tmp_path: Path, no_git: None) -> None:
     settings, paths, _ = make_run(tmp_path)
     paths.all_layers.unlink()
-    (paths.reps_dir / PRED_NEXT_FILE).unlink()
+    (paths.pred_next).unlink()
     run(settings, paths, device="cpu")
 
     summary = json.loads((paths.lens_dir / "summary.json").read_text(encoding="utf-8"))

@@ -224,4 +224,4 @@ def test_rerun_is_skipped_until_an_input_changes(analyzed, caplog) -> None:
 
     analysis.run(settings, paths)
 
-    assert "já existem" in caplog.text
+    assert "já está atualizada" in caplog.text

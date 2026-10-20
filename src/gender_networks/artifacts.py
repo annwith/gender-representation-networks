@@ -30,8 +30,15 @@ Per run (``runs_dir/<name>/``):
 - ``reps/all_layers.npy``: uint16 view of bf16 block outputs, shape ``[L, N, d]``
   (layer ``l`` at index ``l - 1``).
 - ``knn/``: candidate lists and neighbor sets (``.npz``).
-- ``metrics/``, ``analysis/``: CSV/JSON tables.
+- ``metrics/``: the tables of :data:`METRICS_TABLES` and ``communities/`` (one partition per
+  :func:`community_name`, listed in ``communities/index.csv``).
+- ``analysis/``: the tables of :data:`ANALYSIS_TABLES`.
+- ``lens/``: the files of :data:`LENS_FILES` and ``topk_<rep>.npy``.
 - every stage directory holds a ``_manifest.json`` (see :func:`write_manifest`).
+
+Graphs are named by :func:`graph_id`. File names are built here and nowhere else: the
+``RunPaths`` methods refuse names that are not listed, so a typo fails instead of making a
+report item silently "pending".
 
 Generated report material goes to ``report_dir/figuras/`` and ``report_dir/tabelas/``.
 """
@@ -42,15 +49,24 @@ import csv
 import gzip
 import hashlib
 import json
+import logging
 import platform
 import subprocess
 import time
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+import pandas as pd
 
 from gender_networks.settings import Settings
+
+if TYPE_CHECKING:
+    import torch
+
+LOGGER = logging.getLogger(__name__)
 
 OCCURRENCE_COLUMNS = [
     "occurrence_id",
@@ -101,6 +117,65 @@ VOCAB_COLUMNS = [
 
 POS_BUCKETS = [(1, 4, "1-4"), (5, 16, "5-16"), (17, 64, "17-64"), (65, None, "65+")]
 
+MANIFEST = "_manifest.json"
+# Stage (CLI name) -> its directory inside the run, in pipeline order (corpus is shared).
+STAGE_DIRS = {
+    "sample": "sample",
+    "extract": "reps",
+    "knn": "knn",
+    "metrics": "metrics",
+    "analyze": "analysis",
+    "lens": "lens",
+    "report": "report",
+}
+METRICS_TABLES = ("graph_metrics", "degree_hist", "components", "distance_hist", "hubs")
+ANALYSIS_TABLES = (
+    "vertex_measures",
+    "p1_summary",
+    "p1_global",
+    "p1_hubs",
+    "p2_transitions",
+    "p2_transitions_groups",
+    "p2_layers",
+    "p3_agreement",
+    "p3_layer_nmi",
+    "p4_types",
+    "p4_groups",
+    "p4_senses",
+    "robustness_neighbors",
+    "robustness_graphs",
+    "core_metrics",
+    "vocab_summary",
+    "vocab_communities",
+    "vocab_target_neighbors",
+)
+LENS_FILES = ("ranks.csv", "topk_jaccard.csv", "summary.json", "layer_curve.csv")
+
+
+def graph_id(rep: str, k: int, sym: str, tie: str, seed: int) -> str:
+    """Identifier ``rep|k{k}|{sym}|{tie}|s{seed}`` of a graph specification."""
+
+    return f"{rep}|k{k}|{sym}|{tie}|s{seed}"
+
+
+def file_safe(gid: str) -> str:
+    """File-name version of a graph id (``|`` becomes ``__``)."""
+
+    return gid.replace("|", "__")
+
+
+def community_name(gid: str, resolution: float, method: str = "leiden") -> str:
+    """Name of a partition file inside ``metrics/communities``."""
+
+    suffix = "" if method == "leiden" else f"__{method}"
+    return f"{file_safe(gid)}__res{float(resolution)}{suffix}.npz"
+
+
+def _listed(name: str, allowed: tuple[str, ...], where: str) -> str:
+    if name not in allowed:
+        raise ValueError(f"'{name}' is not one of the {where} files: {', '.join(allowed)}")
+    return name
+
 
 def candidates_name(rep: str) -> str:
     return f"cand_{rep}.npz"
@@ -149,12 +224,17 @@ class RunPaths:
     # corpus (shared)
     @property
     def corpus_manifest(self) -> Path:
-        return self.corpus_dir / "_manifest.json"
+        return self.corpus_dir / MANIFEST
 
-    def manifest(self, stage: str) -> Path:
+    def manifest(self, directory: str) -> Path:
         """``_manifest.json`` of a per-run stage directory (sample, reps, knn, metrics, ...)."""
 
-        return self.stage_dir(stage) / "_manifest.json"
+        return self.stage_dir(directory) / MANIFEST
+
+    def stage_manifest(self, stage: str) -> Path:
+        """``_manifest.json`` of a stage given by its CLI name (``extract`` lives in ``reps``)."""
+
+        return self.manifest(STAGE_DIRS[stage])
 
     @property
     def articles(self) -> Path:
@@ -240,13 +320,36 @@ class RunPaths:
     def metrics_dir(self) -> Path:
         return self.stage_dir("metrics")
 
+    def metrics_table(self, name: str) -> Path:
+        return self.metrics_dir / f"{_listed(name, METRICS_TABLES, 'metrics')}.csv"
+
+    @property
+    def communities_dir(self) -> Path:
+        return self.metrics_dir / "communities"
+
+    @property
+    def communities_index(self) -> Path:
+        return self.communities_dir / "index.csv"
+
+    def community(self, gid: str, resolution: float, method: str = "leiden") -> Path:
+        return self.communities_dir / community_name(gid, resolution, method)
+
     @property
     def analysis_dir(self) -> Path:
         return self.stage_dir("analysis")
 
+    def analysis_table(self, name: str) -> Path:
+        return self.analysis_dir / f"{_listed(name, ANALYSIS_TABLES, 'analysis')}.csv"
+
     @property
     def lens_dir(self) -> Path:
         return self.stage_dir("lens")
+
+    def lens_file(self, name: str) -> Path:
+        return self.lens_dir / _listed(name, LENS_FILES, "lens")
+
+    def lens_topk(self, rep: str) -> Path:
+        return self.lens_dir / f"topk_{rep}.npy"
 
     # generated report material
     @property
@@ -261,6 +364,64 @@ class RunPaths:
 def ensure_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def read_occurrences(
+    path: Path, columns: Iterable[str] | None = None, dtype: dict[str, Any] | None = None
+) -> pd.DataFrame:
+    """``occurrences.csv`` (only ``columns`` when given), checked for row alignment.
+
+    Empty cells stay empty strings (``keep_default_na=False``): token texts such as ``NA`` or
+    ``nan`` are data, not missing values. When ``occurrence_id`` is read it must equal the row
+    index, the vertex order of every representation and network.
+    """
+
+    wanted = None if columns is None else set(columns)
+    frame = pd.read_csv(
+        path,
+        usecols=None if wanted is None else (lambda column: column in wanted),
+        dtype=dtype,
+        keep_default_na=False,
+        low_memory=False,
+    )
+    if "occurrence_id" in frame:
+        occurrence = pd.to_numeric(frame["occurrence_id"]).to_numpy(dtype=np.int64)
+        if not np.array_equal(occurrence, np.arange(len(frame))):
+            raise ValueError(f"{path}: occurrence_id must equal the row index")
+    return frame
+
+
+def read_token_ids(path: Path) -> np.ndarray:
+    """``token_id`` of every occurrence, in vertex order."""
+
+    frame = read_occurrences(path, ["occurrence_id", "token_id"])
+    return frame["token_id"].to_numpy(dtype=np.int64)
+
+
+def bf16_tensor(bits: np.ndarray) -> torch.Tensor:
+    """bfloat16 tensor from raw bfloat16 bits stored as uint16 (``all_layers.npy``).
+
+    The bits are copied first: memmap slices are read-only, and torch refuses to wrap them.
+    """
+
+    import torch
+
+    array = np.array(bits, dtype=np.uint16, copy=True, order="C")
+    return torch.from_numpy(array.view(np.int16)).view(torch.bfloat16)
+
+
+TRUE_TEXT = frozenset({"true", "1", "1.0", "yes"})
+FALSE_TEXT = frozenset({"false", "0", "0.0", "no"})
+
+
+def parse_bool(values: Iterable[Any]) -> np.ndarray:
+    """Booleans written to CSV (``True``/``False``, ``1``/``0``...); other values are an error."""
+
+    text = pd.Series(list(values), dtype=object).astype(str).str.strip().str.lower()
+    unknown = sorted(set(text) - TRUE_TEXT - FALSE_TEXT)
+    if unknown:
+        raise ValueError(f"Unexpected boolean values: {unknown[:5]}")
+    return text.isin(TRUE_TEXT).to_numpy()
 
 
 def write_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> int:
@@ -362,11 +523,30 @@ def _string_keys(value: Any) -> Any:
     return value
 
 
-def settings_digest(settings: Settings) -> str:
-    """Hash of the run configuration (the source file path does not count)."""
+# Settings sections each stage reads, its own and those of the stages before it: changing any
+# other section (say ``analysis.permutations``) does not make the stage stale. Stages not listed
+# depend on the whole configuration.
+_UPSTREAM = ("corpus", "sample", "model")
+STAGE_SETTINGS: dict[str, tuple[str, ...]] = {
+    "corpus": ("corpus",),
+    "sample": ("corpus", "sample"),
+    "extract": _UPSTREAM,
+    "knn": (*_UPSTREAM, "networks"),
+    "metrics": (*_UPSTREAM, "networks", "analysis"),
+    "analyze": (*_UPSTREAM, "networks", "analysis"),
+    "lens": (*_UPSTREAM, "lens"),
+}
+
+
+def settings_digest(settings: Settings, stage: str | None = None) -> str:
+    """Hash of the configuration a stage depends on (the whole run when ``stage`` is not one of
+    :data:`STAGE_SETTINGS`); the source file path never counts."""
 
     payload = _string_keys(settings.to_dict())
     payload.pop("source", None)
+    sections = STAGE_SETTINGS.get(stage or "")
+    if sections is not None:
+        payload = {key: payload[key] for key in sections}
     text = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -380,16 +560,42 @@ def stage_is_fresh(
     --force``) makes every downstream stage recompute instead of reusing stale artifacts.
     """
 
-    manifest = stage_dir / "_manifest.json"
+    manifest = stage_dir / MANIFEST
     if not manifest.exists() or not all(Path(path).exists() for path in outputs):
         return False
     try:
         recorded = read_json(manifest)
     except (OSError, json.JSONDecodeError):
         return False
-    return recorded.get("settings_digest") == settings_digest(settings) and recorded.get(
+    digest = settings_digest(settings, recorded.get("stage"))
+    return recorded.get("settings_digest") == digest and recorded.get(
         "inputs"
     ) == file_fingerprint(inputs)
+
+
+def up_to_date(
+    stage: str,
+    paths: RunPaths,
+    settings: Settings,
+    inputs: Iterable[Path],
+    outputs: Iterable[Path],
+    force: bool = False,
+) -> bool:
+    """True, and logged, when a stage can be skipped (see :func:`stage_is_fresh`)."""
+
+    stage_dir = paths.stage_dir(STAGE_DIRS[stage])
+    if force or not stage_is_fresh(stage_dir, settings, inputs, outputs):
+        return False
+    LOGGER.info("Etapa %s já está atualizada em %s; use --force para refazer", stage, stage_dir)
+    return True
+
+
+def require_inputs(paths: Iterable[Path], earlier: str) -> None:
+    """Stop before any work when an input of a stage is missing."""
+
+    missing = [str(path) for path in paths if not Path(path).exists()]
+    if missing:
+        raise FileNotFoundError(f"Rode {earlier} antes; faltam: " + ", ".join(missing))
 
 
 def write_manifest(
@@ -407,14 +613,14 @@ def write_manifest(
     :func:`stage_is_fresh` notice when an upstream stage was rerun.
     """
 
-    path = stage_dir / "_manifest.json"
+    path = stage_dir / MANIFEST
     write_json(
         path,
         {
             "stage": stage,
             "run": settings.name,
             "config_source": settings.source,
-            "settings_digest": settings_digest(settings),
+            "settings_digest": settings_digest(settings, stage),
             "inputs": file_fingerprint(inputs or []),
             "settings": settings.to_dict(),
             "git": _git_describe(root),

@@ -37,8 +37,11 @@ from safetensors.torch import load_file
 
 from gender_networks.artifacts import (
     RunPaths,
+    bf16_tensor,
     ensure_dir,
-    stage_is_fresh,
+    read_occurrences,
+    require_inputs,
+    up_to_date,
     write_json,
     write_manifest,
 )
@@ -47,7 +50,6 @@ from gender_networks.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
 
-PRED_NEXT_FILE = "pred_next.npy"  # kept for backwards compatibility; use RunPaths.pred_next
 OCCURRENCE_FIELDS = ["occurrence_id", "token_id", "next_token_id", "token_category", "stratum"]
 RANK_COLUMNS = [
     "occurrence_id",
@@ -515,15 +517,7 @@ def crossover_layer(curve: pd.DataFrame) -> int | None:
 def load_occurrences(path: Path) -> pd.DataFrame:
     """The columns of ``occurrences.csv`` this stage needs, checked for row alignment."""
 
-    frame = pd.read_csv(
-        path,
-        usecols=OCCURRENCE_FIELDS,
-        dtype={"token_category": str, "stratum": str},
-        keep_default_na=False,
-    )
-    if not np.array_equal(frame["occurrence_id"].to_numpy(), np.arange(len(frame))):
-        raise ValueError(f"occurrence_id must equal the row index in {path}")
-    return frame
+    return read_occurrences(path, OCCURRENCE_FIELDS, dtype={"token_category": str, "stratum": str})
 
 
 def load_representation(path: Path, n: int, dim: int) -> torch.Tensor:
@@ -538,16 +532,14 @@ def load_representation(path: Path, n: int, dim: int) -> torch.Tensor:
 def layer_from_memmap(layers: np.ndarray, layer: int) -> torch.Tensor:
     """Block output ``layer`` (1-based) of ``all_layers.npy`` as a bf16 tensor."""
 
-    raw = np.array(layers[layer - 1]).view(np.int16)  # writable copy of one layer
-    return torch.from_numpy(raw).view(torch.bfloat16)
+    return bf16_tensor(layers[layer - 1])
 
 
-def _expected_outputs(out_dir: Path, reps: Sequence[str], with_curve: bool) -> list[Path]:
-    files = ["ranks.csv", "topk_jaccard.csv", "summary.json", "_manifest.json"]
-    files += [f"topk_{rep}.npy" for rep in reps]
-    if with_curve:
-        files.append("layer_curve.csv")
-    return [out_dir / name for name in files]
+def _expected_outputs(paths: RunPaths, reps: Sequence[str], with_curve: bool) -> list[Path]:
+    names = ["ranks.csv", "topk_jaccard.csv", "summary.json"]
+    names += ["layer_curve.csv"] if with_curve else []
+    files = [paths.lens_file(name) for name in names] + [paths.lens_topk(rep) for rep in reps]
+    return files + [paths.manifest("lens")]
 
 
 def _layer_curve(
@@ -629,16 +621,12 @@ def run(
     pairs = transitions(reps)
     with_curve = layer_curve and paths.all_layers.exists()
     inputs = [paths.manifest("sample"), paths.manifest("reps")]
-    outputs = _expected_outputs(out_dir, reps, with_curve)
-    if not force and stage_is_fresh(out_dir, settings, inputs, outputs):
-        LOGGER.info("Vizinhos no vocabulário já existem em %s; use --force para refazer", out_dir)
+    outputs = _expected_outputs(paths, reps, with_curve)
+    if up_to_date("lens", paths, settings, inputs, outputs, force):
         return
-
     required = [paths.occurrences, paths.embeddings]
     required += [paths.rep(rep) for rep in reps if not is_lexical(rep)]
-    missing = [str(p) for p in required if not p.exists()]
-    if missing:
-        raise FileNotFoundError("Faltam artefatos das etapas sample/extract: " + ", ".join(missing))
+    require_inputs(required, "as etapas sample e extract")
 
     started = time.time()
     occurrences = load_occurrences(paths.occurrences)
@@ -669,7 +657,7 @@ def run(
             index, queries, own, nxt, k, batch_size, logit_argmax=(rep == FINAL_NORM.name)
         )
         del queries
-        np.save(out_dir / f"topk_{rep}.npy", result.topk)
+        np.save(paths.lens_topk(rep), result.topk)
         results[rep] = result
         timings[rep] = round(time.time() - rep_started, 3)
         valid = result.next_rank >= 0
@@ -698,14 +686,14 @@ def run(
         LOGGER.warning("%s ausente; concordância com pred_next não verificada", pred_path)
 
     ranks = pd.concat([rank_frame(results[rep], rep) for rep in reps], ignore_index=True)
-    ranks.to_csv(out_dir / "ranks.csv", index=False, float_format="%.7g")
+    ranks.to_csv(paths.lens_file("ranks.csv"), index=False, float_format="%.7g")
     jaccard = jaccard_frame(results, pairs)
-    jaccard.to_csv(out_dir / "topk_jaccard.csv", index=False, float_format="%.6g")
+    jaccard.to_csv(paths.lens_file("topk_jaccard.csv"), index=False, float_format="%.6g")
 
     curve_info: dict[str, Any] | None = None
     if with_curve:
         curve, curve_info = _layer_curve(paths, settings, occurrences, index, results)
-        curve.to_csv(out_dir / "layer_curve.csv", index=False)
+        curve.to_csv(paths.lens_file("layer_curve.csv"), index=False)
         curve_info["file"] = "layer_curve.csv"
 
     rank_summary = summarize_ranks(with_groups(ranks, occurrences))
@@ -722,7 +710,7 @@ def run(
         "lex_sanity": lex_info,
         "layer_curve": curve_info,
     }
-    write_json(out_dir / "summary.json", summary)
+    write_json(paths.lens_file("summary.json"), summary)
 
     extra = {
         "n_occurrences": n,

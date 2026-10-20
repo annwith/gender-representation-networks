@@ -56,3 +56,18 @@ def test_settings_digest_ignores_the_config_path_and_missing_inputs_are_recorded
 
     assert settings_digest(replace(settings, source="elsewhere.yaml")) == settings_digest(settings)
     assert file_fingerprint([tmp_path / "nope"]) == {str(tmp_path / "nope"): None}
+
+
+def test_a_stage_is_stale_only_for_the_settings_it_reads(tmp_path: Path) -> None:
+    settings, upstream, _, _ = setup(tmp_path)
+    stage = tmp_path / "knn"
+    output = stage / "out.npz"
+    stage.mkdir()
+    output.write_text("x", encoding="utf-8")
+    write_manifest(stage, "knn", settings, time.time(), inputs=[upstream], root=tmp_path)
+    later = replace(settings, analysis=replace(settings.analysis, permutations=99))
+    assert stage_is_fresh(stage, later, [upstream], [output])
+    changed = replace(settings, networks=replace(settings.networks, k_main=5))
+    assert not stage_is_fresh(stage, changed, [upstream], [output])
+    assert settings_digest(later, "knn") == settings_digest(settings, "knn")
+    assert settings_digest(later, "analyze") != settings_digest(settings, "analyze")

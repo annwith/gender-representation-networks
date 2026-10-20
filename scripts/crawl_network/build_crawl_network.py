@@ -71,9 +71,8 @@ from gender_networks.plots import (
     STRATUM_ORDER,
     THEME_LABELS,
 )
-from gender_networks.sampling import load_tokenizer
 from gender_networks.settings import CorpusSettings, load_settings
-from gender_networks.tokens import CATEGORIES, tokenize_paragraph
+from gender_networks.tokens import CATEGORIES, load_tokenizer, tokenize_paragraph
 from gender_networks.wiki import WikiClient
 
 REPO = Path(__file__).resolve().parents[2]

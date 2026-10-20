@@ -52,7 +52,16 @@ import pandas as pd
 import torch
 from safetensors.torch import load_file
 
-from gender_networks.artifacts import RunPaths, ensure_dir, stage_is_fresh, write_manifest
+from gender_networks.artifacts import (
+    RunPaths,
+    bf16_tensor,
+    ensure_dir,
+    parse_bool,
+    read_token_ids,
+    require_inputs,
+    up_to_date,
+    write_manifest,
+)
 from gender_networks.representations import is_lexical, occurrence_representations
 from gender_networks.settings import Settings
 
@@ -575,53 +584,19 @@ def select_row(
 # ---------------------------------------------------------------------------------------------
 
 
-def candidates_path(paths: RunPaths, rep: str) -> Path:
-    return paths.cand(rep)
-
-
-def neighbors_path(paths: RunPaths, rep: str, k: int, sensitivity: bool = False) -> Path:
-    return paths.nbr(rep, k, sensitivity)
-
-
-def vocab_candidates_path(paths: RunPaths) -> Path:
-    return paths.vocab_cand
-
-
-def vocab_neighbors_path(paths: RunPaths, k: int) -> Path:
-    return paths.vocab_nbr(k)
-
-
 def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
     """Every file of a complete ``knn`` stage (the manifest is written last)."""
 
     net = settings.networks
     files: list[Path] = []
     for rep in (r.name for r in occurrence_representations(settings)):
-        files.append(candidates_path(paths, rep))
-        files += [neighbors_path(paths, rep, k) for k in net.k_values]
-        files.append(neighbors_path(paths, rep, net.k_main, sensitivity=True))
-    files.append(vocab_candidates_path(paths))
-    files += [vocab_neighbors_path(paths, k) for k in net.vocab.k_values]
-    files.append(paths.knn_dir / "_manifest.json")
+        files.append(paths.cand(rep))
+        files += [paths.nbr(rep, k) for k in net.k_values]
+        files.append(paths.nbr(rep, net.k_main, sensitivity=True))
+    files.append(paths.vocab_cand)
+    files += [paths.vocab_nbr(k) for k in net.vocab.k_values]
+    files.append(paths.manifest("knn"))
     return files
-
-
-def read_token_ids(path: Path) -> np.ndarray:
-    """``token_id`` of every occurrence, checking that ``occurrence_id`` is the row index."""
-
-    frame = pd.read_csv(path, usecols=["occurrence_id", "token_id"])
-    occurrence = frame["occurrence_id"].to_numpy(dtype=np.int64)
-    if not np.array_equal(occurrence, np.arange(len(frame))):
-        raise ValueError(f"{path}: occurrence_id must equal the row index")
-    return frame["token_id"].to_numpy(dtype=np.int64)
-
-
-def bf16_bits_to_float64(bits: np.ndarray) -> np.ndarray:
-    """float64 array from raw bfloat16 bits stored as uint16."""
-
-    # A private copy: memmap slices are read-only and torch refuses to wrap them silently.
-    raw = np.array(bits, dtype=np.uint16, copy=True, order="C").view(np.int16)
-    return torch.from_numpy(raw).view(torch.bfloat16).to(torch.float64).numpy()
 
 
 def load_layer(path: Path, layer: int) -> np.ndarray:
@@ -630,7 +605,7 @@ def load_layer(path: Path, layer: int) -> np.ndarray:
     stack = np.load(path, mmap_mode="r")
     if not 1 <= layer <= stack.shape[0]:
         raise ValueError(f"layer {layer} is outside 1..{stack.shape[0]}")
-    return bf16_bits_to_float64(stack[layer - 1])
+    return bf16_tensor(stack[layer - 1]).to(torch.float64).numpy()
 
 
 def load_representation(paths: RunPaths, settings: Settings, name: str) -> np.ndarray:
@@ -654,14 +629,6 @@ def load_embeddings(path: Path) -> torch.Tensor:
     return load_file(str(path))["weight"]
 
 
-def _as_bool(values: pd.Series) -> np.ndarray:
-    text = values.astype(str).str.strip().str.lower()
-    unknown = sorted(set(text) - {"true", "false", "1", "0", "1.0", "0.0"})
-    if unknown:
-        raise ValueError(f"Unexpected boolean values: {unknown[:5]}")
-    return text.isin(["true", "1", "1.0"]).to_numpy()
-
-
 def special_mask(paths: RunPaths, settings: Settings, vocab_size: int) -> np.ndarray:
     """Boolean ``[vocab_size]``: True for special tokenizer ids (excluded from ``vocab``).
 
@@ -676,16 +643,12 @@ def special_mask(paths: RunPaths, settings: Settings, vocab_size: int) -> np.nda
             raise ValueError(
                 f"{paths.vocab_types} must list the ids 0..{vocab_size - 1} of the embedding rows"
             )
-        mask[ids] = _as_bool(frame["is_special"])
+        mask[ids] = parse_bool(frame["is_special"])
         return mask
-    from transformers import AutoTokenizer
-
-    from gender_networks.tokens import special_token_ids
+    from gender_networks.tokens import load_tokenizer, special_token_ids
 
     LOGGER.warning("%s ausente; tokens especiais lidos do tokenizer", paths.vocab_types)
-    tokenizer = AutoTokenizer.from_pretrained(
-        settings.model.name_or_path, revision=settings.model.revision
-    )
+    tokenizer = load_tokenizer(settings.model)
     if len(tokenizer) != vocab_size:
         raise ValueError(f"tokenizer has {len(tokenizer)} ids but embeddings {vocab_size} rows")
     mask[[i for i in special_token_ids(tokenizer) if 0 <= i < vocab_size]] = True
@@ -756,7 +719,7 @@ def write_neighbor_sets(
         types = BoundarySelector(type_candidates, k, net.eps)
         all_indptr, all_idx = main.pick("all")
         _save_npz(
-            neighbors_path(paths, rep, k),
+            paths.nbr(rep, k),
             pos=main.pick("position"),
             rand=_draws(main, net.seeds, lambda r, k=k: rep_rng(net.base_seed, rep, k, r)),
             all_indptr=all_indptr,
@@ -769,7 +732,7 @@ def write_neighbor_sets(
         sensitivity = BoundarySelector(candidates, k, net.eps_sensitivity)
         if k == net.k_main:
             _save_npz(
-                neighbors_path(paths, rep, k, sensitivity=True),
+                paths.nbr(rep, k, sensitivity=True),
                 pos=sensitivity.pick("position"),
                 rand=_draws(
                     sensitivity, net.seeds, lambda r, k=k: rep_rng(net.base_seed, rep, k, r)
@@ -801,14 +764,14 @@ def build_vocab_network(
     stats["candidates_s"] = round(time.perf_counter() - tick, 3)
     vocab_ids = np.asarray(vocab_ids, dtype=np.int32)
     _save_npz(
-        vocab_candidates_path(paths), compressed=False, vocab_ids=vocab_ids, **candidates.arrays()
+        paths.vocab_cand, compressed=False, vocab_ids=vocab_ids, **candidates.arrays()
     )
     stats["candidates"] = candidate_stats(candidates, {"eps": net.eps})
     stats["k"] = {}
     for k in k_values:
         selector = BoundarySelector(candidates, k, net.eps)
         _save_npz(
-            vocab_neighbors_path(paths, k),
+            paths.vocab_nbr(k),
             vocab_ids=vocab_ids,
             pos=selector.pick("position"),
             rand=_draws(selector, 1, lambda r, k=k: rep_rng(net.base_seed, VOCAB, k, r)),
@@ -879,8 +842,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
     net = settings.networks
     targets = output_paths(settings, paths)
     inputs = [paths.manifest("sample"), paths.manifest("reps")]
-    if not force and stage_is_fresh(paths.knn_dir, settings, inputs, targets):
-        LOGGER.info("k-NN já existe em %s; use --force para refazer", paths.knn_dir)
+    if up_to_date("knn", paths, settings, inputs, targets, force):
         return
     check_settings(settings)
     specs = occurrence_representations(settings)
@@ -892,11 +854,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
             or (source in settings.model.layers and paths.all_layers.exists())
         ):
             needed.append(paths.rep(source))
-    missing = [str(path) for path in needed if not path.exists()]
-    if missing:
-        raise FileNotFoundError(
-            "Rode as etapas sample e extract antes; faltam: " + ", ".join(missing)
-        )
+    require_inputs(needed, "as etapas sample e extract")
     started = time.time()
     ensure_dir(paths.knn_dir)
     token_ids = read_token_ids(paths.occurrences)
@@ -920,7 +878,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
             rep, source, centered, types, weight, settings, paths
         )
         candidates_s = time.perf_counter() - tick
-        _save_npz(candidates_path(paths, rep), compressed=False, **candidates.arrays())
+        _save_npz(paths.cand(rep), compressed=False, **candidates.arrays())
         tock = time.perf_counter()
         per_k = write_neighbor_sets(rep, candidates, type_candidates, settings, paths)
         neighbors_s = time.perf_counter() - tock

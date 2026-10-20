@@ -9,15 +9,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from gender_networks.artifacts import OCCURRENCE_COLUMNS, RunPaths
+from gender_networks.artifacts import (
+    OCCURRENCE_COLUMNS,
+    RunPaths,
+    community_name,
+    file_safe,
+    graph_id,
+)
 from gender_networks.metrics import (
     GraphJob,
     GraphSpec,
-    community_file,
     distance_mode,
-    file_safe,
     fingerprint,
-    graph_id,
     measure_graph,
     plan_communities,
     plan_graphs,
@@ -316,7 +319,7 @@ def test_communities_files_and_index(tiny_run) -> None:
     assert all(0.0 <= float(v) <= 1.0 for v in louvain["nmi_vs_leiden"])
     duplicated = index[index["graph_id"] == "L01|k3|union|pos|s0"]
     assert duplicated["duplicate_of"].tolist() == ["L01|k3|union|rand|s0"]
-    name = community_file("vocab|k3|union|rand|s0", 1.0)
+    name = community_name("vocab|k3|union|rand|s0", 1.0)
     assert name == "vocab__k3__union__rand__s0__res1.0.npz"
     with np.load(community_dir / name) as data:
         np.testing.assert_array_equal(data["vocab_ids"], info["vocab_ids"])
@@ -332,10 +335,10 @@ def test_rerun_skips_and_parallel_force_gives_the_same_tables(tiny_run, caplog) 
     settings, paths, _ = tiny_run
     table = paths.metrics_dir / "graph_metrics.csv"
     before = table.stat().st_mtime_ns
-    with caplog.at_level("INFO", logger="gender_networks.metrics"):
+    with caplog.at_level("INFO", logger="gender_networks.artifacts"):
         run(settings, paths)
     assert table.stat().st_mtime_ns == before
-    assert any("já existem" in message for message in caplog.messages)
+    assert any("já está atualizada" in message for message in caplog.messages)
     serial = pd.read_csv(table).drop(columns=["elapsed_s"])
     serial_index = pd.read_csv(paths.metrics_dir / "communities" / "index.csv")
     run(_settings(workers=2), paths, force=True)
