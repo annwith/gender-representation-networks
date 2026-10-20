@@ -22,6 +22,7 @@ from gender_networks.artifacts import (
     write_jsonl,
     write_manifest,
 )
+from gender_networks.report import context, latex
 from gender_networks.settings import Settings
 
 REPO = Path(__file__).resolve().parents[1]
@@ -326,18 +327,18 @@ def test_numbers_use_brazilian_formatting(reported) -> None:
 
 
 def test_formatting_helpers() -> None:
-    assert report.num(1234.5, 1) == "1.234,5"
-    assert report.num(-0.5) == "$-$0,50"
-    assert report.num(-0.001) == "0,00"
-    assert report.num(float("nan")) == "--"
-    assert report.integer(151643) == "151.643"
-    assert report.pct(0.9951) == "99,5\\,\\%"
-    assert report.sci(2.4e-6) == "$2{,}4\\times10^{-6}$"
-    assert report.sci(0.0039) == "0,0039"
-    assert report.tex_text("a_b & 中文 c") == "a\\_b \\& [U+4E2D U+6587] c"
-    assert report.tex_token(" banco") == "\\texttt{\\textvisiblespace{}banco}"
-    assert report.tex_text("--") == "-{}-{}"
-    assert report.split_reprs("' de' 'a b' \"it's\"") == [" de", "a b", "it's"]
+    assert latex.num(1234.5, 1) == "1.234,5"
+    assert latex.num(-0.5) == "$-$0,50"
+    assert latex.num(-0.001) == "0,00"
+    assert latex.num(float("nan")) == "--"
+    assert latex.integer(151643) == "151.643"
+    assert latex.pct(0.9951) == "99,5\\,\\%"
+    assert latex.sci(2.4e-6) == "$2{,}4\\times10^{-6}$"
+    assert latex.sci(0.0039) == "0,0039"
+    assert latex.tex_text("a_b & 中文 c") == "a\\_b \\& [U+4E2D U+6587] c"
+    assert latex.tex_token(" banco") == "\\texttt{\\textvisiblespace{}banco}"
+    assert latex.tex_text("--") == "-{}-{}"
+    assert context.split_reprs("' de' 'a b' \"it's\"") == [" de", "a b", "it's"]
 
 
 def test_missing_inputs_are_skipped(tmp_path: Path) -> None:
