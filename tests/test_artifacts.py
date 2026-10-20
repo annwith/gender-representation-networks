@@ -7,6 +7,7 @@ from gender_networks.artifacts import (
     file_fingerprint,
     settings_digest,
     stage_is_fresh,
+    token_text,
     write_manifest,
 )
 from gender_networks.settings import load_settings
@@ -71,3 +72,10 @@ def test_a_stage_is_stale_only_for_the_settings_it_reads(tmp_path: Path) -> None
     assert not stage_is_fresh(stage, changed, [upstream], [output])
     assert settings_digest(later, "knn") == settings_digest(settings, "knn")
     assert settings_digest(later, "analyze") != settings_digest(settings, "analyze")
+
+
+def test_token_text_reads_the_vocab_repr_column() -> None:
+    assert token_text("' banco'") == " banco"
+    assert token_text('"it\'s"') == "it's"
+    assert token_text("'\\tload'") == "\tload"
+    assert token_text("not a repr") == "not a repr"

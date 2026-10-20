@@ -45,6 +45,7 @@ Generated report material goes to ``report_dir/figuras/`` and ``report_dir/tabel
 
 from __future__ import annotations
 
+import ast
 import csv
 import gzip
 import hashlib
@@ -107,7 +108,7 @@ OCCURRENCE_COLUMNS = [
 
 VOCAB_COLUMNS = [
     "token_id",
-    "token_repr",  # repr() of the decoded token text
+    "token_repr",  # repr() of the decoded token text (see token_text)
     "script_class",
     "is_special",
     "f_corpus",
@@ -389,6 +390,16 @@ def read_occurrences(
         if not np.array_equal(occurrence, np.arange(len(frame))):
             raise ValueError(f"{path}: occurrence_id must equal the row index")
     return frame
+
+
+def token_text(token_repr: str) -> str:
+    """Token text from the ``token_repr`` column of ``vocab_types.csv`` (``"' banco'"``)."""
+
+    try:
+        value = ast.literal_eval(token_repr)
+    except (ValueError, SyntaxError):
+        return token_repr
+    return value if isinstance(value, str) else str(value)
 
 
 def read_token_ids(path: Path) -> np.ndarray:

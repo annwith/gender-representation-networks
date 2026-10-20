@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import ast
 import json
-import re
 from collections.abc import Iterable
 from functools import cached_property
 from pathlib import Path
@@ -17,6 +15,7 @@ from gender_networks.artifacts import (
     RunPaths,
     read_json,
     read_jsonl,
+    token_text,
 )
 from gender_networks.labels import (
     ordered,
@@ -158,7 +157,7 @@ class Context:
         return frame
 
     def vocab_text(self, token_id: int) -> str:
-        return decode_repr(self.vocab_types["token_repr"].iat[int(token_id)])
+        return token_text(self.vocab_types["token_repr"].iat[int(token_id)])
 
     @cached_property
     def main_reps(self) -> list[str]:
@@ -214,20 +213,4 @@ class Context:
         return ordered(list(themes), list(self.settings.corpus.themes))
 
 
-def decode_repr(text: str) -> str:
-    """``"' banco'"`` (the ``repr`` stored in vocab_types.csv) -> ``" banco"``."""
 
-    try:
-        value = ast.literal_eval(text)
-    except (ValueError, SyntaxError):
-        return text
-    return value if isinstance(value, str) else str(value)
-
-
-_REPR = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"")
-
-
-def split_reprs(text: str) -> list[str]:
-    """Tokens of a space-joined list of ``repr`` strings (analysis ``examples`` columns)."""
-
-    return [decode_repr(match) for match in _REPR.findall(str(text))]

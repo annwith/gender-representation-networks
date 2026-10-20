@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import numpy as np
@@ -16,7 +17,7 @@ from gender_networks.labels import (
     SCRIPT_ORDER,
     label,
 )
-from gender_networks.report.context import Context, Skip, split_reprs
+from gender_networks.report.context import Context, Skip
 from gender_networks.report.latex import (
     DASH,
     Tabular,
@@ -112,7 +113,7 @@ def table_vocab_comunidades(ctx: Context) -> Tabular:
         pass
     rows = []
     for rank, (_, row) in enumerate(communities.iterrows(), start=1):
-        examples = split_reprs(row.get("examples", ""))[:6]
+        examples = json.loads(row.get("examples") or "[]")[:6]
         rows.append(
             [
                 str(rank),
@@ -169,30 +170,18 @@ def table_vocab_comunidades(ctx: Context) -> Tabular:
 
 
 def table_vocab_vizinhos_alvos(ctx: Context) -> Tabular:
-    data = ctx.npz(ctx.paths.vocab_nbr(ctx.vocab_k))
-    vocab_ids = data["vocab_ids"].astype(np.int64)
-    row_of = {int(t): i for i, t in enumerate(vocab_ids)}
-    occ = ctx.occurrences
-    marked = occ[occ["target_word"] != ""]
-    word_ids = marked.groupby("target_word")["token_id"].first().to_dict()
-    f_corpus = ctx.vocab_types["f_corpus"].to_numpy(dtype=np.int64)
+    table = ctx.analysis("vocab_target_neighbors")
     rows: list[Any] = []
-    sample = ctx.settings.sample
-    for role, words in (("alvo", sample.targets), ("controle", sample.controls)):
-        part = []
-        for word in words:
-            token_id = word_ids.get(word)
-            if token_id is None or int(token_id) not in row_of:
-                continue
-            neighbors = vocab_ids[data["pos"][row_of[int(token_id)]]][:10]
-            part.append(
-                [
-                    tex_text(word),
-                    role,
-                    r"\enspace ".join(tex_token(ctx.vocab_text(t)) for t in neighbors),
-                    integer(int(np.sum(f_corpus[neighbors] > 0))),
-                ]
-            )
+    for role, name in (("target", "alvo"), ("control", "controle")):
+        part = [
+            [
+                tex_text(row["word"]),
+                name,
+                r"\enspace ".join(tex_token(t) for t in json.loads(row["neighbors"])[:10]),
+                integer(row["neighbors_in_corpus"]),
+            ]
+            for _, row in table[table["role"] == role].iterrows()
+        ]
         if part and rows:
             rows.append(r"\midrule")
         rows += part

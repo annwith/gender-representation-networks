@@ -22,7 +22,7 @@ from gender_networks.artifacts import (
     write_jsonl,
     write_manifest,
 )
-from gender_networks.report import context, latex
+from gender_networks.report import latex
 from gender_networks.settings import Settings
 
 REPO = Path(__file__).resolve().parents[1]
@@ -338,7 +338,6 @@ def test_formatting_helpers() -> None:
     assert latex.tex_text("a_b & 中文 c") == "a\\_b \\& [U+4E2D U+6587] c"
     assert latex.tex_token(" banco") == "\\texttt{\\textvisiblespace{}banco}"
     assert latex.tex_text("--") == "-{}-{}"
-    assert context.split_reprs("' de' 'a b' \"it's\"") == [" de", "a b", "it's"]
 
 
 def test_missing_inputs_are_skipped(tmp_path: Path) -> None:

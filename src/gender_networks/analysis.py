@@ -19,11 +19,13 @@ Outputs in ``paths.analysis_dir`` (all CSV unless noted), read by the ``report``
 - ``p3_agreement.csv``, ``p3_layer_nmi.csv``: community agreement with context labels.
 - ``p4_types.csv``, ``p4_groups.csv``, ``p4_senses.csv``: same-type occurrence separation.
 - ``robustness_neighbors.csv``, ``robustness_graphs.csv``, ``core_metrics.csv``.
-- ``vocab_summary.csv``, ``vocab_communities.csv``, ``vocab_target_neighbors.csv``.
+- ``vocab_summary.csv``, ``vocab_communities.csv``, ``vocab_target_neighbors.csv``; their token
+  lists (``examples``, ``neighbors``) are JSON lists of token texts.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import time
@@ -41,6 +43,7 @@ from gender_networks.artifacts import (
     parse_bool,
     read_occurrences,
     require_inputs,
+    token_text,
     up_to_date,
     write_manifest,
 )
@@ -717,7 +720,7 @@ def vocab_tables(
     if not paths.vocab_types.exists():
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     vocab = pd.read_csv(paths.vocab_types, keep_default_na=False)
-    decoded = vocab["token_repr"].to_numpy()
+    decoded = [token_text(text) for text in vocab["token_repr"]]
     script = vocab["script_class"].to_numpy()
     f_corpus = vocab["f_corpus"].to_numpy(dtype=np.int64)
     k = vocab_community_k(settings)
@@ -751,7 +754,7 @@ def vocab_tables(
                         "fraction_in_corpus": float(np.mean(f_corpus[ids] > 0)),
                         "main_script_class": classes[np.argmax(counts)],
                         "main_script_share": float(counts.max() / counts.sum()),
-                        "examples": " ".join(str(decoded[t]) for t in top),
+                        "examples": json.dumps([decoded[t] for t in top], ensure_ascii=False),
                     }
                 )
         if paths.vocab_nbr(k).exists():
@@ -771,7 +774,9 @@ def vocab_tables(
                         "word": word,
                         "role": "target" if word in settings.sample.targets else "control",
                         "token_id": int(token_id),
-                        "neighbors": " ".join(str(decoded[t]) for t in neighbors),
+                        "neighbors": json.dumps(
+                            [decoded[t] for t in neighbors], ensure_ascii=False
+                        ),
                         "neighbors_in_corpus": int(np.sum(f_corpus[neighbors] > 0)),
                     }
                 )
