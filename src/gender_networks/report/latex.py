@@ -101,7 +101,9 @@ def tex_token(text: Any) -> str:
     return r"\texttt{" + (tex_text(value, visible_space=True) or r"\textit{(vazio)}") + "}"
 
 
-def _finite(value: Any) -> float | None:
+def finite_or_none(value: Any) -> float | None:
+    """``value`` as a float, or None when it is missing, not a number or infinite."""
+
     try:
         number = float(value)
     except (TypeError, ValueError):
@@ -119,7 +121,7 @@ DASH = "--"
 def num(value: Any, digits: int = 2) -> str:
     """Decimal with comma (``0,83``); ``--`` when missing."""
 
-    number = _finite(value)
+    number = finite_or_none(value)
     if number is None:
         return DASH
     text = fmt_dec(number, digits)
@@ -129,19 +131,19 @@ def num(value: Any, digits: int = 2) -> str:
 
 
 def integer(value: Any) -> str:
-    number = _finite(value)
+    number = finite_or_none(value)
     return DASH if number is None else _signed(fmt_int(number))
 
 
 def pct(value: Any, digits: int = 1) -> str:
-    number = _finite(value)
+    number = finite_or_none(value)
     return DASH if number is None else num(number * 100, digits) + r"\,\%"
 
 
 def sci(value: Any, digits: int = 1) -> str:
     """Scientific notation in math mode for small or large values (``$2{,}4\\times10^{-6}$``)."""
 
-    number = _finite(value)
+    number = finite_or_none(value)
     if number is None:
         return DASH
     if number == 0:
@@ -159,7 +161,7 @@ def pm(mean: Any, sd: Any, digits: int = 2, kind: str = "num") -> str:
 
     fmt = integer if kind == "int" else (lambda v: num(v, digits))
     text = fmt(mean)
-    sd_value = _finite(sd)
+    sd_value = finite_or_none(sd)
     if sd_value is not None and sd_value > 0 and text != DASH:
         shown = num(sd_value, digits if kind != "int" else 1)
         text += r"\,$\pm$\," + shown
@@ -167,7 +169,7 @@ def pm(mean: Any, sd: Any, digits: int = 2, kind: str = "num") -> str:
 
 
 def duration(seconds: Any) -> str:
-    value = _finite(seconds)
+    value = finite_or_none(seconds)
     if value is None:
         return DASH
     if value < 60:

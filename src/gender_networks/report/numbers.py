@@ -14,7 +14,7 @@ from gender_networks.artifacts import (
     ensure_dir,
 )
 from gender_networks.report.context import STAGE, Context, Skip
-from gender_networks.report.latex import HEADER, _finite, integer, pct, sci, tex_text
+from gender_networks.report.latex import HEADER, finite_or_none, integer, pct, sci, tex_text
 
 # Macros of numeros.tex (the \providecommand list of relatorio.tex).
 MACROS = [
@@ -96,11 +96,11 @@ def collect_numbers(ctx: Context) -> dict[str, str]:
             values["nGruposPrefixo"] = integer(extract["prefix_groups"])
         diffs = extract.get("prefix_max_abs_diff")
         if isinstance(diffs, Mapping) and diffs:
-            numbers = [_finite(v) for v in diffs.values()]
+            numbers = [finite_or_none(v) for v in diffs.values()]
             numbers = [v for v in numbers if v is not None]
             if numbers:
                 values["difMaxPrefixo"] = sci(max(numbers), 1)
-        elif _finite(diffs) is not None:
+        elif finite_or_none(diffs) is not None:
             values["difMaxPrefixo"] = sci(diffs, 1)
     knn_manifest = ctx.manifest("knn")
     vocab_ids = None
@@ -118,13 +118,13 @@ def collect_numbers(ctx: Context) -> dict[str, str]:
     lens = ctx.paths.lens_file("summary.json")
     if lens.exists():
         agreement = (ctx.json(lens).get("pred_next_agreement") or {}).get("rate")
-        if _finite(agreement) is not None:
+        if finite_or_none(agreement) is not None:
             values["concordanciaPredicao"] = pct(agreement, 1)
     latest = latest_manifest(ctx)
     if latest is not None:
-        stamp = _finite(latest.get("started_unix"))
+        stamp = finite_or_none(latest.get("started_unix"))
         if stamp is not None:
-            finished = stamp + (_finite(latest.get("elapsed_s")) or 0.0)
+            finished = stamp + (finite_or_none(latest.get("elapsed_s")) or 0.0)
             values["dataExecucao"] = datetime.fromtimestamp(finished).strftime("%d/%m/%Y")
         gits = {m.get("git") for m in stage_manifests(ctx).values() if m.get("git")}
         if latest.get("git"):
@@ -145,7 +145,7 @@ def stage_manifests(ctx: Context) -> dict[str, dict[str, Any]]:
 
 
 def latest_manifest(ctx: Context) -> dict[str, Any] | None:
-    manifests = [m for m in stage_manifests(ctx).values() if _finite(m.get("started_unix"))]
+    manifests = [m for m in stage_manifests(ctx).values() if finite_or_none(m.get("started_unix"))]
     return max(manifests, key=lambda m: float(m["started_unix"]), default=None)
 
 

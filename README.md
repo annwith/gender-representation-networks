@@ -34,16 +34,20 @@ configs/
 src/gender_networks/
   cli.py               CLI `gender-networks`: um subcomando por etapa
   settings.py          configuração tipada de uma execução
-  artifacts.py         contrato entre etapas: caminhos, colunas, manifestos
-  wiki.py, textclean.py, corpus.py   etapa corpus (download com cache e limpeza da prosa)
+  artifacts.py         contrato entre etapas: caminhos, nomes de arquivo, leitores, manifestos
+  representations.py   o que cada nome de representação significa (lex, L01, L36n, L01c)
+  labels.py            rótulos em português e números pt-BR (figuras, tabelas e páginas)
+  wiki.py, textclean.py, corpus.py, corpus_rebuild.py   etapas corpus e corpus-rebuild
   tokens.py, sampling.py             etapa sample (categorias de token, amostra híbrida)
   extract.py                         etapa extract (embeddings e estados do Qwen3-4B-Base)
   knn.py                             etapa knn (candidatos, vizinhos e tratamentos de empate)
   graphs.py, metrics.py, partitions.py   etapa metrics (métricas estruturais, Leiden, NMI/ARI)
   neighborhood.py                    medidas de vizinhança (Jaccard, dominância, J^w, piso de ruído)
-  vocab_lens.py                      extensão opcional "vizinhos no vocabulário" (etapa lens)
   analysis.py                        etapa analyze (tabelas de P1–P4)
-  report.py, plots.py                etapa report (figuras, tabelas e números do relatório)
+  vocab_lens.py                      extensão "vizinhos no vocabulário" (etapa lens)
+  report/                            etapa report: latex.py, context.py, numbers.py e
+                                     sections/ (um módulo por seção do relatório)
+  plots.py                           estilo e desenho das figuras
 tests/                 testes offline (não baixam pesos)
 data/
   corpus/manifest.csv  pageid e revid de cada artigo do corpus
@@ -65,6 +69,23 @@ scripts/
   cluster/             scripts das etapas de CPU da execução principal no cluster
   dev/                 ferramentas de desenvolvimento (compare_runs.py: compara duas execuções)
 ```
+
+## Organização do código
+
+Cada etapa é um módulo com uma função `run(settings, paths, force)`. Ela lê só os artefatos das
+etapas anteriores, pelos caminhos de `RunPaths` (`artifacts.py`), grava os seus e termina com um
+`_manifest.json`. As convenções que mais de um módulo usa têm um lugar só:
+
+| O quê | Onde |
+|---|---|
+| nomes e caminhos de arquivos, identificadores de grafo, leitores comuns | `artifacts.py` |
+| significado dos nomes de representação (`lex`, `L01`, `L36n`, `L01c`) | `representations.py` |
+| textos em português e formatação de números | `labels.py` |
+| estatísticas reaproveitáveis | etapa `analyze`; o `report` formata e só calcula recortes próprios de uma figura ou tabela |
+
+Código, nomes de arquivo e chaves dos dados estão em inglês; os documentos LaTeX, as suas pastas
+e o texto das figuras e tabelas, em português. As regras de desenvolvimento e o roteiro para
+conferir que uma mudança não alterou resultados estão em [`AGENTS.md`](AGENTS.md).
 
 ## Preparação
 

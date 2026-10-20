@@ -8,8 +8,8 @@ from gender_networks.report.context import Context, Skip
 from gender_networks.report.latex import (
     DASH,
     Tabular,
-    _finite,
     duration,
+    finite_or_none,
     header_row,
     integer,
     num,
@@ -25,7 +25,7 @@ def table_knn_empates(ctx: Context) -> Tabular:
     reps = manifest.get("representations") or {}
     if not reps:
         raise Skip("o manifesto do knn não tem representações")
-    n = _finite(manifest.get("n_occurrences"))
+    n = finite_or_none(manifest.get("n_occurrences"))
     rows: list[Any] = []
     for rep in sort_names(reps):
         info = reps[rep]
@@ -39,7 +39,7 @@ def table_knn_empates(ctx: Context) -> Tabular:
                     r"\texttt{" + tex_text(rep) + "}" if first else "",
                     str(k),
                     integer(tied),
-                    pct(tied / n, 1) if n and _finite(tied) is not None else DASH,
+                    pct(tied / n, 1) if n and finite_or_none(tied) is not None else DASH,
                     integer(stats.get("max_tie_block")),
                     num(stats.get("all_mean_degree"), 2),
                     integer((info.get("candidates") or {}).get("fallback_rows")) if first else "",
@@ -50,7 +50,7 @@ def table_knn_empates(ctx: Context) -> Tabular:
     vocab = manifest.get("vocab") or {}
     if vocab.get("k"):
         rows.append(r"\midrule")
-        size = _finite(vocab.get("rows"))
+        size = finite_or_none(vocab.get("rows"))
         first = True
         for k in sorted(vocab["k"], key=int):
             stats = vocab["k"][k]
@@ -60,7 +60,7 @@ def table_knn_empates(ctx: Context) -> Tabular:
                     "vocab." if first else "",
                     str(k),
                     integer(tied),
-                    pct(tied / size, 1) if size and _finite(tied) is not None else DASH,
+                    pct(tied / size, 1) if size and finite_or_none(tied) is not None else DASH,
                     integer(stats.get("max_tie_block")),
                     num(stats.get("all_mean_degree"), 2),
                     integer((vocab.get("candidates") or {}).get("fallback_rows")) if first else "",

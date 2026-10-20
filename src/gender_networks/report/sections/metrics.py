@@ -15,7 +15,7 @@ from gender_networks.report.context import Context, Skip
 from gender_networks.report.latex import (
     DASH,
     Tabular,
-    _finite,
+    finite_or_none,
     header_row,
     integer,
     num,
@@ -58,7 +58,8 @@ def _metric_cell(part: pd.DataFrame, column: str, kind: str, digits: int) -> str
         return sci(mean, digits)
     if kind == "pct":
         text = pct(mean, digits)
-        return text + (r"\,$\pm$\," + num(sd * 100, digits) if _finite(sd) and sd > 0 else "")
+        spread = finite_or_none(sd) and sd > 0
+        return text + (r"\,$\pm$\," + num(sd * 100, digits) if spread else "")
     if kind == "int":
         if values.size > 1 and sd > 0:
             return pm(mean, sd, 1, "num") if mean < 1000 else pm(mean, sd, 0, "int")

@@ -8,15 +8,22 @@ from pathlib import Path
 from typing import Any
 
 from gender_networks.report.context import Context, Skip
-from gender_networks.report.latex import DASH, Tabular, _finite, duration, header_row, tex_text
+from gender_networks.report.latex import (
+    DASH,
+    Tabular,
+    duration,
+    finite_or_none,
+    header_row,
+    tex_text,
+)
 from gender_networks.report.numbers import stage_manifests
 
 
 def _when(manifest: Mapping[str, Any]) -> str:
-    stamp = _finite(manifest.get("started_unix"))
+    stamp = finite_or_none(manifest.get("started_unix"))
     if stamp is None:
         return DASH
-    finished = stamp + (_finite(manifest.get("elapsed_s")) or 0.0)
+    finished = stamp + (finite_or_none(manifest.get("elapsed_s")) or 0.0)
     return datetime.fromtimestamp(finished).strftime("%d/%m/%Y %H:%M")
 
 
