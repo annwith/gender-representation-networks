@@ -62,14 +62,16 @@ import igraph as ig
 import networkx as nx
 
 from gender_networks.artifacts import RunPaths, read_jsonl
-from gender_networks.plots import (
-    CATEGORICAL,
+from gender_networks.labels import (
     CATEGORY_LABELS,
     REASON_LABELS,
     REASON_ORDER,
     STRATUM_LABELS,
     STRATUM_ORDER,
     THEME_LABELS,
+)
+from gender_networks.plots import (
+    CATEGORICAL,
 )
 from gender_networks.settings import CorpusSettings, load_settings
 from gender_networks.tokens import CATEGORIES, load_tokenizer, tokenize_paragraph

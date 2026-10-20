@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from gender_networks.plots import (
+from gender_networks.labels import (
     fmt_dec,
     fmt_int,
 )

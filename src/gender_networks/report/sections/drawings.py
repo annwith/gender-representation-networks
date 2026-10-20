@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from gender_networks import plots
-from gender_networks.plots import (
+from gender_networks.labels import (
     ordered,
     theme_label,
 )

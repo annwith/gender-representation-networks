@@ -8,11 +8,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from gender_networks import plots
+from gender_networks import labels, plots
 from gender_networks.artifacts import (
     parse_bool,
 )
-from gender_networks.plots import (
+from gender_networks.labels import (
     CATEGORY_LABELS,
     CATEGORY_ORDER,
     label,
@@ -61,7 +61,7 @@ def figure_p2_transicoes(ctx: Context) -> Any:
         [todos, block("token_category", categories, lambda v: label(CATEGORY_LABELS, v))]
     )
     by_band = pd.concat(
-        [todos, block("band_sample", bands, lambda v: f"f_t {plots.band_label(v)}")]
+        [todos, block("band_sample", bands, lambda v: f"f_t {labels.band_display(v)}")]
     )
     return plots.transition_share_figure(
         [("Por categoria de token", by_category), ("Por faixa de frequência", by_band)],

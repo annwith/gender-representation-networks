@@ -57,7 +57,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
-from gender_networks import plots
+from gender_networks import labels, plots
 from gender_networks.artifacts import community_name, graph_id, neighbors_name
 from gender_networks.graphs import edge_hash, graph_metrics, histogram, symmetrized_edges
 from gender_networks.metrics import select_neighbors
@@ -477,7 +477,7 @@ def figure_degrees(
     ax.set_ylabel("P(K ≥ d)")
     ticks = [t for t in (1, 2, 5, 10, 20, 50, 100, 200) if t >= ax.get_xlim()[0]]
     ax.set_xticks(ticks)
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: plots.fmt_int(v)))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: labels.fmt_int(v)))
     ax.xaxis.set_minor_formatter(FuncFormatter(lambda v, _: ""))
     return fig
 
@@ -559,7 +559,7 @@ def figure_components(
         sizes = result[sizes_key]
         total = sum(sizes.values())
         ymax = max(ymax, max(sizes.values()))
-        title = f"{rep}: {plots.fmt_int(total)}"
+        title = f"{rep}: {labels.fmt_int(total)}"
         if noun_in_title:
             title += f" {noun[0] if total == 1 else noun[1]}"
         plots.prepare(ax, title, grid="both")
@@ -580,7 +580,7 @@ def figure_components(
         )
         giant = result[giant_key]
         ax.annotate(
-            plots.fmt_int(giant),
+            labels.fmt_int(giant),
             (giant, 1),
             xytext=(-4, 4),
             textcoords="offset points",
@@ -598,8 +598,8 @@ def figure_components(
     axes[0, 0].set_xlim(0.7 if small < 7 else 7, 25_000)
     ticks = [1, 100, 10_000] if small < 7 else [10, 100, 1_000, 10_000]
     axes[0, 0].set_xticks(ticks)
-    axes[0, 0].yaxis.set_major_formatter(FuncFormatter(lambda v, _: plots.fmt_int(v)))
-    axes[0, 0].xaxis.set_major_formatter(FuncFormatter(lambda v, _: plots.fmt_int(v)))
+    axes[0, 0].yaxis.set_major_formatter(FuncFormatter(lambda v, _: labels.fmt_int(v)))
+    axes[0, 0].xaxis.set_major_formatter(FuncFormatter(lambda v, _: labels.fmt_int(v)))
     return fig
 
 
@@ -687,23 +687,23 @@ def metrics_table(results: Mapping[str, Mapping[str, Any]], sym: str) -> pd.Data
 
 
 def _count_share(count: int, share: float) -> str:
-    return f"{plots.fmt_int(count)} ({plots.fmt_dec(100 * share, 1)}\\%)"
+    return f"{labels.fmt_int(count)} ({labels.fmt_dec(100 * share, 1)}\\%)"
 
 
 def _dec(digits: int) -> Any:
-    return lambda row, key: plots.fmt_dec(row[key], digits)
+    return lambda row, key: labels.fmt_dec(row[key], digits)
 
 
 def _int(row: Mapping[str, Any], key: str) -> str:
-    return plots.fmt_int(row[key])
+    return labels.fmt_int(row[key])
 
 
 def _pct(row: Mapping[str, Any], key: str) -> str:
-    return f"{plots.fmt_dec(100 * row[key], 1)}\\%"
+    return f"{labels.fmt_dec(100 * row[key], 1)}\\%"
 
 
 def _dec_or_dash(digits: int) -> Any:
-    return lambda row, key: "---" if pd.isna(row[key]) else plots.fmt_dec(row[key], digits)
+    return lambda row, key: "---" if pd.isna(row[key]) else labels.fmt_dec(row[key], digits)
 
 
 # ``None`` draws a rule between groups of rows.
@@ -716,7 +716,7 @@ LATEX_ROWS = {
         (
             "Densidade ($\\times 10^{-3}$)",
             "densidade",
-            lambda r, k: plots.fmt_dec(r[k] * 1e3, 3),
+            lambda r, k: labels.fmt_dec(r[k] * 1e3, 3),
         ),
         ("Transitividade (clusterização global)", "transitividade", _dec(3)),
         ("Clusterização local média", "clusterizacao_local_media", _dec(3)),
@@ -742,7 +742,7 @@ LATEX_ROWS = {
         (
             "Densidade ($\\times 10^{-4}$)",
             "densidade",
-            lambda r, k: plots.fmt_dec(r[k] * 1e4, 3),
+            lambda r, k: labels.fmt_dec(r[k] * 1e4, 3),
         ),
         ("Transitividade dirigida $T^{\\rightarrow}$", "transitividade", _dec(3)),
         (

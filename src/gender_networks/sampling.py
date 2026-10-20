@@ -184,15 +184,25 @@ def validate_bands(bands: Sequence[Sequence[int]], f_max: int) -> None:
         raise ValueError(f"sample.bands must cover f_max = {f_max}, got {bands}")
 
 
-def band_label(value: int, bands: Sequence[Sequence[int]], open_top: bool = False) -> str:
-    """Label of the frequency band of ``value`` (``'1-2'``, ``'50'``; ``'50+'`` if open)."""
+def band_names(bands: Sequence[Sequence[int]], open_top: bool = False) -> list[str]:
+    """Labels of the frequency bands in order (``'1-2'``, ``'50'``; the last ``'50+'`` if open)."""
 
+    last = len(bands) - 1
+    return [
+        f"{low}+" if open_top and number == last else f"{low}" if low == high else f"{low}-{high}"
+        for number, (low, high) in enumerate(bands)
+    ]
+
+
+def band_label(value: int, bands: Sequence[Sequence[int]], open_top: bool = False) -> str:
+    """Label of the frequency band of ``value`` (see :func:`band_names`)."""
+
+    names = band_names(bands, open_top)
     for number, (low, high) in enumerate(bands):
-        last = number == len(bands) - 1
-        if last and open_top and value >= low:
-            return f"{low}+"
+        if open_top and number == len(bands) - 1 and value >= low:
+            return names[number]
         if low <= value <= high:
-            return f"{low}" if low == high else f"{low}-{high}"
+            return names[number]
     raise ValueError(f"Frequency {value} is outside the bands {bands}")
 
 

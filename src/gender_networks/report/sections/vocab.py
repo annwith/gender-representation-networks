@@ -11,7 +11,7 @@ from gender_networks import plots
 from gender_networks.artifacts import (
     graph_id,
 )
-from gender_networks.plots import (
+from gender_networks.labels import (
     SCRIPT_LABELS,
     SCRIPT_ORDER,
     label,

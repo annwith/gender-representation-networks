@@ -18,10 +18,11 @@ from gender_networks.artifacts import (
     read_json,
     read_jsonl,
 )
-from gender_networks.plots import (
+from gender_networks.labels import (
     ordered,
 )
 from gender_networks.representations import is_lexical
+from gender_networks.sampling import band_names
 from gender_networks.settings import Settings
 
 STAGE = "report"
@@ -41,14 +42,9 @@ def read_table(path: Path) -> pd.DataFrame:
 
 
 def band_order(settings: Settings, open_top: bool = False) -> list[str]:
-    bands = settings.sample.bands
-    out = []
-    for number, (low, high) in enumerate(bands):
-        if open_top and number == len(bands) - 1:
-            out.append(f"{low}+")
-        else:
-            out.append(f"{low}" if low == high else f"{low}-{high}")
-    return out
+    """Frequency bands of the run in order (open on top for the corpus bands)."""
+
+    return band_names(settings.sample.bands, open_top)
 
 
 class Context:

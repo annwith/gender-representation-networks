@@ -43,6 +43,21 @@ from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 from matplotlib.ticker import FuncFormatter, MaxNLocator, ScalarFormatter  # noqa: E402
 
+from gender_networks.labels import (  # noqa: E402
+    CATEGORY_LABELS,
+    GROUP_LABELS,
+    LABEL_LABELS,
+    REASON_LABELS,
+    REASON_ORDER,
+    REP_LABELS,
+    SCRIPT_LABELS,
+    band_display,
+    fmt_dec,
+    fmt_int,
+    label,
+    ordered,
+    theme_label,
+)
 from gender_networks.representations import is_lexical, parse, try_parse  # noqa: E402
 
 # --------------------------------------------------------------------------------------------
@@ -85,134 +100,6 @@ BLUE_RAMP = [
     "#0d366b",
 ]
 WIDTH_IN = 6.3
-
-# --------------------------------------------------------------------------------------------
-# Portuguese labels shared with the tables
-
-# Representations are shown by their name (lex, L01, L36n...); only the vocabulary is translated.
-REP_LABELS = {"vocab": "vocabulário"}
-CATEGORY_ORDER = ["whole_word", "word_start", "continuation", "punctuation", "number"]
-CATEGORY_LABELS = {
-    "whole_word": "palavra inteira",
-    "word_start": "início de palavra",
-    "continuation": "continuação",
-    "punctuation": "pontuação",
-    "number": "número",
-    "whitespace": "espaço",
-    "all": "todos",
-}
-STRATUM_ORDER = ["core", "target", "control", "multitheme"]
-STRATUM_LABELS = {
-    "core": "núcleo",
-    "target": "alvo",
-    "control": "controle",
-    "multitheme": "multitema",
-    "all": "todos",
-}
-GROUP_ORDER = ["target", "control", "multitheme", "function"]
-GROUP_LABELS = {
-    "target": "alvos",
-    "control": "controles",
-    "multitheme": "multitema",
-    "function": "funcionais",
-    "other": "outros",
-}
-SCRIPT_ORDER = [
-    "latin",
-    "cjk",
-    "mixed",
-    "punctuation",
-    "other_script",
-    "byte_fragment",
-    "whitespace",
-    "digits",
-    "special",
-]
-SCRIPT_LABELS = {
-    "latin": "latina",
-    "cjk": "chinês/japonês/coreano",
-    "mixed": "código/misto",
-    "punctuation": "pontuação",
-    "other_script": "outras escritas",
-    "byte_fragment": "pedaços de bytes",
-    "whitespace": "espaços",
-    "digits": "dígitos",
-    "special": "especiais",
-    "other": "outras",
-}
-THEME_LABELS = {
-    "fisica": "Física",
-    "biologia": "Biologia",
-    "economia": "Economia",
-    "politica": "Política",
-    "computacao": "Computação",
-    "musica": "Música",
-    "esporte": "Esporte",
-    "geografia": "Geografia",
-}
-REASON_ORDER = ["multi_theme", "biography", "disambiguation", "no_paragraphs", "duplicate"]
-REASON_LABELS = {
-    "multi_theme": "multitema",
-    "biography": "biografia",
-    "disambiguation": "desambiguação",
-    "no_paragraphs": "sem parágrafos",
-    "duplicate": "duplicada",
-}
-LABEL_LABELS = {
-    "token_id": "token",
-    "theme": "tema",
-    "pageid": "artigo",
-    "paragraph_id": "parágrafo",
-    "sentence_id": "sentença",
-    "next_token_id": "próximo token",
-    "pred_next": "token previsto",
-    "pos_bucket": "faixa de posição",
-    "stratum": "estrato",
-    "token_category": "categoria",
-}
-BAND_ORDER = ["1-2", "3-9", "10-49", "50", "50+"]
-
-
-def label(mapping: Mapping[str, str], key: Any) -> str:
-    """Portuguese label of a code, falling back to the code itself."""
-
-    return mapping.get(str(key), str(key))
-
-
-def theme_label(theme: str) -> str:
-    return THEME_LABELS.get(theme, theme.capitalize())
-
-
-def band_label(band: str) -> str:
-    """``10-49`` -> ``10–49`` (en dash), ``50`` -> ``50``."""
-
-    return str(band).replace("-", "–")
-
-
-def ordered(values: Sequence[Any], order: Sequence[str]) -> list[str]:
-    """Distinct values, known ones in ``order`` first, the others sorted after them."""
-
-    present = [str(v) for v in dict.fromkeys(values)]
-    known = [v for v in order if v in present]
-    return known + sorted(v for v in present if v not in known)
-
-
-# --------------------------------------------------------------------------------------------
-# number formatting (pt-BR)
-
-
-def fmt_int(value: float | int) -> str:
-    """``15104`` -> ``15.104``."""
-
-    return f"{int(round(float(value))):,}".replace(",", ".")
-
-
-def fmt_dec(value: float, digits: int = 2) -> str:
-    """``1234.5`` -> ``1.234,50`` (thousands with a dot, decimal comma)."""
-
-    text = f"{float(value):,.{digits}f}"
-    return text.replace(",", "\0").replace(".", ",").replace("\0", ".")
-
 
 class BrFormatter(ScalarFormatter):
     """Tick labels with the decimal comma (and a thousands dot for large integers)."""
@@ -667,7 +554,7 @@ def extraction_dimensions_figure(summaries: Mapping[str, Mapping[str, Any]]) -> 
         mean = summaries[rep].get("mean_norm") or np.nan
         y = [by.get(b, np.nan) / mean if mean else np.nan for b in buckets]
         plot_series(ax, xs, y, styles[rep])
-    ax.set_xticks(xs, [band_label(b) for b in buckets])
+    ax.set_xticks(xs, [band_display(b) for b in buckets])
     ax.set_xlabel("posição na sequência")
     decimal_axis(ax, "y")
     ax.legend(loc="best", fontsize=7, handlelength=1.4)
@@ -934,7 +821,7 @@ def jaccard_bands_figure(
         floor = floors.get(band)
         if floor is not None and np.isfinite(floor):
             ax.plot([b - 0.45, b + 0.45], [floor, floor], color=INK, linewidth=1.1, zorder=6)
-    ax.set_xticks(np.arange(len(bands)), [band_label(b) for b in bands])
+    ax.set_xticks(np.arange(len(bands)), [band_display(b) for b in bands])
     ax.set_xlim(-0.6, len(bands) - 0.4)
     ax.set_ylim(-0.02, 1.02)
     ax.set_xlabel("faixa de frequência do tipo na amostra (f_t)")
@@ -973,7 +860,7 @@ def dominance_figure(
     xs = np.arange(len(reps))
     for col, (grouping, title, groups) in enumerate(panels):
         if grouping == "band_sample":
-            styles = ordinal_styles(groups, {g: f"f_t {band_label(g)}" for g in groups})
+            styles = ordinal_styles(groups, {g: f"f_t {band_display(g)}" for g in groups})
         else:
             styles = categorical_styles(groups, CATEGORY_LABELS)
         for row, measure in enumerate(("D", "Dn")):
@@ -1187,7 +1074,7 @@ def tie_variants_figure(
             part = frame[(frame["rep"] == rep) & (frame["variant"] == variant)].set_index("band")
             y = [float(part["value"].get(b, np.nan)) for b in bands]
             plot_series(ax, xs, y, styles[variant])
-        ax.set_xticks(xs, [band_label(b) for b in bands])
+        ax.set_xticks(xs, [band_display(b) for b in bands])
         ax.set_xlabel("faixa de f_t na amostra")
         ax.set_ylim(-0.02, 1.02)
         decimal_axis(ax, "y")

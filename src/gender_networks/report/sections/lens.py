@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 
 from gender_networks import plots
-from gender_networks.plots import (
+from gender_networks.labels import (
     CATEGORY_ORDER,
     ordered,
 )

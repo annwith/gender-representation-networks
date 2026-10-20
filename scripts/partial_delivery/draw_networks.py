@@ -52,7 +52,7 @@ from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
-from gender_networks import plots
+from gender_networks import labels, plots
 from gender_networks.partitions import leiden
 
 REPO = Path(__file__).resolve().parents[2]
@@ -78,7 +78,7 @@ REP_TITLES = {
     "L18": "L18: saída do bloco 18",
     "L36": "L36: saída do bloco 36",
 }
-THEMES = list(plots.THEME_LABELS)
+THEMES = list(labels.THEME_LABELS)
 # Word position of a token: the class that matters highlighted, the rest in the muted gray.
 WORD_POSITIONS = {
     "continues": ("a palavra continua no token seguinte", plots.CATEGORICAL[0]),
@@ -166,7 +166,7 @@ def word_continues(g: ig.Graph) -> np.ndarray:
 def theme_colors(g: ig.Graph) -> tuple[np.ndarray, list[tuple[str, str]]]:
     """Color of every vertex by theme, and the legend entries (label, color)."""
 
-    styles = plots.categorical_styles(THEMES, plots.THEME_LABELS)
+    styles = plots.categorical_styles(THEMES, labels.THEME_LABELS)
     colors = np.array([styles[t].color for t in g.vs["theme"]])
     return colors, [(styles[t].label, styles[t].color) for t in THEMES]
 
@@ -270,11 +270,11 @@ def coarse_blocks(g: ig.Graph, continues: np.ndarray) -> dict[str, Any]:
 
 
 def _pct(value: float) -> str:
-    return f"{plots.fmt_dec(100 * value, 1)}\\%"
+    return f"{labels.fmt_dec(100 * value, 1)}\\%"
 
 
 def _dec(value: float) -> str:
-    return plots.fmt_dec(value, 3)
+    return labels.fmt_dec(value, 3)
 
 
 Row = tuple[str, Callable[[pd.Series], str]]
@@ -287,17 +287,17 @@ EDGE_ROWS: list[Row] = [
     ("Assortatividade por posição na palavra", lambda r: _dec(r["assortatividade_palavra"])),
 ]
 BLOCK_ROWS: list[Row] = [
-    ("Comunidades com $\\gamma = 1$", lambda r: plots.fmt_int(r["comunidades_resolucao_1"])),
-    ("Comunidades com $\\gamma = 0{,}05$", lambda r: plots.fmt_int(r["comunidades"])),
-    ("Blocos (comunidades com ao menos 1\\% dos vértices)", lambda r: plots.fmt_int(r["blocos"])),
+    ("Comunidades com $\\gamma = 1$", lambda r: labels.fmt_int(r["comunidades_resolucao_1"])),
+    ("Comunidades com $\\gamma = 0{,}05$", lambda r: labels.fmt_int(r["comunidades"])),
+    ("Blocos (comunidades com ao menos 1\\% dos vértices)", lambda r: labels.fmt_int(r["blocos"])),
     ("\\quad vértices nos blocos", lambda r: _pct(r["fracao_vertices_blocos"])),
     (
         "\\quad as duas maiores comunidades (vértices)",
         lambda r: (
-            f"{plots.fmt_int(r['maior_comunidade'])} / {plots.fmt_int(r['segunda_comunidade'])}"
+            f"{labels.fmt_int(r['maior_comunidade'])} / {labels.fmt_int(r['segunda_comunidade'])}"
         ),
     ),
-    ("Bloco $B$ (vértices)", lambda r: plots.fmt_int(r["bloco_b_vertices"])),
+    ("Bloco $B$ (vértices)", lambda r: labels.fmt_int(r["bloco_b_vertices"])),
     ("\\quad fração de $B$ que é \\emph{continua}", lambda r: _pct(r["bloco_b_continua"])),
     (
         "\\quad fração dos \\emph{continua} que está em $B$",

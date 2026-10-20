@@ -13,10 +13,10 @@ from gender_networks import plots
 from gender_networks.artifacts import (
     graph_id,
 )
-from gender_networks.neighborhood import jaccard
-from gender_networks.plots import (
+from gender_networks.labels import (
     ordered,
 )
+from gender_networks.neighborhood import jaccard
 from gender_networks.report.context import Context, Skip, band_order
 from gender_networks.report.latex import DASH, Tabular, header_row, num, sci, tex_text
 from gender_networks.representations import LEX, parse

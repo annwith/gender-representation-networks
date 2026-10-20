@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from gender_networks import plots
-from gender_networks.plots import (
+from gender_networks.labels import (
     GROUP_ORDER,
     ordered,
 )

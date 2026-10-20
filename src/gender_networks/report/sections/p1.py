@@ -7,8 +7,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from gender_networks import plots
-from gender_networks.plots import (
+from gender_networks import labels, plots
+from gender_networks.labels import (
     CATEGORY_LABELS,
     CATEGORY_ORDER,
     STRATUM_LABELS,
@@ -127,12 +127,12 @@ def table_p1_resumo(ctx: Context) -> Tabular:
     for name, mask in groups:
         rows.append([name, integer(mask.sum()), *cells(mask)])
     width = 2 + 4 * len(reps)
-    for title, column, values, labels in blocks:
+    for title, column, values, value_labels in blocks:
         rows.append(r"\midrule")
         rows.append(rf"\multicolumn{{{width}}}{{l}}{{\textit{{{title}}}}} \\")
         for value in values:
             mask = frame[column] == value
-            rows.append([r"\quad " + label(labels, value), integer(mask.sum()), *cells(mask)])
+            rows.append([r"\quad " + label(value_labels, value), integer(mask.sum()), *cells(mask)])
     header = [
         header_row(
             ["", ""] + [rf"\multicolumn{{4}}{{c}}{{\texttt{{{tex_text(r)}}}}}" for r in reps]
@@ -182,7 +182,7 @@ def table_p1_hubs(ctx: Context) -> Tabular:
                 cells += [
                     tex_token(row.get("token_text", "")),
                     CATEGORY_ABBR.get(str(row.get("token_category", "")), DASH),
-                    plots.band_label(pos[vertex]) if vertex < len(pos) else DASH,
+                    labels.band_display(pos[vertex]) if vertex < len(pos) else DASH,
                     integer(row["in_degree"]),
                 ]
             cells += [""] * (4 * (2 - len(block)))

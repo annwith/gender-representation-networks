@@ -6,8 +6,8 @@ from typing import Any
 
 import pandas as pd
 
-from gender_networks import plots
-from gender_networks.plots import (
+from gender_networks import labels, plots
+from gender_networks.labels import (
     CATEGORY_LABELS,
     CATEGORY_ORDER,
     STRATUM_LABELS,
@@ -105,7 +105,7 @@ def figure_amostra_composicao(ctx: Context) -> Any:
     panels.append(
         (
             "Faixa de frequência na amostra (f_t)",
-            [plots.band_label(b) for b in bands],
+            [labels.band_display(b) for b in bands],
             [int(counts.get(b, 0)) for b in bands],
         )
     )
@@ -137,7 +137,7 @@ def table_amostra_faixas(ctx: Context) -> Tabular:
         rows.append(rf"\multicolumn{{{width}}}{{l}}{{\textit{{{title}}}}} \\")
         for band in ordered([b for b in occ[column] if b], order):
             part = occ[occ[column] == band]
-            cells = [r"\quad " + plots.band_label(band)]
+            cells = [r"\quad " + labels.band_display(band)]
             cells += [integer((part["token_category"] == c).sum()) for c in categories]
             cells.append(integer(len(part)))
             rows.append(cells)
