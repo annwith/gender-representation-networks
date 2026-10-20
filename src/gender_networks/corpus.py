@@ -52,6 +52,36 @@ class CorpusResult:
     fetch_batches: int = 0
 
 
+@dataclass(frozen=True)
+class Walk:
+    """One breadth-first category walk of the corpus stage."""
+
+    walk_id: str  # "<theme>::root" or "<theme>::<extra category>": the candidate group
+    theme: str
+    origin: str  # "root" or the extra category
+    roots: tuple[str, ...]
+    depth: int
+    max_titles: int
+
+
+def walks(settings: CorpusSettings) -> list[Walk]:
+    """The walks of the corpus stage, in order: each theme from its roots, then each extra
+    category (one level deep, with room for four times the articles kept from it)."""
+
+    out = [
+        Walk(f"{theme}::root", theme, "root", tuple(roots), settings.bfs_depth,
+             settings.max_titles_per_theme)
+        for theme, roots in settings.themes.items()
+    ]  # fmt: skip
+    for theme, categories in settings.extra_categories.items():
+        for extra in categories:
+            out.append(
+                Walk(f"{theme}::{extra}", theme, extra, (extra,), min(1, settings.bfs_depth),
+                     settings.articles_per_extra_category * 4)
+            )  # fmt: skip
+    return out
+
+
 def collect_candidates(
     client: WikiClient, settings: CorpusSettings
 ) -> tuple[dict[str, list[Candidate]], dict[str, set[str]]]:
@@ -59,35 +89,20 @@ def collect_candidates(
 
     groups: dict[str, list[Candidate]] = {}
     reached: dict[str, set[str]] = {}
-    for theme, roots in settings.themes.items():
+    for walk in walks(settings):
         found = client.crawl(
-            roots,
-            settings.bfs_depth,
-            settings.max_titles_per_theme,
-            settings.skip_category_patterns,
+            walk.roots, walk.depth, walk.max_titles, settings.skip_category_patterns
         )
-        groups[f"{theme}::root"] = [
-            Candidate(title, theme, category, depth, "root")
+        groups[walk.walk_id] = [
+            Candidate(title, walk.theme, category, depth, walk.origin)
             for title, (category, depth) in found.items()
         ]
         for title in found:
-            reached.setdefault(title, set()).add(theme)
-        LOGGER.info("Tema %s: %d títulos nas categorias", theme, len(found))
-    for theme, categories in settings.extra_categories.items():
-        for extra in categories:
-            found = client.crawl(
-                [extra],
-                min(1, settings.bfs_depth),
-                settings.articles_per_extra_category * 4,
-                settings.skip_category_patterns,
-            )
-            groups[f"{theme}::{extra}"] = [
-                Candidate(title, theme, category, depth, extra)
-                for title, (category, depth) in found.items()
-            ]
-            for title in found:
-                reached.setdefault(title, set()).add(theme)
-            LOGGER.info("Extra %s (%s): %d títulos", extra, theme, len(found))
+            reached.setdefault(title, set()).add(walk.theme)
+        if walk.origin == "root":
+            LOGGER.info("Tema %s: %d títulos nas categorias", walk.theme, len(found))
+        else:
+            LOGGER.info("Extra %s (%s): %d títulos", walk.origin, walk.theme, len(found))
     return groups, reached
 
 

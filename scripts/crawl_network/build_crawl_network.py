@@ -13,9 +13,9 @@ Replays, offline from the API cache (``data/raw/wiki``), the 24 breadth-first ca
 the category that first recorded a title (``source_category`` in ``articles.jsonl``). Download
 and cleaning are left out: a title is a vertex whether or not it was later fetched or kept.
 
-The walk loop is a copy of ``WikiClient.crawl`` with bookkeeping; the script checks that it
-records exactly the same titles as ``WikiClient.crawl`` and the same category, depth and themes
-as ``data/corpus/articles.jsonl``.
+The walks are those of the corpus stage (``corpus.walks``), run by ``WikiClient.crawl`` with a
+``CrawlTrace`` that records what each one went through; the script checks the category, depth
+and themes of every article against ``data/corpus/articles.jsonl``.
 
 Outputs: ``data/crawl/crawl_network.graphml`` and ``docs/coleta/index.html``, the interactive
 page published on GitHub Pages, built from ``page_template.html`` with the network embedded as
@@ -52,9 +52,8 @@ import csv
 import gzip
 import json
 import math
-from collections import Counter, defaultdict, deque
+from collections import Counter, defaultdict
 from collections.abc import Sequence
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +61,7 @@ import igraph as ig
 import networkx as nx
 
 from gender_networks.artifacts import RunPaths, read_jsonl
+from gender_networks.corpus import Walk, walks
 from gender_networks.labels import (
     CATEGORY_LABELS,
     REASON_LABELS,
@@ -75,7 +75,7 @@ from gender_networks.plots import (
 )
 from gender_networks.settings import CorpusSettings, load_settings
 from gender_networks.tokens import CATEGORIES, load_tokenizer, tokenize_paragraph
-from gender_networks.wiki import WikiClient
+from gender_networks.wiki import CrawlTrace, WikiClient
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = REPO / "configs" / "experiment.yaml"
@@ -97,81 +97,15 @@ ARTICLE_FIELDS = [
 ]  # fmt: skip
 
 
-@dataclass(frozen=True)
-class Walk:
-    """One breadth-first walk, with the parameters of ``corpus.collect_candidates``."""
+def trace_walk(client: WikiClient, walk: Walk, skip_patterns: Sequence[str]) -> CrawlTrace:
+    """The walk of the corpus stage, with what it went through."""
 
-    walk_id: str  # "<theme>::root" or "<theme>::<extra category>", as the corpus groups
-    theme: str
-    origin: str
-    roots: tuple[str, ...]
-    depth: int
-    max_titles: int
-
-
-@dataclass
-class WalkTrace:
-    found: dict[str, tuple[str, int]] = field(default_factory=dict)
-    opened: list[tuple[str, int]] = field(default_factory=list)  # in opening order
-    tree_parent: dict[str, str] = field(default_factory=dict)  # category that queued it
-    subcats: dict[str, list[str]] = field(default_factory=dict)
-    read: dict[str, list[str]] = field(default_factory=dict)  # titles gone through
-    n_pages: dict[str, int] = field(default_factory=dict)
-    cut: str | None = None  # category where the title limit was reached
-    unopened: int = 0  # categories still queued at the end
-
-
-def walks(settings: CorpusSettings) -> list[Walk]:
-    out = [
-        Walk(f"{theme}::root", theme, "root", tuple(roots), settings.bfs_depth,
-             settings.max_titles_per_theme)
-        for theme, roots in settings.themes.items()
-    ]  # fmt: skip
-    for theme, categories in settings.extra_categories.items():
-        for extra in categories:
-            out.append(
-                Walk(f"{theme}::{extra}", theme, extra, (extra,), min(1, settings.bfs_depth),
-                     settings.articles_per_extra_category * 4)
-            )  # fmt: skip
-    return out
-
-
-def trace_walk(client: WikiClient, walk: Walk, skip_patterns: Sequence[str]) -> WalkTrace:
-    """``WikiClient.crawl`` with bookkeeping; the control flow is the same line by line."""
-
-    skip = tuple(skip_patterns)
-    trace = WalkTrace()
-    found = trace.found
-    queue = deque((root, 0) for root in walk.roots)
-    seen = {root for root, _ in queue}
-    while queue and len(found) < walk.max_titles:
-        category, level = queue.popleft()
-        pages, subcats = client.category_members(category, skip)
-        trace.opened.append((category, level))
-        trace.subcats[category] = subcats
-        trace.n_pages[category] = len(pages)
-        read: list[str] = []
-        for title in pages:
-            if title.startswith(("Lista de", "Listas de")):
-                continue
-            read.append(title)
-            if title not in found:
-                found[title] = (category, level)
-                if len(found) >= walk.max_titles:
-                    trace.cut = category
-                    break
-        trace.read[category] = read
-        if level < walk.depth:
-            for sub in subcats:
-                if sub not in seen:
-                    seen.add(sub)
-                    queue.append((sub, level + 1))
-                    trace.tree_parent[sub] = category
-    trace.unopened = len(queue)
+    trace = CrawlTrace()
+    client.crawl(walk.roots, walk.depth, walk.max_titles, skip_patterns, trace=trace)
     return trace
 
 
-def build_graph(walk_list: Sequence[Walk], traces: dict[str, WalkTrace]) -> nx.DiGraph:
+def build_graph(walk_list: Sequence[Walk], traces: dict[str, CrawlTrace]) -> nx.DiGraph:
     g = nx.DiGraph()
     theme_roots = {root for w in walk_list if w.origin == "root" for root in w.roots}
     extra_roots = {root for w in walk_list if w.origin != "root" for root in w.roots}
@@ -241,16 +175,10 @@ def check_against_pipeline(
     client: WikiClient,
     settings: CorpusSettings,
     walk_list: Sequence[Walk],
-    traces: dict[str, WalkTrace],
+    traces: dict[str, CrawlTrace],
     g: nx.DiGraph,
     articles_path: Path,
 ) -> int:
-    for walk in walk_list:
-        reference = client.crawl(
-            walk.roots, walk.depth, walk.max_titles, settings.skip_category_patterns
-        )
-        if reference != traces[walk.walk_id].found:
-            raise AssertionError(f"{walk.walk_id}: the traced walk differs from WikiClient.crawl")
     checked = 0
     with articles_path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -355,7 +283,7 @@ def layout(g: nx.DiGraph, walk_list: Sequence[Walk]) -> dict[str, tuple[float, f
 def to_json(
     g: nx.DiGraph,
     walk_list: Sequence[Walk],
-    traces: dict[str, WalkTrace],
+    traces: dict[str, CrawlTrace],
     positions: dict[str, tuple[float, float]],
 ) -> dict[str, Any]:
     names = list(g.nodes)
@@ -732,7 +660,7 @@ def write_page(payloads: dict[str, str], path: Path) -> None:
     path.write_text(page, encoding="utf-8")
 
 
-def summary(g: nx.DiGraph, walk_list: Sequence[Walk], traces: dict[str, WalkTrace]) -> None:
+def summary(g: nx.DiGraph, walk_list: Sequence[Walk], traces: dict[str, CrawlTrace]) -> None:
     kinds = Counter(d["kind"] for _, d in g.nodes(data=True))
     arcs = Counter((d["kind"], d["first"]) for _, _, d in g.edges(data=True))
     multi = sum(1 for _, d in g.nodes(data=True) if d.get("multitheme"))
@@ -780,7 +708,7 @@ def main() -> None:
     checked = check_against_pipeline(
         client, corpus, walk_list, traces, g, REPO / settings.paths.corpus_dir / "articles.jsonl"
     )
-    print(f"conferido: {len(walk_list)} buscas = WikiClient.crawl; {checked} artigos do corpus")
+    print(f"conferido: {len(walk_list)} buscas; {checked} artigos do corpus")
     summary(g, walk_list, traces)
 
     positions = layout(g, walk_list)

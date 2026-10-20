@@ -579,6 +579,24 @@ def ccdf(degrees: np.ndarray, counts: np.ndarray) -> tuple[np.ndarray, np.ndarra
     return degrees[keep], tail[keep]
 
 
+def sparse_markers(
+    ax: Axes, x: np.ndarray, y: np.ndarray, style: Style, n: int = 8, size: float = 4.0
+) -> None:
+    """Markers on about ``n`` points of a dense line, so that it stays identifiable in grey."""
+
+    every = max(1, x.size // n)
+    ax.plot(
+        x[::every],
+        y[::every],
+        linestyle="none",
+        marker=style.marker,
+        color=style.color,
+        markersize=size,
+        markeredgecolor=SURFACE,
+        markeredgewidth=0.5,
+    )
+
+
 def degree_ccdf_figure(
     series: Mapping[str, tuple[np.ndarray, np.ndarray]],
     k: int | None,
@@ -597,17 +615,7 @@ def degree_ccdf_figure(
             continue
         style = styles[key]
         ax.step(x, y, where="post", color=style.color, linewidth=1.4, label=style.label)
-        every = max(1, x.size // 8)
-        ax.plot(
-            x[::every],
-            y[::every],
-            linestyle="none",
-            marker=style.marker,
-            color=style.color,
-            markersize=4,
-            markeredgecolor=SURFACE,
-            markeredgewidth=0.5,
-        )
+        sparse_markers(ax, x, y, style)
     if k:
         ax.axvline(k, color=INK, linewidth=0.8)
         ax.text(
@@ -955,17 +963,7 @@ def layer_curves_figure(layers: pd.DataFrame, categories: Sequence[str]) -> Figu
                 zorder=4 if key == "all" else 3,
             )
             if style.marker:
-                every = max(1, x.size // 7)
-                ax.plot(
-                    x[::every],
-                    y[::every],
-                    linestyle="none",
-                    marker=style.marker,
-                    color=style.color,
-                    markersize=4,
-                    markeredgecolor=SURFACE,
-                    markeredgewidth=0.5,
-                )
+                sparse_markers(ax, x, y, style, n=7)
         ax.set_xlabel("bloco ℓ (em ℓ = 1, comparação com a rede lex por posição)")
         ax.set_ylim(-0.02, 1.02)
         decimal_axis(ax, "y")
@@ -1142,17 +1140,7 @@ def lens_ranks_figure(curve: pd.DataFrame, categories: Sequence[str], discrete: 
                 plot_series(ax, x, y, style, linewidth=1.8 if key == "all" else 1.1)
             else:
                 ax.plot(x, y, color=style.color, linewidth=1.8 if key == "all" else 1.1)
-                every = max(1, x.size // 7)
-                ax.plot(
-                    x[::every],
-                    y[::every],
-                    linestyle="none",
-                    marker=style.marker,
-                    color=style.color,
-                    markersize=4,
-                    markeredgecolor=SURFACE,
-                    markeredgewidth=0.5,
-                )
+                sparse_markers(ax, x, y, style, n=7)
         ax.set_yscale("log")
         if discrete:
             ax.set_xticks(ticks["x"].to_numpy(), ticks["xlabel"].tolist())

@@ -53,6 +53,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from gender_networks import labels, plots
+from gender_networks.graphs import edge_keys, same_label_share
 from gender_networks.partitions import leiden
 
 REPO = Path(__file__).resolve().parents[2]
@@ -104,19 +105,11 @@ def read(rep: str, sym: str) -> ig.Graph:
     return g
 
 
-def edge_keys(g: ig.Graph) -> np.ndarray:
-    """Sorted distinct ``lo * n + hi`` keys of the edges, ignoring their direction."""
-
-    e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
-    lo, hi = e.min(axis=1), e.max(axis=1)
-    return np.unique(lo * g.vcount() + hi)
-
-
 def check_directed_matches_union(rep: str, union: ig.Graph) -> None:
     directed = read(rep, "directed")
     if directed.vs["occurrence_id"] != union.vs["occurrence_id"]:
         raise ValueError(f"{rep}: directed and union files list the vertices in different orders")
-    if not np.array_equal(edge_keys(directed), edge_keys(union)):
+    if not np.array_equal(edge_keys(directed, ignore_direction=True), edge_keys(union)):
         raise ValueError(f"{rep}: the directed arcs, undirected, differ from the union edges")
 
 
@@ -229,8 +222,8 @@ def edge_composition(g: ig.Graph, continues: np.ndarray) -> dict[str, float]:
     _, theme = np.unique(np.asarray(g.vs["theme"]), return_inverse=True)
     position = continues.astype(np.int64)
     return {
-        "mesmo_token": float(np.mean(token[a] == token[b])),
-        "mesmo_tema": float(np.mean(theme[a] == theme[b])),
+        "mesmo_token": same_label_share(g, token),
+        "mesmo_tema": same_label_share(g, theme),
         "assortatividade_tema": g.assortativity_nominal(theme.tolist(), directed=False),
         "continua_termina": float(np.mean(position[a] != position[b])),
         "assortatividade_palavra": g.assortativity_nominal(position.tolist(), directed=False),

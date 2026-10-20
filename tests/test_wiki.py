@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from gender_networks.wiki import ApiError, CacheMiss, WikiClient
+from gender_networks.wiki import ApiError, CacheMiss, CrawlTrace, WikiClient
 
 
 class FakeApi:
@@ -106,6 +106,18 @@ def test_crawl_records_first_category_and_depth(tmp_path: Path) -> None:
     found = wiki.crawl(["Categoria:R"], depth=1, max_titles=10)
 
     assert found == {"A": ("Categoria:R", 0), "B": ("Categoria:S", 1)}
+
+    trace = CrawlTrace()
+    assert wiki.crawl(["Categoria:R"], depth=1, max_titles=2, trace=trace) == {
+        "A": ("Categoria:R", 0),
+        "B": ("Categoria:S", 1),
+    }
+    assert trace.found == {"A": ("Categoria:R", 0), "B": ("Categoria:S", 1)}
+    assert trace.opened == [("Categoria:R", 0), ("Categoria:S", 1)]
+    assert trace.read == {"Categoria:R": ["A"], "Categoria:S": ["A", "B"]}
+    assert trace.tree_parent == {"Categoria:S": "Categoria:R"}
+    assert trace.n_pages == {"Categoria:R": 2, "Categoria:S": 2}
+    assert trace.cut == "Categoria:S" and trace.unopened == 0
 
 
 def test_fetch_pages_maps_redirects_back_to_requested_titles(tmp_path: Path) -> None:

@@ -11,12 +11,15 @@ import numpy as np
 import pytest
 
 from gender_networks.graphs import (
+    directed_clustering,
     directed_edges,
     directed_graph,
     directed_metrics,
     double_sweep_lower_bound,
     edge_hash,
+    edge_keys,
     graph_metrics,
+    key_jaccard,
     mutual_graph,
     symmetrized_edges,
     to_igraph,
@@ -152,7 +155,7 @@ def test_directed_clustering_is_undefined_below_two_neighbours() -> None:
     # Triangle 0 -> 1 -> 2 -> 0, plus 3 <-> 0 (one reciprocal neighbour) and 4 -> 1.
     edges = [(0, 1), (1, 2), (2, 0), (3, 0), (0, 3), (4, 1)]
     g = ig.Graph(n=5, edges=edges, directed=True)
-    local, _ = export.directed_clustering(g)
+    local, _ = directed_clustering(g)
     assert np.isnan(local[3]) and np.isnan(local[4])
     reference = nx.clustering(_nx_from_igraph(g))
     defined = [0, 1, 2]
@@ -178,7 +181,10 @@ def test_partial_delivery_compares_networks_edge_by_edge() -> None:
     # Arcs keep their direction.
     forward = ig.Graph(n=2, edges=[(0, 1)], directed=True)
     backward = ig.Graph(n=2, edges=[(1, 0)], directed=True)
-    assert export.jaccard(export.edge_keys(forward), export.edge_keys(backward)) == 0
+    assert key_jaccard(edge_keys(forward), edge_keys(backward)) == 0
+    assert key_jaccard(
+        edge_keys(forward, ignore_direction=True), edge_keys(backward, ignore_direction=True)
+    ) == 1
     second.vs["occurrence_id"] = [0, 1, 3, 2]
     with pytest.raises(ValueError, match="vertices differ"):
         export.compare_networks({"first": first, "second": second})

@@ -59,7 +59,18 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from gender_networks import labels, plots
 from gender_networks.artifacts import community_name, graph_id, neighbors_name
-from gender_networks.graphs import edge_hash, graph_metrics, histogram, symmetrized_edges
+from gender_networks.graphs import (
+    component_rank,
+    directed_clustering,
+    distance_histogram,
+    edge_hash,
+    edge_keys,
+    graph_metrics,
+    histogram,
+    key_jaccard,
+    same_label_share,
+    symmetrized_edges,
+)
 from gender_networks.metrics import select_neighbors
 
 REPO = Path(__file__).resolve().parents[2]
@@ -190,52 +201,6 @@ def build_graph(run: Path, rep: str, vertices: pd.DataFrame, sym: str) -> tuple[
     return g, fingerprint
 
 
-def _size_rank(clustering: ig.VertexClustering) -> np.ndarray:
-    """Component index of every vertex, renumbered so that 0 is the largest (stable on ties)."""
-
-    order = np.argsort([-s for s in clustering.sizes()], kind="stable")
-    rank = np.empty(len(order), dtype=np.int64)
-    rank[order] = np.arange(len(order))
-    return rank[np.asarray(clustering.membership)]
-
-
-def directed_clustering(g: ig.Graph) -> tuple[np.ndarray, float]:
-    """Local and global clustering of a digraph (Fagiolo 2007), on ``S = A + A^T``.
-
-    ``t_i = (S^3)_ii / 2`` counts the directed triangles through ``i`` (every arc pattern of the
-    triangle counts) and ``d_i^tot (d_i^tot - 1) - 2 d_i^<->`` the triangles that could exist
-    given the in-, out- and reciprocal degrees of ``i``. The local coefficient is their ratio,
-    undefined (NaN) when the denominator is 0, which happens exactly when ``i`` has fewer than
-    two distinct neighbours (``networkx.clustering`` gives 0 there). The global one, the
-    directed transitivity, is the ratio of their sums. On a symmetric graph both reduce to the
-    undirected coefficients.
-    """
-
-    n = g.vcount()
-    weights: list[dict[int, int]] = [{} for _ in range(n)]
-    for a, b in g.get_edgelist():
-        weights[a][b] = weights[a].get(b, 0) + 1
-        weights[b][a] = weights[b].get(a, 0) + 1
-    triangles = np.zeros(n)
-    total = np.zeros(n)
-    reciprocal = np.zeros(n)
-    for i, row in enumerate(weights):
-        items = list(row.items())
-        total[i] = sum(row.values())
-        reciprocal[i] = sum(1 for w in row.values() if w == 2)
-        closed = 0
-        for j, wj in items:
-            row_j = weights[j]
-            for h, wh in items:
-                wjh = row_j.get(h)
-                if wjh:
-                    closed += wj * wh * wjh
-        triangles[i] = closed / 2
-    possible = total * (total - 1) - 2 * reciprocal
-    local = np.divide(triangles, possible, out=np.full(n, np.nan), where=possible > 0)
-    return local, float(triangles.sum() / possible.sum())
-
-
 def add_vertex_measures(g: nx.Graph) -> None:
     """Degrees, local clustering and components of every vertex (computed with igraph)."""
 
@@ -243,8 +208,8 @@ def add_vertex_measures(g: nx.Graph) -> None:
     ig_graph = ig.Graph(n=g.number_of_nodes(), edges=list(g.edges()), directed=directed)
     if directed:
         clustering, _ = directed_clustering(ig_graph)
-        weak = _size_rank(ig_graph.connected_components(mode="weak"))
-        strong = _size_rank(ig_graph.connected_components(mode="strong"))
+        weak = component_rank(ig_graph.connected_components(mode="weak"))
+        strong = component_rank(ig_graph.connected_components(mode="strong"))
         for i, (din, dout) in enumerate(
             zip(ig_graph.indegree(), ig_graph.outdegree(), strict=True)
         ):
@@ -255,7 +220,7 @@ def add_vertex_measures(g: nx.Graph) -> None:
             g.nodes[i]["strong_component"] = int(strong[i])
         return
     clustering = ig_graph.transitivity_local_undirected(mode="nan")
-    component = _size_rank(ig_graph.connected_components())
+    component = component_rank(ig_graph.connected_components())
     for i, (deg, cc) in enumerate(zip(ig_graph.degree(), clustering, strict=True)):
         g.nodes[i]["degree"] = int(deg)
         g.nodes[i]["local_clustering"] = float(cc)
@@ -265,7 +230,7 @@ def add_vertex_measures(g: nx.Graph) -> None:
 def _distance_summary(hist: ig.Histogram, prefix: str) -> dict[str, Any]:
     """Mean, maximum and histogram of the finite distances of a ``path_length_hist``."""
 
-    bins = {int(low): int(count) for low, _high, count in hist.bins() if count}
+    bins = distance_histogram(hist)
     reached = sum(bins.values())
     return {
         f"{prefix}distance_hist": bins,
@@ -329,30 +294,6 @@ def measure(path: Path) -> tuple[dict[str, Any], ig.Graph]:
     return (measure_directed if g.is_directed() else measure_union)(g), g
 
 
-def edge_keys(g: ig.Graph) -> np.ndarray:
-    """Sorted distinct ``i * n + j`` keys of the edges (``i < j`` when undirected)."""
-
-    e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
-    if not g.is_directed():
-        e = np.sort(e, axis=1)
-    return np.unique(e[:, 0] * g.vcount() + e[:, 1])
-
-
-def jaccard(a: np.ndarray, b: np.ndarray) -> float:
-    """Jaccard index of two arrays of distinct keys."""
-
-    common = np.intersect1d(a, b, assume_unique=True).size
-    return common / (a.size + b.size - common)
-
-
-def same_token_share(g: ig.Graph) -> float:
-    """Share of the edges (arcs) whose two ends are occurrences of the same token."""
-
-    e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
-    token = np.asarray(g.vs["token_id"], dtype=np.int64)
-    return float(np.mean(token[e[:, 0]] == token[e[:, 1]]))
-
-
 def compare_networks(graphs: Mapping[str, ig.Graph]) -> dict[str, dict[str, float]]:
     """Same-token share of every network and the Jaccard index of its edges with the previous.
 
@@ -368,8 +309,10 @@ def compare_networks(graphs: Mapping[str, ig.Graph]) -> dict[str, dict[str, floa
     keys = {rep: edge_keys(g) for rep, g in graphs.items()}
     return {
         rep: {
-            "same_token_share": same_token_share(graphs[rep]),
-            "jaccard_previous": jaccard(keys[reps[i - 1]], keys[rep]) if i else math.nan,
+            "same_token_share": same_label_share(
+                graphs[rep], np.asarray(graphs[rep].vs["token_id"], dtype=np.int64)
+            ),
+            "jaccard_previous": key_jaccard(keys[reps[i - 1]], keys[rep]) if i else math.nan,
         }
         for i, rep in enumerate(reps)
     }
@@ -443,20 +386,6 @@ def _half_figure(
     return fig, ax, styles
 
 
-def _sparse_markers(ax: Axes, x: np.ndarray, y: np.ndarray, style: plots.Style) -> None:
-    every = max(1, x.size // 8)
-    ax.plot(
-        x[::every],
-        y[::every],
-        linestyle="none",
-        marker=style.marker,
-        color=style.color,
-        markersize=3.8,
-        markeredgecolor=plots.SURFACE,
-        markeredgewidth=0.5,
-    )
-
-
 def figure_degrees(
     results: Mapping[str, Mapping[str, Any]],
     key: str = "degrees",
@@ -470,7 +399,7 @@ def figure_degrees(
         degrees, counts = np.unique(result[key], return_counts=True)
         x, y = plots.ccdf(degrees, counts)
         ax.step(x, y, where="post", color=styles[rep].color, linewidth=1.3)
-        _sparse_markers(ax, x, y, styles[rep])
+        plots.sparse_markers(ax, x, y, styles[rep], size=3.8)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel(xlabel)
@@ -495,7 +424,7 @@ def figure_clustering(
         share = counts / counts.sum()
         style = styles[rep]
         ax.step(bins, np.append(share, share[-1]), where="post", color=style.color, linewidth=1.2)
-        _sparse_markers(ax, centers[2:], share[2:], style)
+        plots.sparse_markers(ax, centers[2:], share[2:], style, size=3.8)
     ax.set_xlim(0, 1)
     ax.set_ylim(bottom=0)
     ax.set_xlabel(xlabel)
@@ -535,7 +464,7 @@ def figure_directed_distances(results: Mapping[str, Mapping[str, Any]]) -> Figur
         c = np.array([hist[x] for x in d], dtype=float)
         style = styles[rep]
         ax.plot(d, c / (n * (n - 1)), color=style.color, linewidth=1.2)
-        _sparse_markers(ax, d, c / (n * (n - 1)), style)
+        plots.sparse_markers(ax, d, c / (n * (n - 1)), style, size=3.8)
     ax.set_ylim(bottom=0)
     ax.set_xlim(0, None)
     ax.set_xlabel("distância (número de arcos)")

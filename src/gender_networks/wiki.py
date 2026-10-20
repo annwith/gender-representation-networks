@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 from collections import deque
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +58,20 @@ PERMANENT_ERRORS = {
     "toomanyvalues", "unknown_action", "nosuchpageid", "nosuchrevid", "paramempty",
 }  # fmt: skip
 _RETRYABLE = (OSError, http.client.HTTPException, ValueError)  # ValueError: bad JSON or UTF-8
+
+
+@dataclass
+class CrawlTrace:
+    """What one :meth:`WikiClient.crawl` went through (filled when passed to it)."""
+
+    found: dict[str, tuple[str, int]] = field(default_factory=dict)  # what crawl returns
+    opened: list[tuple[str, int]] = field(default_factory=list)  # categories, in opening order
+    tree_parent: dict[str, str] = field(default_factory=dict)  # category that queued each one
+    subcats: dict[str, list[str]] = field(default_factory=dict)
+    read: dict[str, list[str]] = field(default_factory=dict)  # titles gone through, in order
+    n_pages: dict[str, int] = field(default_factory=dict)
+    cut: str | None = None  # category where the title limit was reached
+    unopened: int = 0  # categories still queued at the end
 
 
 @dataclass(frozen=True)
@@ -214,8 +228,12 @@ class WikiClient:
         depth: int,
         max_titles: int,
         skip_patterns: Iterable[str] = (),
+        trace: CrawlTrace | None = None,
     ) -> dict[str, tuple[str, int]]:
-        """Breadth-first category walk: title -> (category that first reached it, depth)."""
+        """Breadth-first category walk: title -> (category that first reached it, depth).
+
+        ``trace``, when given, records the walk (for the crawl page of ``scripts/``).
+        """
 
         skip = tuple(skip_patterns)
         found: dict[str, tuple[str, int]] = {}
@@ -229,16 +247,32 @@ class WikiClient:
                 LOGGER.warning("Categoria ignorada %s: %s", category, error)
                 self.skipped_categories.append(category)
                 continue
+            read: list[str] = []
             for title in pages:
-                if title not in found and not title.startswith(("Lista de", "Listas de")):
+                if title.startswith(("Lista de", "Listas de")):
+                    continue
+                read.append(title)
+                if title not in found:
                     found[title] = (category, level)
                     if len(found) >= max_titles:
+                        if trace is not None:
+                            trace.cut = category
                         break
+            if trace is not None:
+                trace.opened.append((category, level))
+                trace.subcats[category] = subcats
+                trace.n_pages[category] = len(pages)
+                trace.read[category] = read
             if level < depth:
                 for sub in subcats:
                     if sub not in seen:
                         seen.add(sub)
                         queue.append((sub, level + 1))
+                        if trace is not None:
+                            trace.tree_parent[sub] = category
+        if trace is not None:
+            trace.found = found
+            trace.unopened = len(queue)
         return found
 
     def _query_revisions(self, key: str, values: list[str]) -> dict[str, Any]:

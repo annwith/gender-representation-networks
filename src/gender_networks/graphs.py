@@ -125,13 +125,16 @@ def histogram(values: np.ndarray | list[int]) -> dict[int, int]:
     return {int(v): int(c) for v, c in zip(uniq, counts, strict=True)}
 
 
+def distance_histogram(hist: ig.Histogram) -> dict[int, int]:
+    """``{distance: number of pairs}`` of a ``path_length_hist`` (finite distances only)."""
+
+    return {int(low): int(count) for low, _high, count in hist.bins() if count}
+
+
 def _exact_distances(lcc: ig.Graph) -> dict[str, Any]:
     """Mean distance, diameter and histogram over all unordered pairs (one all-pairs BFS)."""
 
-    hist = {
-        int(low): int(count) for low, _high, count in lcc.path_length_hist(directed=False).bins()
-    }
-    hist = {d: c for d, c in hist.items() if c}
+    hist = distance_histogram(lcc.path_length_hist(directed=False))
     pairs = sum(hist.values())
     mean = sum(d * c for d, c in hist.items()) / pairs if pairs else 0.0
     return {
@@ -329,3 +332,78 @@ def directed_metrics_from_edges(edges: np.ndarray, n: int, top_hubs: int = 20) -
         "in_degree_hist": histogram(indeg),
         "out_degree_hist": histogram(outdeg),
     }
+
+
+# --------------------------------------------------------------------------------------------
+# comparing graphs on the same vertices, components, directed clustering
+
+
+def edge_keys(g: ig.Graph, ignore_direction: bool = False) -> np.ndarray:
+    """Sorted distinct ``i * n + j`` keys of the edges (``i < j`` when undirected, or when
+    ``ignore_direction``)."""
+
+    e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
+    if ignore_direction or not g.is_directed():
+        e = np.sort(e, axis=1)
+    return np.unique(e[:, 0] * g.vcount() + e[:, 1])
+
+
+def key_jaccard(a: np.ndarray, b: np.ndarray) -> float:
+    """Jaccard index of two arrays of distinct keys (edge sets from :func:`edge_keys`)."""
+
+    common = np.intersect1d(a, b, assume_unique=True).size
+    return common / (a.size + b.size - common)
+
+
+def same_label_share(g: ig.Graph, labels: np.ndarray) -> float:
+    """Share of the edges (arcs) whose two ends have the same label (token id, theme...)."""
+
+    e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
+    labels = np.asarray(labels)
+    return float(np.mean(labels[e[:, 0]] == labels[e[:, 1]]))
+
+
+def component_rank(clustering: ig.VertexClustering) -> np.ndarray:
+    """Component index of every vertex, renumbered so that 0 is the largest (stable on ties)."""
+
+    order = np.argsort([-s for s in clustering.sizes()], kind="stable")
+    rank = np.empty(len(order), dtype=np.int64)
+    rank[order] = np.arange(len(order))
+    return rank[np.asarray(clustering.membership)]
+
+
+def directed_clustering(g: ig.Graph) -> tuple[np.ndarray, float]:
+    """Local and global clustering of a digraph (Fagiolo 2007), on ``S = A + A^T``.
+
+    ``t_i = (S^3)_ii / 2`` counts the directed triangles through ``i`` (every arc pattern of the
+    triangle counts) and ``d_i^tot (d_i^tot - 1) - 2 d_i^<->`` the triangles that could exist
+    given the in-, out- and reciprocal degrees of ``i``. The local coefficient is their ratio,
+    undefined (NaN) when the denominator is 0, which happens exactly when ``i`` has fewer than
+    two distinct neighbours (``networkx.clustering`` gives 0 there). The global one, the
+    directed transitivity, is the ratio of their sums. On a symmetric graph both reduce to the
+    undirected coefficients.
+    """
+
+    n = g.vcount()
+    weights: list[dict[int, int]] = [{} for _ in range(n)]
+    for a, b in g.get_edgelist():
+        weights[a][b] = weights[a].get(b, 0) + 1
+        weights[b][a] = weights[b].get(a, 0) + 1
+    triangles = np.zeros(n)
+    total = np.zeros(n)
+    reciprocal = np.zeros(n)
+    for i, row in enumerate(weights):
+        items = list(row.items())
+        total[i] = sum(row.values())
+        reciprocal[i] = sum(1 for w in row.values() if w == 2)
+        closed = 0
+        for j, wj in items:
+            row_j = weights[j]
+            for h, wh in items:
+                wjh = row_j.get(h)
+                if wjh:
+                    closed += wj * wh * wjh
+        triangles[i] = closed / 2
+    possible = total * (total - 1) - 2 * reciprocal
+    local = np.divide(triangles, possible, out=np.full(n, np.nan), where=possible > 0)
+    return local, float(triangles.sum() / possible.sum())
