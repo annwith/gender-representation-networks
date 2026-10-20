@@ -18,10 +18,6 @@ from gender_networks.neighborhood import (
     type_composition_jaccard,
     type_set_jaccard,
 )
-from gender_networks.network_analysis import (
-    jaccard_per_occurrence,
-    same_token_neighbor_fraction,
-)
 
 
 def _set_jaccard(a, b) -> float:
@@ -51,7 +47,6 @@ def test_jaccard_fixed_matches_set_reference_same_and_different_k() -> None:
     expected_ac = [_set_jaccard(x, y) for x, y in zip(a, c, strict=True)]
     np.testing.assert_allclose(jaccard_fixed(a, b), expected_ab)
     np.testing.assert_allclose(jaccard_fixed(a, c), expected_ac)
-    np.testing.assert_allclose(jaccard_fixed(a, b), jaccard_per_occurrence(a, b))
     np.testing.assert_array_equal(jaccard_fixed(a, a), np.ones(200))
     with pytest.raises(ValueError):
         jaccard_fixed(a, b[:10])
@@ -89,12 +84,12 @@ def test_set_sizes_counts_distinct_ids() -> None:
     np.testing.assert_array_equal(set_sizes((indptr, idx)), [2, 0, 2])
 
 
-def test_dominance_dense_matches_pilot_and_divides_by_variable_sizes() -> None:
+def test_dominance_dense_matches_reference_and_divides_by_variable_sizes() -> None:
     rng = np.random.default_rng(3)
     tokens = rng.integers(0, 6, size=100)
     dense = _random_rows(rng, 100, 8, 100)
     np.testing.assert_allclose(
-        dominance(dense, tokens), same_token_neighbor_fraction(dense, tokens)
+        dominance(dense, tokens), (tokens[dense] == tokens[:, None]).mean(axis=1)
     )
     tokens = np.array([7, 7, 7, 8, 8])
     indptr = np.array([0, 3, 4, 4, 6, 10])

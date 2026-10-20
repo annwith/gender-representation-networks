@@ -100,8 +100,8 @@ Piloto congelado (rodando e com testes); código contrafactual e notebook removi
 histórico do \cod{git}). &
 O piloto é monolítico e não escala, mas documenta os achados que motivaram o método; o código
 contrafactual não serve às perguntas atuais. &
-Pipeline novo em módulos próprios; um teste de regressão exige que o k-NN novo (posição,
-união) reproduza o do piloto. \\
+Pipeline novo em módulos próprios; depois de servir de regressão para o k-NN novo (posição,
+união), o piloto foi arquivado na tag \cod{pilot-frozen} e saiu do repositório. \\
 \midrule
 D9 & Como configurar execuções (principal e ensaio). &
 Argumentos de linha de comando; vários YAMLs por etapa; um YAML por execução. &
@@ -177,8 +177,8 @@ uv run gender-networks all & todas as etapas em ordem (sem a extensão) \\
 Todos aceitam \cod{--config} (padrão \cod{configs/experiment.yaml}); o ensaio de ponta a ponta
 usa \cod{--config configs/mini.yaml} (2 temas, cerca de 1.500 vértices), cujos artefatos e
 relatório gerado ficam em \cod{outputs/experiment/mini/}. O relatório é compilado com
-\cod{latexmk -pdf relatorio.tex} em \cod{report/relatorio/}. O piloto congelado roda com
-\cod{uv run python scripts/run\_network\_pilot.py}.
+\cod{latexmk -pdf relatorio.tex} em \cod{report/relatorio/}. O piloto está arquivado na tag
+\cod{pilot-frozen} do \cod{git}.
 
 \tabelaopcional[etapa \etapa{report} a partir dos \cod{\_manifest.json} de todas as etapas]
     {versoes}

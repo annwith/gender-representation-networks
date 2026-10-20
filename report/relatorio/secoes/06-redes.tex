@@ -139,8 +139,9 @@ $\eps=10^{-4}$ como teste de sensibilidade. As três variantes são:
     \cod{default\_rng([438, crc32(rep), k, r])}, de modo que cada combinação tem um fluxo
     aleatório próprio e reprodutível, que não depende da ordem em que as redes são calculadas.
     O desempate pela \textbf{posição} (os $r_i$ menores \cod{occurrence\_id} de $B_i$) é mantido
-    como referência determinística; com ele e a versão por união, o k-NN novo reproduz
-    exatamente o \cod{build\_union\_knn\_graph} do piloto (teste de regressão).
+    como referência determinística. Os testes conferem essa regra contra uma referência por
+    força bruta com empates exatos; ela reproduz o k-NN do piloto, arquivado na tag
+    \cod{pilot-frozen}.
     \item \textbf{Todos os empatados.} $\N_i=F_i\cup B_i$. Elimina a arbitrariedade, ao custo de
     um grau de saída variável ($|\N_i|\ge k$). Robustez.
     \item \textbf{Tipos distintos.} As ocorrências do próprio tipo são ignoradas, e a vizinhança

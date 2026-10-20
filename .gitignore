@@ -4,10 +4,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Saídas do piloto (reproduzíveis com scripts/run_network_pilot.py)
-outputs/network_pilot/*
-!outputs/network_pilot/.gitkeep
-
 # Artefatos do experimento (grandes e reproduzíveis pela CLI)
 outputs/experiment/
 data/raw/

@@ -22,7 +22,6 @@ from gender_networks.graphs import (
     to_igraph,
     union_graph,
 )
-from gender_networks.network_analysis import build_union_knn_graph
 
 
 def _random_knn(n: int, k: int, seed: int) -> np.ndarray:
@@ -261,14 +260,6 @@ def test_union_and_mutual_edge_sets() -> None:
     directed = directed_graph(neighbors, 50)
     assert directed.is_directed() and directed.ecount() == 50 * 5
     assert set(directed.outdegree()) == {5}
-
-
-def test_union_graph_matches_frozen_pilot() -> None:
-    rng = np.random.default_rng(3)
-    vectors = rng.normal(size=(40, 6))
-    pilot = build_union_knn_graph(vectors, 3)
-    ours = union_graph(pilot.neighbors, 40)
-    assert _edge_set(ours) == {(min(a, b), max(a, b)) for a, b in pilot.graph.edges()}
 
 
 def test_csr_neighbors_self_loops_and_repeats_are_dropped() -> None:

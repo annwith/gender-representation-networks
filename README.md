@@ -31,7 +31,6 @@ escrito junto com a implementação, fica em `report/relatorio/`.
 configs/
   experiment.yaml      execução principal (uma execução = um YAML)
   mini.yaml            ensaio rápido de ponta a ponta (herda de experiment.yaml)
-  model.yaml           configuração do carregamento do modelo (código herdado, config.py)
 src/gender_networks/
   cli.py               CLI `gender-networks`: um subcomando por etapa
   settings.py          configuração tipada de uma execução
@@ -45,9 +44,6 @@ src/gender_networks/
   vocab_lens.py                      extensão opcional "vizinhos no vocabulário" (etapa lens)
   analysis.py                        etapa analyze (tabelas de P1–P4)
   report.py, plots.py                etapa report (figuras, tabelas e números do relatório)
-  network_pilot.py, network_analysis.py, tokenization.py
-                                     piloto congelado (não alterar)
-  modeling.py, config.py             utilitários herdados de carregamento do modelo
 tests/                 testes offline (não baixam pesos)
 data/
   corpus/manifest.csv  pageid e revid de cada artigo do corpus
@@ -66,7 +62,6 @@ scripts/
   feasibility/         estudo de viabilidade: scripts, saídas (sim_*.txt, hyb_*.txt) e figuras
   partial_delivery/    GraphML, figuras, tabelas e página interativa da entrega parcial
   crawl_network/       rede da coleta e página da coleta, do corpus e da amostra
-  run_network_pilot.py piloto congelado
 ```
 
 ## Preparação
@@ -243,15 +238,12 @@ desenvolvimento, use 6 GiB na GPU: parte dos blocos fica na CPU e é transferida
 similaridades do k-NN são calculadas na CPU em `float64`, em blocos. A rede do vocabulário ocupa
 cerca de 3 GB de memória nesse cálculo.
 
-## Piloto congelado
+## Piloto arquivado
 
-O piloto metodológico (GPT-2 small português, texto fixo de 104 tokens) fica congelado, rodando
-e com testes, como registro dos achados que motivaram o método (empates de cosseno 1, quebra em
-subpalavras, direcionalidade):
+O piloto metodológico (GPT-2 small português, texto fixo de 104 tokens) registrou os achados que
+motivaram o método: empates de cosseno 1, quebra em subpalavras e direcionalidade. Ele serviu de
+teste de regressão para o k-NN novo e foi arquivado na tag `pilot-frozen`. Para consultá-lo:
 
 ```bash
-uv run python scripts/run_network_pilot.py
+git switch --detach pilot-frozen
 ```
-
-Os resultados vão para `outputs/network_pilot/`. O pipeline novo não depende dele, mas um teste de
-regressão exige que o k-NN novo (desempate por posição, união) reproduza o do piloto.

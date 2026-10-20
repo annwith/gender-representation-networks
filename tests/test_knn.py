@@ -11,6 +11,7 @@ import torch
 from safetensors.torch import save_file
 
 from gender_networks.artifacts import OCCURRENCE_COLUMNS, VOCAB_COLUMNS, RunPaths, write_csv
+from gender_networks.graphs import union_graph
 from gender_networks.knn import (
     BoundarySelector,
     Candidates,
@@ -34,7 +35,6 @@ from gender_networks.knn import (
     vocab_candidates_path,
     vocab_neighbors_path,
 )
-from gender_networks.network_analysis import build_union_knn_graph
 from gender_networks.settings import (
     NetworkSettings,
     PathsSettings,
@@ -149,24 +149,32 @@ def test_normalize_rows_float64_unit_and_centering() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# golden regression against the frozen pilot
+# position rule against a brute-force reference (exact ties)
 # ---------------------------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
 @pytest.mark.parametrize("n_candidates", [6, 64])
-def test_position_rule_reproduces_the_pilot(seed: int, n_candidates: int) -> None:
+def test_position_rule_matches_brute_force(seed: int, n_candidates: int) -> None:
+    """The deterministic reference rule, checked once against the GPT-2 pilot (tag
+    ``pilot-frozen``), now checked against brute force: ties at the k-th similarity go to the
+    smallest ids."""
+
     rng = np.random.default_rng(seed)
     vectors = with_duplicates(rng, dyadic_vectors(rng, 30), 50)
+    sim = exact_cosine(vectors)
     candidates, _ = knn_candidates(normalize_rows(vectors), 5, n_candidates, 0.0, block_size=7)
     for k in (1, 3, 5):
-        pilot = build_union_knn_graph(vectors, k)
+        expected = np.stack(brute_rows(sim, k, 0.0, "position"))
         pos = select_neighbors(candidates, k, 0.0, "position")
         assert pos.dtype == np.int32
-        np.testing.assert_array_equal(pos, pilot.neighbors)
-        ours = {(min(i, int(j)), max(i, int(j))) for i, row in enumerate(pos) for j in row}
-        theirs = {(min(a, b), max(a, b)) for a, b in pilot.graph.edges()}
-        assert ours == theirs
+        np.testing.assert_array_equal(pos, expected)
+        edges = union_graph(pos, len(vectors)).get_edgelist()
+        ours = {(min(a, b), max(a, b)) for a, b in edges}
+        reference = {
+            (min(i, int(j)), max(i, int(j))) for i, row in enumerate(expected) for j in row
+        }
+        assert ours == reference
 
 
 # ---------------------------------------------------------------------------------------------

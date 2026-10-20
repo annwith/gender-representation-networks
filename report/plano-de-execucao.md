@@ -158,6 +158,8 @@ regressão exige que o k-NN novo, com desempate por posição e união, reproduz
   `tokenize_prompt`.
 - **Não mexer no piloto:** `src/gender_networks/network_pilot.py`,
   `src/gender_networks/network_analysis.py`, `scripts/run_network_pilot.py` e os testes deles.
+  (Mais tarde, na refatoração de outubro, o piloto foi arquivado na tag `pilot-frozen` e saiu
+  do repositório.)
 - **Ajustes pequenos:**
   - `src/gender_networks/modeling.py`: `dtype=` no lugar de `torch_dtype=`;
   - `src/gender_networks/config.py`: `max_memory` e as configurações do experimento, mantendo o
@@ -427,7 +429,8 @@ preto e branco.
     reprodutibilidade pela semente.
   - `test_extract.py`, com um Qwen3 minúsculo e aleatório: hooks iguais aos `hidden_states`,
     `norm(hook) == hidden_states[L]`, cópia por grupo de prefixo.
-- O piloto continua rodando: `uv run python scripts/run_network_pilot.py`.
+- O piloto continua rodando: `uv run python scripts/run_network_pilot.py` (até ser arquivado na
+  tag `pilot-frozen`).
 - O relatório compila sem erros com `latexmk -pdf` ao fim de cada etapa, sem referências
   quebradas a figuras ou tabelas.
 - Os números de resultados citados no texto vêm de `numeros.tex`; nenhum é digitado à mão.
