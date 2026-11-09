@@ -39,12 +39,17 @@ listas e páginas como ``Artigos sem fontes'' e ``Esboços sobre física''.}
 categorias de manutenção (artigos que precisam de revisão, esboços, páginas de discussão) e de
 organização interna, que também são subcategorias das raízes temáticas.
 \item[Solução.] Só entram membros do domínio principal (artigos, \cod{ns=0}); subcategorias cujo
-título contém ``Artigos'', ``Esboço'', ``Páginas'', ``Predefinições'', ``Wikipédia'',
-``Usuário'', ``Listas'' ou ``Categoria:!'' não são seguidas; títulos ``Lista de\ldots'' são
-descartados; a profundidade é limitada a 2 (Seção~\ref{sec:corpus}).}
-{Os temas ficam mais limpos. A lista de padrões é heurística e pode deixar passar alguma
-categoria de manutenção com outro nome; o descarte de páginas multitema e de biografias
-reduz o que sobra.}
+título começa com ``Categoria:!'' (a convenção da Wikipédia em português para categorias de
+manutenção) ou contém ``Listas'' não são seguidas; títulos ``Lista de\ldots'' são
+descartados; a profundidade é limitada a 2 (Seção~\ref{sec:corpus}). A primeira versão
+usava oito padrões de texto escolhidos à mão a partir desses exemplos (``Artigos'',
+``Esboço'', ``Páginas'', ``Predefinições'', ``Wikipédia'', ``Usuário'', ``Listas'' e
+``Categoria:!''). Refeita a partir do cache, a busca da execução principal mostrou que só
+dois deles bloqueavam alguma subcategoria que os outros não bloqueavam: ``Categoria:!''
+(96 subcategorias, todas de manutenção ou organização interna) e ``Listas'' (24). Os outros
+seis foram retirados, e a busca ficou idêntica.}
+{Os temas ficam mais limpos. Uma categoria de manutenção sem o prefixo ``!'' passaria; o
+descarte de páginas multitema e de biografias reduz o que sobra.}
 
 \problema{Fragmentação do português no tokenizer do Qwen3}{sec:prob-fragmentacao}
 {No estudo de viabilidade, o Qwen3 produziu 1,78 tokens por palavra, e só 28\% dos vértices

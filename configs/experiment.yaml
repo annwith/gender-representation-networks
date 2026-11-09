@@ -65,14 +65,10 @@ corpus:
   batch_titles: 50
   # Política da Wikimedia: o User-Agent identifica um contato (aqui, o repositório).
   user_agent: "gender-representation-networks/0.2 (https://github.com/annwith/gender-representation-networks; projeto academico MO438)"
+  # Subcategorias que a busca não abre: as de manutenção (na Wikipédia em português, o nome
+  # começa com "!": esboços, avaliação, predefinições, portais) e as de listas.
   skip_category_patterns:
     - "Categoria:!"
-    - "Artigos"
-    - "Esboço"
-    - "Páginas"
-    - "Predefinições"
-    - "Wikipédia"
-    - "Usuário"
     - "Listas"
   exclude_infobox_patterns:
     - "Info/Biografia"

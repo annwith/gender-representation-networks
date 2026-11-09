@@ -26,9 +26,10 @@ modo que cada palavra-alvo tenha sentidos diferentes em pelo menos dois deles.
 
 \paragraph{Busca por categorias.} A partir de cada raiz, uma busca em largura percorre as
 subcategorias até a profundidade 2 e junta até 600 títulos por tema. Só entram páginas do
-domínio principal (artigos); subcategorias de manutenção ou de usuário (títulos que contêm
-``Artigos'', ``Esboço'', ``Páginas'', ``Predefinições'', ``Wikipédia'', ``Usuário'', ``Listas''
-ou ``Categoria:!'') não são seguidas, e títulos ``Lista de\ldots'' são descartados
+domínio principal (artigos). Duas regras definem as subcategorias que não são abertas: as de
+manutenção, cujo nome começa com ``!'' na Wikipédia em português (esboços, avaliação de
+qualidade, predefinições, portais), e as de listas (título com ``Listas''). Títulos ``Lista
+de\ldots'' são descartados
 (Seção~\ref{sec:prob-categorias}). Todas as respostas cruas da API ficam num cache em disco
 (\cod{data/raw/wiki}), o que torna o download retomável e a limpeza refazível sem rede. No
 modo offline (\cod{GENDER\_NETWORKS\_OFFLINE=1}), uma resposta que falta no cache interrompe a
