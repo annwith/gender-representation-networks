@@ -10,10 +10,11 @@ Shared across runs (the corpus is downloaded once):
   (``pageid, revid, title, theme, themes_reached, source_category, depth, origin, is_biography,
   dropped_reason``; ``dropped_reason`` is null for kept articles).
 - ``corpus_dir/paragraphs.jsonl``: one record per kept paragraph
-  (``paragraph_id, pageid, revid, title, theme, source_category, paragraph_idx, text,
-  sentences``), where ``sentences`` is a list of ``[start, end)`` character spans.
+  (``paragraph_id, pageid, revid, title, theme, source_category, origin, paragraph_idx, text,
+  sentences``), where ``sentences`` is a list of ``[start, end)`` character spans and
+  ``origin`` is ``root`` or the extra category whose walk reached the article.
 - ``corpus_dir/manifest.csv``: versioned list of articles (pageid, revid, title, theme,
-  source_category, kept, dropped_reason) so the same revisions can be downloaded again.
+  source_category, origin, kept, dropped_reason) so the same revisions can be downloaded again.
 
 Per run (``runs_dir/<name>/``):
 

@@ -3,8 +3,9 @@
 Vertices are token occurrences. Whole paragraphs alone leave too few repeated content words for
 P4, so the sample has four strata, selected in this order with one seeded generator:
 
-1. ``core``: per theme, a few articles and a few paragraphs of each, with every non-whitespace
-   token as a vertex. The per-type cap ``f_max`` is applied by uniform random subsampling of the
+1. ``core``: per theme, a few articles of the theme's root categories (never of the extra
+   categories) and a few paragraphs of each, with every non-whitespace token as a vertex. The
+   per-type cap ``f_max`` is applied by uniform random subsampling of the
    over-cap types after pooling, so the kept occurrences are spread over the paragraphs instead
    of being the first ones to arrive.
 2. ``target``: polysemous target words, with a quota per sense theme, drawn from non-core
@@ -343,14 +344,29 @@ class _Selector:
     # -- core --------------------------------------------------------------------------------
 
     def select_core(self) -> dict[str, Any]:
+        """Core paragraphs, drawn only from articles of the themes' root categories.
+
+        The extra categories exist to fill the target quotas (the sparse strata draw from them);
+        keeping them out of the core makes every theme of P3 the tree of its root category.
+        """
+
         core = self.settings.core
         by_article: dict[str, dict[int, list[int]]] = {
             theme: defaultdict(list) for theme in self.sample_themes
         }
         for paragraph in self.corpus:
-            if paragraph.theme in by_article:
+            if paragraph.theme not in by_article:
+                continue
+            origin = paragraph.record.get("origin")
+            if origin is None:
+                raise ValueError(
+                    f"Parágrafo {paragraph.record.get('paragraph_id')} sem origem (raiz ou "
+                    "categoria extra): refaça o corpus com a versão atual da etapa corpus"
+                )
+            if origin == "root":
                 by_article[paragraph.theme][paragraph.pageid].append(paragraph.index)
         chosen: list[int] = []
+        eligible_by_theme: dict[str, int] = {}
         for theme in self.sample_themes:
             articles = by_article[theme]
             eligible = sorted(
@@ -358,9 +374,10 @@ class _Selector:
                 for pageid, members in articles.items()
                 if len(members) >= core.paragraphs_per_article
             )
+            eligible_by_theme[theme] = len(eligible)
             if len(eligible) < core.articles_per_theme:
                 self.warn(
-                    f"Tema {theme}: só {len(eligible)} artigos com ≥ "
+                    f"Tema {theme}: só {len(eligible)} artigos da raiz com ≥ "
                     f"{core.paragraphs_per_article} parágrafos (pedidos {core.articles_per_theme})"
                 )
             pageids = sorted(self.rng.sample(eligible, min(core.articles_per_theme, len(eligible))))
@@ -397,6 +414,7 @@ class _Selector:
         )
         return {
             "core_paragraphs": len(chosen),
+            "core_eligible_articles": eligible_by_theme,  # root articles with enough paragraphs
             "core_articles": {theme: ids for theme, ids in self.core_articles.items()},
             "core_vertices_before_cap": sum(len(v) for v in pooled.values()),
             "core_vertices": len(kept),

@@ -303,7 +303,13 @@ A amostra final tem cerca de 15 mil vértices, $f_{\max}=50$ e sementes fixas (s
 com quatro estratos sorteados em ordem por um único gerador aleatório.
 
 \paragraph{1. Núcleo (P1--P3).} Por tema, 5 artigos $\times$ 2 parágrafos (cerca de 80
-parágrafos e 11 mil vértices), com todos os tokens que não são só espaço como vértices. Dois
+parágrafos e 11 mil vértices), com todos os tokens que não são só espaço como vértices. Os 5
+artigos são sorteados só entre os artigos da \textbf{categoria raiz} do tema (com pelo menos 2
+parágrafos), e nunca entre os das categorias extras. As extras existem para completar as cotas
+dos sentidos fracos (estratos 2 a 4). No núcleo, elas fariam o tema significar coisas diferentes
+de um tema para outro: elas são 67\% dos artigos sorteáveis de Economia, 59\% dos de Biologia e
+nenhum dos de Física, Política e Futebol. Assim, todo tema da P3 é a árvore da sua categoria
+raiz. Dois
 parágrafos por artigo fazem \emph{artigo} e \emph{parágrafo} serem rótulos distintos na P3 (na
 simulação eles quase coincidiam). O limite $f_{\max}$ é aplicado por \textbf{sorteio uniforme}
 entre as ocorrências de cada tipo acima do limite, depois de juntar todo o núcleo, e não por

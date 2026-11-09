@@ -90,7 +90,9 @@ def test_build_corpus_applies_theme_and_content_filters() -> None:
     assert [p["paragraph_id"] for p in by_title["Átomo"]] == ["1-0", "1-1"]
     assert len(by_title["Nota"]) == 1  # the section after Referências is cut
     assert by_title["Escala"][0]["source_category"] == "Categoria:Teoria musical"
+    assert by_title["Escala"][0]["origin"] == "Categoria:Teoria musical"  # an extra category
     assert by_title["Nota"][0]["theme"] == "musica"
+    assert by_title["Nota"][0]["origin"] == by_title["Átomo"][0]["origin"] == "root"
     assert all(p["sentences"] for p in result.paragraphs)
 
     stats = summarize(result)
@@ -269,8 +271,8 @@ def test_run_writes_documented_outputs_and_manifest(corpus_run) -> None:
     assert {a["title"]: a["dropped_reason"] for a in articles}["Einstein"] == "biography"
     paragraphs = list(read_jsonl(paths.paragraphs))
     assert set(paragraphs[0]) == {
-        "paragraph_id", "pageid", "revid", "title", "theme", "source_category", "paragraph_idx",
-        "text", "sentences",
+        "paragraph_id", "pageid", "revid", "title", "theme", "source_category", "origin",
+        "paragraph_idx", "text", "sentences",
     }  # fmt: skip
     assert paragraphs[0]["sentences"] == [list(s) for s in map(tuple, paragraphs[0]["sentences"])]
     with paths.corpus_manifest_csv.open(encoding="utf-8") as stream:
@@ -329,11 +331,24 @@ def test_rebuild_from_manifest_reproduces_the_corpus(corpus_run, monkeypatch) ->
     articles = {a["title"]: a for a in read_jsonl(paths.articles)}
     assert articles["Einstein"]["dropped_reason"] == "biography"
     assert articles["Einstein"]["is_biography"] is True
-    assert articles["Átomo"]["origin"] is None and articles["Átomo"]["depth"] is None
+    assert articles["Átomo"]["origin"] == "root" and articles["Átomo"]["depth"] is None
+    assert articles["Escala"]["origin"] == "Categoria:Teoria musical"
     assert paths.corpus_manifest_csv.read_text(encoding="utf-8") == manifest_csv
     manifest = read_json(paths.corpus_dir / "_manifest.json")
     assert manifest["rebuilt_from"].endswith("manifest.csv") and manifest["changed"] == []
     assert manifest["articles_kept"] == manifest["manifest_kept"] == 3
+    assert manifest["kept_by_origin"] == {"root": 2, "Categoria:Teoria musical": 1}
+
+    # a manifest written before the origin column still rebuilds, with no origin
+    rows = list(csv.DictReader(manifest_csv.splitlines()))
+    old_fields = [f for f in corpus.MANIFEST_FIELDS if f != "origin"]
+    with paths.corpus_manifest_csv.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, old_fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+    corpus_rebuild.run(config, paths, force=True)
+    assert all(p["origin"] is None for p in read_jsonl(paths.paragraphs))
+    assert "kept_by_origin" not in read_json(paths.corpus_dir / "_manifest.json")
 
 
 def test_rebuild_reports_revisions_that_disappeared(tmp_path: Path) -> None:
@@ -345,9 +360,11 @@ def test_rebuild_reports_revisions_that_disappeared(tmp_path: Path) -> None:
 
     rows = [
         {"pageid": 1, "revid": 10, "title": "Átomo", "theme": "fisica",
-         "source_category": "Categoria:Física", "kept": True, "dropped_reason": None},
+         "source_category": "Categoria:Física", "origin": "root", "kept": True,
+         "dropped_reason": None},
         {"pageid": 2, "revid": 20, "title": "Som", "theme": "fisica",
-         "source_category": "Categoria:Física", "kept": True, "dropped_reason": None},
+         "source_category": "Categoria:Física", "origin": "root", "kept": True,
+         "dropped_reason": None},
     ]  # fmt: skip
 
     result, changed = rebuild_corpus(RevisionWiki(), settings(), rows)

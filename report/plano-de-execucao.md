@@ -80,7 +80,8 @@ regressão exige que o k-NN novo, com desempate por posição e união, reproduz
      planta têm o segundo sentido fraco.
 6. **Amostra híbrida** (15 mil vértices, `f_max = 50`, sementes fixas).
    - **Núcleo:** por tema, 5 artigos × 2 parágrafos (cerca de 80 parágrafos e 11 mil vértices),
-     para que artigo e parágrafo sejam rótulos distintos na P3. O limite por tipo é aplicado por
+     para que artigo e parágrafo sejam rótulos distintos na P3. Os artigos saem só da categoria
+     raiz do tema; as categorias extras ficam para os estratos esparsos. O limite por tipo é aplicado por
      **sorteio uniforme** depois de juntar tudo, e não por ordem de chegada.
    - **Alvos** (12: banco, campo, órgão, estado, carga, rede, nota, capital, família, massa,
      matriz, planta): cotas por **tema de sentido** (2–3 temas, com ≥ 10–15 ocorrências cada).

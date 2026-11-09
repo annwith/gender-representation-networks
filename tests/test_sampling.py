@@ -97,6 +97,7 @@ def make_corpus(
                         "title": f"Artigo {theme} {article}",
                         "theme": theme,
                         "source_category": f"Categoria:{theme}",
+                        "origin": "root",
                         "paragraph_idx": index,
                         "text": text,
                         "sentences": spans,
@@ -593,8 +594,13 @@ def prefix_result(tokenizer):
     return build_sample(corpus, tokenizer, prefix_settings(), THEMES, PREFIX_ID)
 
 
-def fake_paragraph(index: int, theme: str, pageid: int, ids, codes) -> CorpusParagraph:
-    record = {"theme": theme, "pageid": pageid, "paragraph_idx": index, "paragraph_id": str(index)}
+def fake_paragraph(
+    index: int, theme: str, pageid: int, ids, codes, origin: str | None = "root"
+) -> CorpusParagraph:
+    record = {
+        "theme": theme, "pageid": pageid, "paragraph_idx": index, "paragraph_id": str(index),
+        "origin": origin,
+    }  # fmt: skip
     return CorpusParagraph(
         index, record, np.asarray(ids, dtype=np.int64), np.asarray(codes, dtype=np.int8)
     )
@@ -624,6 +630,49 @@ def test_core_quota_counts_ignore_word_pieces() -> None:
     selector.select_core()
     assert selector.total[5] == 8  # every piece stays a core vertex
     assert selector.core_theme[(5, "fisica")] == 4  # only whole words fill quotas
+
+
+def test_core_draws_only_root_articles() -> None:
+    # 2 root articles and 4 articles of an extra category, 2 paragraphs each
+    corpus = [
+        fake_paragraph(
+            i, "fisica", 1 + i // 2, [5, 9], [WS, WW],
+            origin="root" if i < 4 else "Categoria:Óptica",
+        )
+        for i in range(12)
+    ]  # fmt: skip
+    settings = replace(make_settings(), themes=["fisica"])
+    settings = replace(settings, core=replace(settings.core, articles_per_theme=2))
+    for seed in range(10):
+        selector = _Selector(corpus, settings, ["fisica"], random.Random(seed))
+        stats = selector.select_core()
+        assert selector.core_articles["fisica"] == [1, 2]
+        assert stats["core_eligible_articles"] == {"fisica": 2}
+    # the extra-category paragraphs stay available to the sparse strata
+    assert {p.index for p in selector.noncore_paragraphs()} == set(range(4, 12))
+
+
+def test_core_warns_when_root_has_too_few_articles() -> None:
+    corpus = [
+        fake_paragraph(i, "fisica", 1 + i // 2, [5, 9], [WS, WW],
+                       origin="root" if i < 2 else "Categoria:Óptica")
+        for i in range(8)
+    ]  # fmt: skip
+    settings = replace(make_settings(), themes=["fisica"])
+    settings = replace(settings, core=replace(settings.core, articles_per_theme=2))
+    selector = _Selector(corpus, settings, ["fisica"], random.Random(0))
+    selector.select_core()
+    assert selector.core_articles["fisica"] == [1]
+    assert any("artigos da raiz" in w for w in selector.warnings)
+
+
+def test_core_needs_the_origin_of_each_paragraph() -> None:
+    corpus = [fake_paragraph(i, "fisica", 1 + i // 2, [5, 9], [WS, WW], origin=None)
+              for i in range(4)]  # fmt: skip
+    settings = replace(make_settings(), themes=["fisica"])
+    selector = _Selector(corpus, settings, ["fisica"], random.Random(0))
+    with pytest.raises(ValueError, match="sem origem"):
+        selector.select_core()
 
 
 def test_prefix_pieces_are_never_drawn_or_labelled(prefix_result, tokenizer) -> None:
@@ -691,7 +740,8 @@ def test_paragraph_with_special_token_is_excluded_but_counted(tokenizer, corpus)
     text = "O sistema de <|endoftext|> zircônio e banco."
     special = {
         "paragraph_id": "1000-99", "pageid": 1000, "revid": 1, "title": "Artigo fisica 0",
-        "theme": "fisica", "source_category": "Categoria:fisica", "paragraph_idx": 99,
+        "theme": "fisica", "source_category": "Categoria:fisica", "origin": "root",
+        "paragraph_idx": 99,
         "text": text, "sentences": [[0, len(text)]],
     }
     result = build_sample(corpus + [special], tokenizer, make_settings(), THEMES, PREFIX_ID)

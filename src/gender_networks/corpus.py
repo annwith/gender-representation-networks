@@ -33,7 +33,9 @@ from gender_networks.wiki import Page, WikiClient
 
 LOGGER = logging.getLogger(__name__)
 OFFLINE_ENV = "GENDER_NETWORKS_OFFLINE"
-MANIFEST_FIELDS = ["pageid", "revid", "title", "theme", "source_category", "kept", "dropped_reason"]
+MANIFEST_FIELDS = [
+    "pageid", "revid", "title", "theme", "source_category", "origin", "kept", "dropped_reason",
+]  # fmt: skip
 
 
 @dataclass
@@ -175,7 +177,10 @@ def build_corpus(client: WikiClient, settings: CorpusSettings) -> CorpusResult:
                 if reason is not None:
                     continue
                 result.paragraphs.extend(
-                    paragraph_records(page, candidate.theme, candidate.source_category, paragraphs)
+                    paragraph_records(
+                        page, candidate.theme, candidate.source_category, candidate.origin,
+                        paragraphs,
+                    )
                 )
                 kept += 1
         log = LOGGER.warning if kept < quota else LOGGER.info
@@ -214,7 +219,7 @@ def clean_page(
 
 
 def paragraph_records(
-    page: Page, theme: str, source_category: str, paragraphs: list[str]
+    page: Page, theme: str, source_category: str, origin: str | None, paragraphs: list[str]
 ) -> list[dict[str, Any]]:
     return [
         {
@@ -224,6 +229,7 @@ def paragraph_records(
             "title": page.title,
             "theme": theme,
             "source_category": source_category,
+            "origin": origin,
             "paragraph_idx": index,
             "text": text,
             "sentences": [list(span) for span in split_sentences(text)],
@@ -304,6 +310,7 @@ def run(
                 "title": a["title"],
                 "theme": a["theme"],
                 "source_category": a["source_category"],
+                "origin": a["origin"],
                 "kept": a["dropped_reason"] is None,
                 "dropped_reason": a["dropped_reason"] or "",
             }

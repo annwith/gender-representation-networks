@@ -1,18 +1,21 @@
 """Command ``corpus-rebuild``: rebuild the corpus from the exact revisions in ``manifest.csv``.
 
 ``data/corpus/manifest.csv`` is the versioned record of the corpus: one row per candidate article
-that was fetched (``pageid``, ``revid``, title, theme, source category, kept, dropped reason), in
-the order ``corpus`` handled them. This command fetches the kept revisions by ``revid`` (so later
-edits to the articles do not matter), cleans them with the same code as ``corpus`` and in the
-same order (the paragraph dedup runs across articles), and rewrites ``articles.jsonl``,
-``paragraphs.jsonl`` and ``_manifest.json``. ``manifest.csv`` itself is the input and is never
-rewritten.
+that was fetched (``pageid``, ``revid``, title, theme, source category, origin, kept, dropped
+reason), in the order ``corpus`` handled them. This command fetches the kept revisions by
+``revid`` (so later edits to the articles do not matter), cleans them with the same code as
+``corpus`` and in the same order (the paragraph dedup runs across articles), and rewrites
+``articles.jsonl``, ``paragraphs.jsonl`` and ``_manifest.json``. ``manifest.csv`` itself is the
+input and is never rewritten.
 
 Rows that were not kept come back with the recorded reason, without being fetched. The manifest
-does not record how the category crawl reached each title, so the rebuilt ``articles.jsonl`` has
-``themes_reached``, ``depth`` and ``origin`` set to ``None``, and titles dropped as ``multi_theme``
-(which have no ``pageid``) are absent. Paragraph titles are the page titles the API returns now
-(an article renamed since the download shows its new title).
+records the origin of each title (``root`` or the extra category whose walk reached it), which
+``sample`` needs to draw the core from the root categories only; a manifest written before that
+column existed rebuilds with ``origin`` set to ``None``. It does not record the rest of the
+category crawl, so the rebuilt ``articles.jsonl`` has ``themes_reached`` and ``depth`` set to
+``None``, and titles dropped as ``multi_theme`` (which have no ``pageid``) are absent. Paragraph
+titles are the page titles the API returns now (an article renamed since the download shows its
+new title).
 
 A kept revision the API no longer serves (deleted or hidden) becomes ``missing``, and a kept
 article that no longer yields paragraphs keeps the new reason; both are logged and listed in
@@ -51,6 +54,7 @@ def read_manifest(path: Path) -> list[dict[str, Any]]:
             **row,
             "pageid": int(row["pageid"]),
             "revid": int(row["revid"]),
+            "origin": row.get("origin") or None,  # absent from manifests written before it
             "kept": row["kept"] == "True",
             "dropped_reason": row["dropped_reason"] or None,
         }
@@ -89,14 +93,16 @@ def rebuild_corpus(
                 "themes_reached": None,
                 "source_category": row["source_category"],
                 "depth": None,
-                "origin": None,
+                "origin": row["origin"],
                 "is_biography": reason == "biography",
                 "dropped_reason": reason,
             }
         )
         if page is not None and reason is None:
             result.paragraphs.extend(
-                paragraph_records(page, row["theme"], row["source_category"], paragraphs)
+                paragraph_records(
+                    page, row["theme"], row["source_category"], row["origin"], paragraphs
+                )
             )
     return result, changed
 
@@ -131,7 +137,8 @@ def run(
     write_jsonl(paths.articles, result.articles)
     write_jsonl(paths.paragraphs, result.paragraphs)
     stats = summarize(result)
-    stats.pop("kept_by_origin")  # the manifest does not record the origin
+    if any(row["origin"] is None for row in rows):
+        stats.pop("kept_by_origin")  # a manifest written before the origin column
     stats.update(
         rebuilt_from=str(paths.corpus_manifest_csv.relative_to(paths.root)),
         manifest_rows=len(rows),
