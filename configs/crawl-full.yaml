@@ -1,0 +1,15 @@
+# Busca completa nas árvores de categorias, sem o limite de títulos por tema.
+#
+# Com o limite (600 títulos por tema, 240 por categoria extra), a busca para no meio da
+# árvore, e como a API lista os membros em ordem alfabética, ficam só as primeiras
+# subcategorias e os primeiros títulos do alfabeto. Aqui a busca abre todas as categorias até
+# a profundidade, e o embaralhamento com a semente escolhe os artigos.
+#
+# Grava num corpus à parte, para comparar com data/corpus sem sobrescrevê-lo:
+#   uv run gender-networks corpus --config configs/crawl-full.yaml
+base: experiment.yaml
+name: crawl-full
+paths:
+  corpus_dir: data/corpus-full
+corpus:
+  max_titles_per_theme: null

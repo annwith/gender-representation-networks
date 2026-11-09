@@ -57,7 +57,10 @@ class CorpusSettings:
     themes: dict[str, list[str]] = field(default_factory=dict)
     extra_categories: dict[str, list[str]] = field(default_factory=dict)
     bfs_depth: int = 2
-    max_titles_per_theme: int = 600
+    # Title limit of each theme walk (extra categories: 4 x articles_per_extra_category). The
+    # walk stops at it, so it keeps the alphabetically first subcategories and titles. None
+    # walks every tree whole, extras included, and the seeded shuffle does the choosing.
+    max_titles_per_theme: int | None = 600
     articles_per_theme: int = 150
     articles_per_extra_category: int = 60
     delay_s: float = 2.5
@@ -221,6 +224,8 @@ def _validate(settings: Settings) -> None:
     for theme in corpus.extra_categories:
         if theme not in corpus.themes:
             raise ValueError(f"corpus.extra_categories uses unknown theme '{theme}'")
+    if corpus.max_titles_per_theme is not None and corpus.max_titles_per_theme < 1:
+        raise ValueError("corpus.max_titles_per_theme must be positive or null")
     themes = set(sample.themes or corpus.themes)
     if not themes <= set(corpus.themes):
         raise ValueError("sample.themes must be a subset of corpus.themes")

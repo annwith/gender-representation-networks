@@ -120,6 +120,35 @@ def test_crawl_records_first_category_and_depth(tmp_path: Path) -> None:
     assert trace.cut == "Categoria:S" and trace.unopened == 0
 
 
+def test_crawl_without_title_limit_walks_the_whole_tree(tmp_path: Path) -> None:
+    tree = {
+        "Categoria:R": (["A", "B"], ["Categoria:S", "Categoria:U"]),
+        "Categoria:S": (["C"], ["Categoria:T"]),
+        "Categoria:T": (["D"], []),
+        "Categoria:U": (["E"], []),
+    }
+
+    def handler(params, n):
+        pages, subs = tree[params["cmtitle"]]
+        members = [{"ns": 0, "title": t} for t in pages] + [{"ns": 14, "title": s} for s in subs]
+        return 200, {"query": {"categorymembers": members}}, {}
+
+    wiki = client(tmp_path, FakeApi(handler), [])
+    trace = CrawlTrace()
+
+    found = wiki.crawl(["Categoria:R"], depth=1, max_titles=None, trace=trace)
+
+    # Capped at 2, the walk would stop inside Categoria:R; uncapped it reads every category
+    # down to depth 1 (Categoria:T is depth 2).
+    assert found == {
+        "A": ("Categoria:R", 0),
+        "B": ("Categoria:R", 0),
+        "C": ("Categoria:S", 1),
+        "E": ("Categoria:U", 1),
+    }
+    assert trace.cut is None and trace.unopened == 0
+
+
 def test_fetch_pages_maps_redirects_back_to_requested_titles(tmp_path: Path) -> None:
     def handler(params, n):
         body = {

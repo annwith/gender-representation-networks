@@ -192,6 +192,15 @@ def test_group_order_is_independent_of_input_order_and_other_groups() -> None:
     assert sorted(c.title for c in order) == sorted(c.title for c in candidates)
 
 
+def test_walks_without_title_limit_cover_themes_and_extras() -> None:
+    capped = corpus.walks(settings(max_titles_per_theme=600))
+    full = corpus.walks(settings(max_titles_per_theme=None))
+
+    assert [w.max_titles for w in capped] == [600, 600, 40]
+    assert [w.max_titles for w in full] == [None, None, None]
+    assert [(w.walk_id, w.depth) for w in full] == [(w.walk_id, w.depth) for w in capped]
+
+
 def test_candidate_after_quota_is_not_marked_seen() -> None:
     titles = [f"T{i}" for i in range(4)]
     trees = {

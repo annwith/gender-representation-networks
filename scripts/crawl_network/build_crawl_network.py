@@ -675,7 +675,7 @@ def summary(g: nx.DiGraph, walk_list: Sequence[Walk], traces: dict[str, CrawlTra
     for walk in walk_list:
         t = traces[walk.walk_id]
         print(
-            f"  {walk.walk_id:42s} títulos {len(t.found):4d}/{walk.max_titles:<4d} "
+            f"  {walk.walk_id:42s} títulos {len(t.found):4d}/{walk.max_titles or '-'!s:<4} "
             f"abertas {len(t.opened):4d} na fila {t.unopened:4d} parou em {t.cut}"
         )
 

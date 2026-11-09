@@ -11,6 +11,7 @@ outputs/experiment/
 data/raw/
 data/corpus/*.jsonl
 data/corpus/_manifest.json
+data/corpus-full/
 
 # Dados do estudo de viabilidade (texto da Wikipédia, 7 MB)
 scripts/feasibility/*.jsonl

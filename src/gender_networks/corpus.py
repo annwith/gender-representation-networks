@@ -63,13 +63,17 @@ class Walk:
     origin: str  # "root" or the extra category
     roots: tuple[str, ...]
     depth: int
-    max_titles: int
+    max_titles: int | None  # None: the whole tree down to ``depth``
 
 
 def walks(settings: CorpusSettings) -> list[Walk]:
     """The walks of the corpus stage, in order: each theme from its roots, then each extra
-    category (one level deep, with room for four times the articles kept from it)."""
+    category (one level deep, with room for four times the articles kept from it).
 
+    With ``max_titles_per_theme: null`` no walk has a title limit.
+    """
+
+    full = settings.max_titles_per_theme is None
     out = [
         Walk(f"{theme}::root", theme, "root", tuple(roots), settings.bfs_depth,
              settings.max_titles_per_theme)
@@ -79,7 +83,7 @@ def walks(settings: CorpusSettings) -> list[Walk]:
         for extra in categories:
             out.append(
                 Walk(f"{theme}::{extra}", theme, extra, (extra,), min(1, settings.bfs_depth),
-                     settings.articles_per_extra_category * 4)
+                     None if full else settings.articles_per_extra_category * 4)
             )  # fmt: skip
     return out
 

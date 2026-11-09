@@ -226,21 +226,31 @@ class WikiClient:
         self,
         roots: Iterable[str],
         depth: int,
-        max_titles: int,
+        max_titles: int | None,
         skip_patterns: Iterable[str] = (),
         trace: CrawlTrace | None = None,
     ) -> dict[str, tuple[str, int]]:
         """Breadth-first category walk: title -> (category that first reached it, depth).
 
+        The API lists members alphabetically, so stopping at ``max_titles`` keeps the first
+        subcategories and titles of the alphabet; ``None`` walks the whole tree to ``depth``.
         ``trace``, when given, records the walk (for the crawl page of ``scripts/``).
         """
 
         skip = tuple(skip_patterns)
+        roots = tuple(roots)
         found: dict[str, tuple[str, int]] = {}
         queue = deque((root, 0) for root in roots)
-        seen = {root for root, _ in queue}
-        while queue and len(found) < max_titles:
+        seen = set(roots)
+        opened = 0
+        while queue and (max_titles is None or len(found) < max_titles):
             category, level = queue.popleft()
+            opened += 1
+            if opened % 200 == 0:
+                LOGGER.info(
+                    "Busca a partir de %s: %d categorias abertas, %d na fila, %d títulos",
+                    ", ".join(roots), opened, len(queue), len(found),
+                )
             try:
                 pages, subcats = self.category_members(category, skip)
             except ApiError as error:  # permanent (e.g. invalid title); transient ones propagate
@@ -254,7 +264,7 @@ class WikiClient:
                 read.append(title)
                 if title not in found:
                     found[title] = (category, level)
-                    if len(found) >= max_titles:
+                    if max_titles is not None and len(found) >= max_titles:
                         if trace is not None:
                             trace.cut = category
                         break
