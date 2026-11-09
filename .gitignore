@@ -26,6 +26,8 @@ report/**/*.toc
 report/**/*.bbl
 report/**/*.blg
 report/**/*.xdv
+report/**/*.nav
+report/**/*.snm
 
 # PDFs: só os documentos entregues (proposta e entregas parciais) são versionados; o do
 # relatório técnico é gerado com latexmk.
