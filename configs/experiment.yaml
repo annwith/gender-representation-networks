@@ -110,6 +110,10 @@ sample:
   core:
     articles_per_theme: 5
     paragraphs_per_article: 2
+    # false: os artigos do núcleo saem de todo o tema, categorias extras incluídas (execução
+    # principal de 05/10/2026). true: só da categoria raiz; muda a amostra (núcleo de 10.020
+    # para 9.464 vértices) e exige um corpus que registre a origem de cada artigo.
+    root_only: false
   # Cotas por tema de sentido (≥ 10 por tema para a palavra continuar na análise).
   targets:
     banco: {economia: 17, computacao: 17, geografia: 16}

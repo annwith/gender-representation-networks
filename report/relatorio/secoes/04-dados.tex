@@ -305,12 +305,15 @@ com quatro estratos sorteados em ordem por um único gerador aleatório.
 
 \paragraph{1. Núcleo (P1--P3).} Por tema, 5 artigos $\times$ 2 parágrafos (cerca de 80
 parágrafos e 11 mil vértices), com todos os tokens que não são só espaço como vértices. Os 5
-artigos são sorteados só entre os artigos da \textbf{categoria raiz} do tema (com pelo menos 2
-parágrafos), e nunca entre os das categorias extras. As extras existem para completar as cotas
-dos sentidos fracos (estratos 2 a 4). No núcleo, elas fariam o tema significar coisas diferentes
-de um tema para outro: elas são 67\% dos artigos sorteáveis de Economia, 59\% dos de Biologia e
-nenhum dos de Física, Política e Futebol. Assim, todo tema da P3 é a árvore da sua categoria
-raiz. Dois
+artigos são sorteados entre todos os artigos do tema com pelo menos 2 parágrafos,
+\textbf{incluídos os das categorias extras}. As extras existem para completar as cotas dos
+sentidos fracos (estratos 2 a 4), e no núcleo fazem o tema significar coisas diferentes de um
+tema para outro: elas são 67\% dos artigos sorteáveis de Economia, 59\% dos de Biologia e
+nenhum dos de Física, Política e Futebol. Na execução principal, os 5 artigos do núcleo de
+Economia e os 5 de Biologia vieram de categorias extras (39\% do núcleo). A opção
+\cod{sample.core.root\_only} sorteia só entre os artigos da categoria raiz, para que todo tema
+da P3 seja a árvore da sua raiz; ela muda a amostra (o núcleo passa de 10.020 para 9.464
+vértices, e o total de 13.606 para 13.061) e não foi usada nos resultados deste relatório. Dois
 parágrafos por artigo fazem \emph{artigo} e \emph{parágrafo} serem rótulos distintos na P3 (na
 simulação eles quase coincidiam). O limite $f_{\max}$ é aplicado por \textbf{sorteio uniforme}
 entre as ocorrências de cada tipo acima do limite, depois de juntar todo o núcleo, e não por

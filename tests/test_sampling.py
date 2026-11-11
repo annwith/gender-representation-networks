@@ -632,6 +632,33 @@ def test_core_quota_counts_ignore_word_pieces() -> None:
     assert selector.core_theme[(5, "fisica")] == 4  # only whole words fill quotas
 
 
+def root_only_settings(articles_per_theme: int = 2) -> SampleSettings:
+    settings = replace(make_settings(), themes=["fisica"])
+    core = replace(settings.core, articles_per_theme=articles_per_theme, root_only=True)
+    return replace(settings, core=core)
+
+
+def test_core_draws_from_extra_categories_by_default() -> None:
+    # 2 root articles and 4 articles of an extra category, 2 paragraphs each; a corpus without
+    # the origin column (built before it existed) works the same, as in the main run
+    for origin_of_extras in ("Categoria:Óptica", None):
+        corpus = [
+            fake_paragraph(
+                i, "fisica", 1 + i // 2, [5, 9], [WS, WW],
+                origin="root" if i < 4 else origin_of_extras,
+            )
+            for i in range(12)
+        ]  # fmt: skip
+        settings = replace(make_settings(), themes=["fisica"])
+        drawn: set[int] = set()
+        for seed in range(20):
+            selector = _Selector(corpus, settings, ["fisica"], random.Random(seed))
+            stats = selector.select_core()
+            assert stats["core_eligible_articles"] == {"fisica": 6}
+            drawn.update(selector.core_articles["fisica"])
+        assert drawn & {3, 4, 5, 6}  # extra-category articles enter the core
+
+
 def test_core_draws_only_root_articles() -> None:
     # 2 root articles and 4 articles of an extra category, 2 paragraphs each
     corpus = [
@@ -641,8 +668,7 @@ def test_core_draws_only_root_articles() -> None:
         )
         for i in range(12)
     ]  # fmt: skip
-    settings = replace(make_settings(), themes=["fisica"])
-    settings = replace(settings, core=replace(settings.core, articles_per_theme=2))
+    settings = root_only_settings()
     for seed in range(10):
         selector = _Selector(corpus, settings, ["fisica"], random.Random(seed))
         stats = selector.select_core()
@@ -658,19 +684,16 @@ def test_core_warns_when_root_has_too_few_articles() -> None:
                        origin="root" if i < 2 else "Categoria:Óptica")
         for i in range(8)
     ]  # fmt: skip
-    settings = replace(make_settings(), themes=["fisica"])
-    settings = replace(settings, core=replace(settings.core, articles_per_theme=2))
-    selector = _Selector(corpus, settings, ["fisica"], random.Random(0))
+    selector = _Selector(corpus, root_only_settings(), ["fisica"], random.Random(0))
     selector.select_core()
     assert selector.core_articles["fisica"] == [1]
     assert any("artigos da raiz" in w for w in selector.warnings)
 
 
-def test_core_needs_the_origin_of_each_paragraph() -> None:
+def test_root_only_core_needs_the_origin_of_each_paragraph() -> None:
     corpus = [fake_paragraph(i, "fisica", 1 + i // 2, [5, 9], [WS, WW], origin=None)
               for i in range(4)]  # fmt: skip
-    settings = replace(make_settings(), themes=["fisica"])
-    selector = _Selector(corpus, settings, ["fisica"], random.Random(0))
+    selector = _Selector(corpus, root_only_settings(), ["fisica"], random.Random(0))
     with pytest.raises(ValueError, match="sem origem"):
         selector.select_core()
 

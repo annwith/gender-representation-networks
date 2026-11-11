@@ -80,6 +80,10 @@ class CoreSettings:
 
     articles_per_theme: int = 5
     paragraphs_per_article: int = 2
+    # False draws the core articles from every article of the theme, extra categories included
+    # (the main run of 05/10/2026). True draws them only from the theme's root category, so
+    # every theme of P3 is the tree of its root; the corpus must then record each origin.
+    root_only: bool = False
 
 
 @dataclass(frozen=True)
