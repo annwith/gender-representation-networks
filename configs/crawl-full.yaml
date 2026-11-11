@@ -13,3 +13,6 @@ paths:
   corpus_dir: data/corpus-full
 corpus:
   max_titles_per_theme: null
+  # A busca completa abre milhares de categorias, uma requisição cada; com 2,5 s entre elas,
+  # levaria horas. As requisições continuam em série, e um 429 ainda faz o cliente esperar.
+  delay_s: 0.5
