@@ -1,0 +1,49 @@
+2026-11-11 16:32:31,149 | INFO | gender_networks.cli | Etapa lens (execução all-layers)
+2026-11-11 16:32:35,108 | INFO | gender_networks.vocab_lens | Vizinhos no vocabulário: 13606 ocorrências, V = 151669, d = 2560, k = 20, dispositivo cpu
+2026-11-11 16:33:02,934 | INFO | gender_networks.vocab_lens | lex: posto mediano do próprio token 0, do próximo 106069 (27.8 s)
+2026-11-11 16:33:30,489 | INFO | gender_networks.vocab_lens | L01: posto mediano do próprio token 0, do próximo 67989 (27.6 s)
+2026-11-11 16:33:57,850 | INFO | gender_networks.vocab_lens | L02: posto mediano do próprio token 0, do próximo 67752 (27.4 s)
+2026-11-11 16:34:24,876 | INFO | gender_networks.vocab_lens | L03: posto mediano do próprio token 0, do próximo 67740 (27.0 s)
+2026-11-11 16:34:52,753 | INFO | gender_networks.vocab_lens | L04: posto mediano do próprio token 4, do próximo 63942 (27.9 s)
+2026-11-11 16:35:18,596 | INFO | gender_networks.vocab_lens | L05: posto mediano do próprio token 76, do próximo 63280 (25.8 s)
+2026-11-11 16:35:45,121 | INFO | gender_networks.vocab_lens | L06: posto mediano do próprio token 795, do próximo 63380 (26.5 s)
+2026-11-11 16:36:11,326 | INFO | gender_networks.vocab_lens | L07: posto mediano do próprio token 2700, do próximo 63993 (26.2 s)
+2026-11-11 16:36:38,853 | INFO | gender_networks.vocab_lens | L08: posto mediano do próprio token 4118, do próximo 63709 (27.5 s)
+2026-11-11 16:37:07,141 | INFO | gender_networks.vocab_lens | L09: posto mediano do próprio token 5597, do próximo 57507 (28.3 s)
+2026-11-11 16:37:34,426 | INFO | gender_networks.vocab_lens | L10: posto mediano do próprio token 10670, do próximo 58729 (27.3 s)
+2026-11-11 16:38:01,462 | INFO | gender_networks.vocab_lens | L11: posto mediano do próprio token 18362, do próximo 65248 (27.0 s)
+2026-11-11 16:38:28,423 | INFO | gender_networks.vocab_lens | L12: posto mediano do próprio token 24880, do próximo 68186 (27.0 s)
+2026-11-11 16:38:55,626 | INFO | gender_networks.vocab_lens | L13: posto mediano do próprio token 28824, do próximo 70708 (27.2 s)
+2026-11-11 16:39:23,140 | INFO | gender_networks.vocab_lens | L14: posto mediano do próprio token 27728, do próximo 65304 (27.5 s)
+2026-11-11 16:39:48,902 | INFO | gender_networks.vocab_lens | L15: posto mediano do próprio token 31018, do próximo 65534 (25.8 s)
+2026-11-11 16:40:16,361 | INFO | gender_networks.vocab_lens | L16: posto mediano do próprio token 31602, do próximo 62360 (27.5 s)
+2026-11-11 16:40:43,924 | INFO | gender_networks.vocab_lens | L17: posto mediano do próprio token 33584, do próximo 64776 (27.6 s)
+2026-11-11 16:41:11,624 | INFO | gender_networks.vocab_lens | L18: posto mediano do próprio token 33354, do próximo 62127 (27.7 s)
+2026-11-11 16:41:40,243 | INFO | gender_networks.vocab_lens | L19: posto mediano do próprio token 32462, do próximo 57080 (28.6 s)
+2026-11-11 16:42:07,613 | INFO | gender_networks.vocab_lens | L20: posto mediano do próprio token 35027, do próximo 57611 (27.4 s)
+2026-11-11 16:42:35,623 | INFO | gender_networks.vocab_lens | L21: posto mediano do próprio token 34165, do próximo 53906 (28.0 s)
+2026-11-11 16:43:02,724 | INFO | gender_networks.vocab_lens | L22: posto mediano do próprio token 33200, do próximo 47551 (27.1 s)
+2026-11-11 16:43:30,238 | INFO | gender_networks.vocab_lens | L23: posto mediano do próprio token 30048, do próximo 33517 (27.5 s)
+2026-11-11 16:43:58,284 | INFO | gender_networks.vocab_lens | L24: posto mediano do próprio token 25416, do próximo 25079 (28.0 s)
+2026-11-11 16:44:25,682 | INFO | gender_networks.vocab_lens | L25: posto mediano do próprio token 16496, do próximo 15605 (27.4 s)
+2026-11-11 16:44:52,961 | INFO | gender_networks.vocab_lens | L26: posto mediano do próprio token 13809, do próximo 11067 (27.3 s)
+2026-11-11 16:45:20,537 | INFO | gender_networks.vocab_lens | L27: posto mediano do próprio token 13866, do próximo 9559 (27.6 s)
+2026-11-11 16:45:48,790 | INFO | gender_networks.vocab_lens | L28: posto mediano do próprio token 14168, do próximo 7098 (28.3 s)
+2026-11-11 16:46:16,417 | INFO | gender_networks.vocab_lens | L29: posto mediano do próprio token 14428, do próximo 3465 (27.6 s)
+2026-11-11 16:46:43,914 | INFO | gender_networks.vocab_lens | L30: posto mediano do próprio token 15802, do próximo 2066 (27.5 s)
+2026-11-11 16:47:11,521 | INFO | gender_networks.vocab_lens | L31: posto mediano do próprio token 12370, do próximo 1308 (27.6 s)
+2026-11-11 16:47:39,311 | INFO | gender_networks.vocab_lens | L32: posto mediano do próprio token 9257, do próximo 796 (27.8 s)
+2026-11-11 16:48:08,011 | INFO | gender_networks.vocab_lens | L33: posto mediano do próprio token 5142, do próximo 125 (28.7 s)
+2026-11-11 16:48:35,852 | INFO | gender_networks.vocab_lens | L34: posto mediano do próprio token 3309, do próximo 12 (27.8 s)
+2026-11-11 16:49:03,652 | INFO | gender_networks.vocab_lens | L35: posto mediano do próprio token 3922, do próximo 6 (27.8 s)
+2026-11-11 16:49:31,052 | INFO | gender_networks.vocab_lens | L36: posto mediano do próprio token 1574, do próximo 4 (27.4 s)
+2026-11-11 16:50:30,100 | INFO | gender_networks.vocab_lens | L36n: posto mediano do próprio token 587, do próximo 1 (59.0 s)
+2026-11-11 16:50:30,102 | INFO | gender_networks.vocab_lens | Concordância com pred_next: 13606 de 13606
+2026-11-11 16:50:34,980 | INFO | gender_networks.vocab_lens | Curva camada a camada: 6/36 camadas
+2026-11-11 16:50:35,112 | INFO | gender_networks.vocab_lens | Curva camada a camada: 12/36 camadas
+2026-11-11 16:50:35,247 | INFO | gender_networks.vocab_lens | Curva camada a camada: 18/36 camadas
+2026-11-11 16:50:35,385 | INFO | gender_networks.vocab_lens | Curva camada a camada: 24/36 camadas
+2026-11-11 16:50:35,523 | INFO | gender_networks.vocab_lens | Curva camada a camada: 30/36 camadas
+2026-11-11 16:50:35,664 | INFO | gender_networks.vocab_lens | Curva camada a camada: 36/36 camadas
+2026-11-11 16:50:38,648 | INFO | gender_networks.vocab_lens | Vizinhos no vocabulário gravados em outputs/experiment/all-layers/lens
+2026-11-11 16:50:38,835 | INFO | gender_networks.cli | Etapa lens concluída em 1087.7 s

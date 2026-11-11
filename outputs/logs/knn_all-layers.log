@@ -1,0 +1,90 @@
+2026-11-11 14:11:10,902 | INFO | gender_networks.cli | Etapa knn (execução all-layers)
+2026-11-11 14:11:10,998 | INFO | gender_networks.knn | k-NN: 13606 ocorrências, 2864 tipos, 74 representações
+2026-11-11 14:11:26,158 | INFO | gender_networks.knn | lex: candidatos 1.3 s, vizinhos 13.8 s; k=10: 11948 linhas com empate (maior bloco 50), 0 linhas recalculadas
+2026-11-11 14:11:50,172 | INFO | gender_networks.knn | L01: candidatos 12.8 s, vizinhos 11.2 s; k=10: 58 linhas com empate (maior bloco 15), 0 linhas recalculadas
+2026-11-11 14:12:14,363 | INFO | gender_networks.knn | L02: candidatos 12.7 s, vizinhos 11.5 s; k=10: 71 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:12:38,575 | INFO | gender_networks.knn | L03: candidatos 12.8 s, vizinhos 11.4 s; k=10: 76 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:13:03,246 | INFO | gender_networks.knn | L04: candidatos 12.7 s, vizinhos 12.0 s; k=10: 89 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:13:27,533 | INFO | gender_networks.knn | L05: candidatos 12.6 s, vizinhos 11.7 s; k=10: 100 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:13:52,112 | INFO | gender_networks.knn | L06: candidatos 12.7 s, vizinhos 11.9 s; k=10: 102 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:14:17,014 | INFO | gender_networks.knn | L07: candidatos 12.7 s, vizinhos 12.2 s; k=10: 81 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:14:41,888 | INFO | gender_networks.knn | L08: candidatos 12.5 s, vizinhos 12.3 s; k=10: 86 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:15:07,472 | INFO | gender_networks.knn | L09: candidatos 12.8 s, vizinhos 12.8 s; k=10: 98 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:15:32,318 | INFO | gender_networks.knn | L10: candidatos 12.4 s, vizinhos 12.4 s; k=10: 113 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:15:57,488 | INFO | gender_networks.knn | L11: candidatos 12.8 s, vizinhos 12.3 s; k=10: 105 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:16:22,782 | INFO | gender_networks.knn | L12: candidatos 12.8 s, vizinhos 12.5 s; k=10: 132 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:16:47,622 | INFO | gender_networks.knn | L13: candidatos 12.3 s, vizinhos 12.5 s; k=10: 130 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:17:13,716 | INFO | gender_networks.knn | L14: candidatos 12.5 s, vizinhos 13.6 s; k=10: 119 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:17:38,890 | INFO | gender_networks.knn | L15: candidatos 12.5 s, vizinhos 12.6 s; k=10: 120 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:18:03,940 | INFO | gender_networks.knn | L16: candidatos 12.4 s, vizinhos 12.6 s; k=10: 108 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:18:29,100 | INFO | gender_networks.knn | L17: candidatos 12.5 s, vizinhos 12.7 s; k=10: 117 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:18:54,388 | INFO | gender_networks.knn | L18: candidatos 12.5 s, vizinhos 12.8 s; k=10: 124 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:19:20,701 | INFO | gender_networks.knn | L19: candidatos 12.9 s, vizinhos 13.4 s; k=10: 105 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:19:45,913 | INFO | gender_networks.knn | L20: candidatos 12.5 s, vizinhos 12.7 s; k=10: 103 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:20:11,528 | INFO | gender_networks.knn | L21: candidatos 12.7 s, vizinhos 12.9 s; k=10: 99 linhas com empate (maior bloco 21), 0 linhas recalculadas
+2026-11-11 14:20:37,011 | INFO | gender_networks.knn | L22: candidatos 12.7 s, vizinhos 12.7 s; k=10: 99 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:21:02,576 | INFO | gender_networks.knn | L23: candidatos 12.7 s, vizinhos 12.8 s; k=10: 89 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:21:28,663 | INFO | gender_networks.knn | L24: candidatos 13.1 s, vizinhos 12.9 s; k=10: 94 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:21:53,914 | INFO | gender_networks.knn | L25: candidatos 12.5 s, vizinhos 12.7 s; k=10: 88 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:22:19,449 | INFO | gender_networks.knn | L26: candidatos 12.8 s, vizinhos 12.7 s; k=10: 90 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:22:45,113 | INFO | gender_networks.knn | L27: candidatos 12.9 s, vizinhos 12.7 s; k=10: 96 linhas com empate (maior bloco 19), 0 linhas recalculadas
+2026-11-11 14:23:10,379 | INFO | gender_networks.knn | L28: candidatos 12.7 s, vizinhos 12.6 s; k=10: 94 linhas com empate (maior bloco 19), 0 linhas recalculadas
+2026-11-11 14:23:36,188 | INFO | gender_networks.knn | L29: candidatos 13.1 s, vizinhos 12.7 s; k=10: 115 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:24:01,442 | INFO | gender_networks.knn | L30: candidatos 12.5 s, vizinhos 12.7 s; k=10: 119 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:24:26,969 | INFO | gender_networks.knn | L31: candidatos 12.8 s, vizinhos 12.7 s; k=10: 129 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:24:52,605 | INFO | gender_networks.knn | L32: candidatos 12.9 s, vizinhos 12.7 s; k=10: 119 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:25:18,279 | INFO | gender_networks.knn | L33: candidatos 12.9 s, vizinhos 12.7 s; k=10: 128 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:25:44,139 | INFO | gender_networks.knn | L34: candidatos 13.1 s, vizinhos 12.7 s; k=10: 128 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:26:09,339 | INFO | gender_networks.knn | L35: candidatos 12.6 s, vizinhos 12.6 s; k=10: 127 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:26:34,493 | INFO | gender_networks.knn | L36: candidatos 12.6 s, vizinhos 12.5 s; k=10: 99 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:26:59,965 | INFO | gender_networks.knn | L36n: candidatos 12.8 s, vizinhos 12.6 s; k=10: 90 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:27:23,710 | INFO | gender_networks.knn | L01c: candidatos 12.7 s, vizinhos 11.0 s; k=10: 48 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:27:48,586 | INFO | gender_networks.knn | L02c: candidatos 13.5 s, vizinhos 11.3 s; k=10: 70 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:28:12,841 | INFO | gender_networks.knn | L03c: candidatos 12.5 s, vizinhos 11.7 s; k=10: 77 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:28:37,133 | INFO | gender_networks.knn | L04c: candidatos 12.6 s, vizinhos 11.7 s; k=10: 82 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:29:01,969 | INFO | gender_networks.knn | L05c: candidatos 12.9 s, vizinhos 11.9 s; k=10: 88 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:29:27,198 | INFO | gender_networks.knn | L06c: candidatos 13.2 s, vizinhos 12.0 s; k=10: 85 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:29:53,889 | INFO | gender_networks.knn | L07c: candidatos 14.5 s, vizinhos 12.1 s; k=10: 90 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:30:19,769 | INFO | gender_networks.knn | L08c: candidatos 13.5 s, vizinhos 12.4 s; k=10: 88 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:30:45,210 | INFO | gender_networks.knn | L09c: candidatos 12.9 s, vizinhos 12.5 s; k=10: 101 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:31:10,470 | INFO | gender_networks.knn | L10c: candidatos 12.7 s, vizinhos 12.5 s; k=10: 99 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:31:36,153 | INFO | gender_networks.knn | L11c: candidatos 13.3 s, vizinhos 12.4 s; k=10: 98 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:32:04,127 | INFO | gender_networks.knn | L12c: candidatos 15.6 s, vizinhos 12.4 s; k=10: 103 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:32:29,049 | INFO | gender_networks.knn | L13c: candidatos 12.5 s, vizinhos 12.4 s; k=10: 110 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:32:55,647 | INFO | gender_networks.knn | L14c: candidatos 14.0 s, vizinhos 12.5 s; k=10: 111 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:33:20,736 | INFO | gender_networks.knn | L15c: candidatos 12.4 s, vizinhos 12.7 s; k=10: 110 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:33:46,209 | INFO | gender_networks.knn | L16c: candidatos 12.9 s, vizinhos 12.5 s; k=10: 101 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:34:12,176 | INFO | gender_networks.knn | L17c: candidatos 13.4 s, vizinhos 12.6 s; k=10: 99 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:34:38,077 | INFO | gender_networks.knn | L18c: candidatos 13.3 s, vizinhos 12.6 s; k=10: 100 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:35:03,696 | INFO | gender_networks.knn | L19c: candidatos 12.9 s, vizinhos 12.6 s; k=10: 109 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:35:29,284 | INFO | gender_networks.knn | L20c: candidatos 12.9 s, vizinhos 12.6 s; k=10: 103 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:35:54,723 | INFO | gender_networks.knn | L21c: candidatos 12.8 s, vizinhos 12.6 s; k=10: 97 linhas com empate (maior bloco 18), 0 linhas recalculadas
+2026-11-11 14:36:23,219 | INFO | gender_networks.knn | L22c: candidatos 15.9 s, vizinhos 12.6 s; k=10: 94 linhas com empate (maior bloco 17), 0 linhas recalculadas
+2026-11-11 14:36:48,608 | INFO | gender_networks.knn | L23c: candidatos 12.7 s, vizinhos 12.7 s; k=10: 101 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:37:14,512 | INFO | gender_networks.knn | L24c: candidatos 13.1 s, vizinhos 12.8 s; k=10: 100 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:37:39,389 | INFO | gender_networks.knn | L25c: candidatos 12.5 s, vizinhos 12.4 s; k=10: 89 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:38:04,616 | INFO | gender_networks.knn | L26c: candidatos 12.8 s, vizinhos 12.4 s; k=10: 91 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:38:32,547 | INFO | gender_networks.knn | L27c: candidatos 15.4 s, vizinhos 12.5 s; k=10: 90 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:38:58,288 | INFO | gender_networks.knn | L28c: candidatos 13.3 s, vizinhos 12.4 s; k=10: 93 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:39:24,049 | INFO | gender_networks.knn | L29c: candidatos 13.3 s, vizinhos 12.5 s; k=10: 98 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:39:49,199 | INFO | gender_networks.knn | L30c: candidatos 12.8 s, vizinhos 12.3 s; k=10: 105 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:40:15,697 | INFO | gender_networks.knn | L31c: candidatos 13.4 s, vizinhos 13.1 s; k=10: 100 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:40:41,368 | INFO | gender_networks.knn | L32c: candidatos 13.3 s, vizinhos 12.3 s; k=10: 110 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:41:07,229 | INFO | gender_networks.knn | L33c: candidatos 13.4 s, vizinhos 12.4 s; k=10: 115 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:41:32,771 | INFO | gender_networks.knn | L34c: candidatos 13.2 s, vizinhos 12.3 s; k=10: 113 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:41:57,454 | INFO | gender_networks.knn | L35c: candidatos 12.4 s, vizinhos 12.3 s; k=10: 124 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:42:23,361 | INFO | gender_networks.knn | L36c: candidatos 12.7 s, vizinhos 13.1 s; k=10: 73 linhas com empate (maior bloco 16), 0 linhas recalculadas
+2026-11-11 14:42:23,574 | INFO | gender_networks.knn | Rede do vocabulário: 151643 linhas (26 tokens especiais excluídos)
+2026-11-11 14:44:03,697 | INFO | gender_networks.knn | vocab: bloco 34/344 (97.5 s)
+2026-11-11 14:45:46,523 | INFO | gender_networks.knn | vocab: bloco 68/344 (200.4 s)
+2026-11-11 14:47:26,363 | INFO | gender_networks.knn | vocab: bloco 102/344 (300.2 s)
+2026-11-11 14:49:02,475 | INFO | gender_networks.knn | vocab: bloco 136/344 (396.3 s)
+2026-11-11 14:50:39,930 | INFO | gender_networks.knn | vocab: bloco 170/344 (493.8 s)
+2026-11-11 14:52:18,067 | INFO | gender_networks.knn | vocab: bloco 204/344 (591.9 s)
+2026-11-11 14:53:54,232 | INFO | gender_networks.knn | vocab: bloco 238/344 (688.1 s)
+2026-11-11 14:55:26,823 | INFO | gender_networks.knn | vocab: bloco 272/344 (780.7 s)
+2026-11-11 14:56:34,658 | INFO | gender_networks.knn | vocab: bloco 306/344 (848.5 s)
+2026-11-11 14:57:42,780 | INFO | gender_networks.knn | vocab: bloco 340/344 (916.6 s)
+2026-11-11 14:57:49,013 | INFO | gender_networks.knn | vocab: bloco 344/344 (922.9 s)
+2026-11-11 14:58:05,070 | INFO | gender_networks.knn | Rede do vocabulário em 941.7 s
+2026-11-11 14:58:06,803 | INFO | gender_networks.cli | Etapa knn concluída em 2815.9 s

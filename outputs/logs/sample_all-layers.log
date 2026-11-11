@@ -1,0 +1,13 @@
+2026-11-11 14:05:00,732 | INFO | gender_networks.cli | Etapa sample (execução all-layers)
+2026-11-11 14:05:07,967 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/agent-harnesses "HTTP/1.1 200 OK"
+2026-11-11 14:05:08,134 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-4B-Base/tree/906bfd4b4dc7f14ee4320094d8b41684abff8539/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-11-11 14:05:08,291 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-4B-Base/tree/906bfd4b4dc7f14ee4320094d8b41684abff8539?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-11-11 14:05:08,824 | INFO | httpx | HTTP Request: GET https://huggingface.co/api/models/Qwen/Qwen3-4B-Base "HTTP/1.1 200 OK"
+2026-11-11 14:05:09,180 | INFO | gender_networks.sampling | Lidos 17066 parágrafos de data/corpus/paragraphs.jsonl
+2026-11-11 14:05:21,651 | INFO | gender_networks.sampling | Corpus tokenizado: 17066 parágrafos, 2657592 tokens em 12.5 s
+2026-11-11 14:05:22,119 | INFO | gender_networks.sampling | Núcleo: 80 parágrafos, 10020 vértices (25 tipos acima de f_max, 1915 ocorrências cortadas)
+2026-11-11 14:05:22,795 | WARNING | gender_networks.sampling | target planta descartada: só 1 tema(s) com ≥ 10 ocorrências
+2026-11-11 14:05:25,755 | INFO | gender_networks.sampling | Multitema: 571 elegíveis, 150 sorteados, 0 já saturados, 2832 ocorrências
+2026-11-11 14:05:31,824 | INFO | gender_networks.sampling | Amostra: 13606 vértices, 2864 tipos, 3230 sequências, 324356 tokens a processar; estratos {'control': 277, 'core': 10020, 'multitheme': 2832, 'target': 477}
+2026-11-11 14:05:34,088 | INFO | gender_networks.sampling | Amostra gravada em outputs/experiment/all-layers/sample
+2026-11-11 14:05:34,218 | INFO | gender_networks.cli | Etapa sample concluída em 33.5 s
