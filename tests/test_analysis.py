@@ -7,7 +7,13 @@ import torch
 from safetensors.torch import save_file
 
 from gender_networks import analysis, knn, metrics
-from gender_networks.artifacts import OCCURRENCE_COLUMNS, VOCAB_COLUMNS, RunPaths, write_csv
+from gender_networks.artifacts import (
+    OCCURRENCE_COLUMNS,
+    SENSE_ANNOTATION_COLUMNS,
+    VOCAB_COLUMNS,
+    RunPaths,
+    write_csv,
+)
 from gender_networks.settings import (
     AnalysisSettings,
     CorpusSettings,
@@ -78,6 +84,7 @@ def write_fake_run(root: Path, settings: Settings) -> tuple[RunPaths, pd.DataFra
             theme="a" if i % 2 else "b",
             pageid=100 + i % 6,
             paragraph_id=f"{100 + i % 6}-{i % 3}",
+            char_start=i,
             sentence_id=f"{100 + i % 6}-{i % 3}-s{i % 2}",
             sequence_id=i // 8,
             pos_in_sequence=i % 8 + 1,
@@ -90,6 +97,7 @@ def write_fake_run(root: Path, settings: Settings) -> tuple[RunPaths, pd.DataFra
             is_function_word=token == 6,
             f_sample=f,
             band_sample=band,
+            word="alvo" if token == 3 else f"t{token}",
             target_word="alvo" if token == 3 else "",
             sense_theme=("a" if i % 2 else "b") if token == 3 else "",
         )
@@ -125,11 +133,41 @@ def write_fake_run(root: Path, settings: Settings) -> tuple[RunPaths, pd.DataFra
     return paths, pd.DataFrame(rows)
 
 
+def write_annotations(paths: RunPaths, occurrences: pd.DataFrame) -> None:
+    """Senses of the target occurrences: two senses, and the left context decides the first 8."""
+
+    target = occurrences[occurrences["target_word"] == "alvo"]
+    rows = [
+        {
+            "paragraph_id": row.paragraph_id,
+            "char_start": row.char_start,
+            "target_word": "alvo",
+            "sense": "s1" if j % 2 else "s2",
+            "left_determinable": "true" if j < 8 else "false",
+            "annotator": "teste",
+        }
+        for j, row in enumerate(target.itertuples())
+    ]
+    rows.append(
+        {
+            "paragraph_id": "outra-amostra",
+            "char_start": 0,
+            "target_word": "alvo",
+            "sense": "s1",
+            "left_determinable": "true",
+            "annotator": "teste",
+        }
+    )
+    paths.sense_annotations.parent.mkdir(parents=True)
+    write_csv(paths.sense_annotations, rows, SENSE_ANNOTATION_COLUMNS)
+
+
 @pytest.fixture(scope="module")
 def analyzed(tmp_path_factory: pytest.TempPathFactory):
     root = tmp_path_factory.mktemp("analysis")
     settings = tiny_settings()
     paths, occurrences = write_fake_run(root, settings)
+    write_annotations(paths, occurrences)
     knn.run(settings, paths)
     metrics.run(settings, paths)
     analysis.run(settings, paths)
@@ -216,6 +254,47 @@ def test_p4_types_groups_and_vocab(analyzed) -> None:
     assert "script_class" in set(summary["label"])
     neighbors = read(paths, "vocab_target_neighbors.csv")
     assert list(neighbors["word"]) == ["alvo"]
+
+
+def test_p4_senses_uses_the_shared_annotations(analyzed) -> None:
+    settings, paths, occurrences = analyzed
+    senses = read(paths, "p4_senses.csv")
+
+    contextual = [r for r in settings.networks.representations if r != "lex"]
+    assert set(senses["rep"]) == set(contextual)  # the lexical vector is one per type
+    n = senses.groupby("subset")["n"].unique()
+    assert list(n["all"]) == [int((occurrences["target_word"] == "alvo").sum())]
+    assert list(n["left"]) == [8]
+    assert set(senses["word"]) == {"alvo"} and set(senses["n_senses"]) == {2}
+
+
+def test_sense_labels_merge_the_template_and_reject_clashes(analyzed, tmp_path) -> None:
+    _, shared_paths, _ = analyzed
+    occurrences = analysis.load_occurrences(shared_paths)
+    paths = RunPaths(tmp_path, tmp_path, tmp_path, tmp_path / "run", tmp_path)
+    paths.sense_annotations.parent.mkdir(parents=True)
+    paths.sense_annotations.write_bytes(shared_paths.sense_annotations.read_bytes())
+    target = occurrences.index[occurrences["target_word"] == "alvo"]
+    paths.sample_dir.mkdir(parents=True)
+    template = "occurrence_id,target_word,sense\n{},alvo,{}\n"
+
+    paths.senses.write_text(template.format(target[0], "s2"), encoding="utf-8")
+    labels = analysis.read_sense_labels(paths, occurrences)
+    assert len(labels) == len(target) and labels["occurrence_id"].is_unique
+    assert int(labels["left_determinable"].sum()) == 8
+
+    paths.senses.write_text(template.format(target[0], "s1"), encoding="utf-8")
+    with pytest.raises(ValueError, match="dois sentidos"):
+        analysis.read_sense_labels(paths, occurrences)
+
+    paths.senses.unlink()
+    no_target = occurrences.copy()
+    no_target.loc[target[0], "target_word"] = ""  # drawn in another stratum
+    assert len(analysis.read_sense_labels(paths, no_target)) == len(target) - 1
+    wrong = occurrences.copy()
+    wrong.loc[target[0], "word"] = "outra"
+    with pytest.raises(ValueError, match="outra palavra"):
+        analysis.read_sense_labels(paths, wrong)
 
 
 def test_rerun_is_skipped_until_an_input_changes(analyzed, caplog) -> None:

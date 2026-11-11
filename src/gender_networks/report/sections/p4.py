@@ -22,6 +22,13 @@ P4_MEASURES = [
     ("nmi_community_theme_mean", "NMI comunidade × tema"),
 ]
 
+# p4_senses subsets shown in the table, with their column headings.
+SENSE_SUBSETS = {"all": "todas", "left": "esq."}
+SENSE_NOTE = (
+    " Sentido: o mesmo contraste pelo sentido anotado (Seção~\\ref{sec:dados-sentidos}), em "
+    "todas as ocorrências anotadas e só nas que o contexto à esquerda já decide."
+)
+
 
 def figure_p4_separacao(ctx: Context) -> Any:
     groups = ctx.analysis("p4_groups")
@@ -44,12 +51,17 @@ def table_p4_alvos(ctx: Context) -> Tabular:
     if not deepest:
         raise Skip("p4_types.csv não tem camadas contextuais")
     last = deepest[-1]
-    senses = None
+    senses: dict[str, Any] = {}
     sense_path = ctx.paths.analysis_table("p4_senses")
     if sense_path.exists():
         frame = ctx.table(sense_path)
         if not frame.empty:
-            senses = frame[frame["rep"] == last].set_index("word")["sense_gap"]
+            frame = frame[frame["rep"] == last]
+            subsets = frame["subset"] if "subset" in frame else "all"
+            for subset in SENSE_SUBSETS:
+                part = frame[subsets == subset]
+                if not part.empty:
+                    senses[subset] = part.set_index("word")["sense_gap"]
     rows: list[Any] = []
     words = [
         w
@@ -82,31 +94,34 @@ def table_p4_alvos(ctx: Context) -> Tabular:
         ]
         cells += pair("self_similarity") + pair("theme_gap", 3)
         cells += pair("effective_communities", 1) + pair("nmi_community_theme")
-        if senses is not None:
-            cells.append(num(senses.get(word, np.nan), 3))
+        cells += [num(gaps.get(word, np.nan), 3) for gaps in senses.values()]
         rows.append(cells)
     lx, lc = r"\texttt{lex}", r"\texttt{" + tex_text(last) + "}"
     names = [
         "Autossimilaridade",
-        "Intra $-$ entre temas",
-        "Comunidades efetivas",
+        r"\begin{tabular}[b]{@{}c@{}}Intra $-$\\entre temas\end{tabular}",
+        r"\begin{tabular}[b]{@{}c@{}}Comunidades\\efetivas\end{tabular}",
         r"NMI com.$\times$tema",
     ]
     top = ["", "", "", ""] + [rf"\multicolumn{{2}}{{c}}{{{n}}}" for n in names]
     sub = ["Palavra", "Papel", "$f_t$", "Temas"] + [lx, lc] * len(names)
-    if senses is not None:
-        top.append("Sentido")
-        sub.append(lc)
+    if senses:
+        top.append(rf"\multicolumn{{{len(senses)}}}{{c}}{{Sentido ({lc})}}")
+        sub += [SENSE_SUBSETS[subset] for subset in senses]
+    rules = [(5 + 2 * i, 6 + 2 * i) for i in range(len(names))]
+    if senses:
+        first = 5 + 2 * len(names)
+        rules.append((first, first + len(senses) - 1))
     header = [
         header_row(top),
-        "".join(rf"\cmidrule(lr){{{5 + 2 * i}-{6 + 2 * i}}}" for i in range(len(names))),
+        "".join(rf"\cmidrule(lr){{{a}-{b}}}" for a, b in rules),
         header_row(sub),
     ]
     notes = [
         "Autossimilaridade: cosseno médio entre as ocorrências do tipo; intra $-$ entre temas: "
         "cosseno médio entre ocorrências do mesmo tema menos o entre temas diferentes; "
         "comunidades efetivas: $\\exp H$ das comunidades ocupadas pelas ocorrências."
-        + (" Sentido: o mesmo contraste pelo sentido anotado à mão." if senses is not None else "")
+        + (SENSE_NOTE if senses else "")
     ]
-    spec = "llrr" + "rr" * len(names) + ("r" if senses is not None else "")
+    spec = "llrr" + "rr" * len(names) + "r" * len(senses)
     return Tabular(spec, header, rows, size=r"\footnotesize", notes=notes, colsep="3.5pt")

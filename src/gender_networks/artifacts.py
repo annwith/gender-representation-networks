@@ -15,6 +15,9 @@ Shared across runs (the corpus is downloaded once):
   ``origin`` is ``root`` or the extra category whose walk reached the article.
 - ``corpus_dir/manifest.csv``: versioned list of articles (pageid, revid, title, theme,
   source_category, origin, kept, dropped_reason) so the same revisions can be downloaded again.
+- ``data/annotations/senses.csv``: sense labels of target occurrences, keyed by
+  ``(paragraph_id, char_start)`` so they hold for every run that draws the same paragraph
+  (see :data:`SENSE_ANNOTATION_COLUMNS`).
 
 Per run (``runs_dir/<name>/``):
 
@@ -23,7 +26,8 @@ Per run (``runs_dir/<name>/``):
 - ``sample/sequences.jsonl``: ``sequence_id, paragraph_id, input_ids`` (prefix token at
   position 0, truncated after the last selected position).
 - ``sample/vocab_types.csv``: one row per vocabulary id (see :data:`VOCAB_COLUMNS`).
-- ``sample/senses.csv``: template for manual sense annotation of target occurrences.
+- ``sample/senses.csv``: template of target occurrences to annotate; the labels themselves go
+  to ``data/annotations/senses.csv``.
 - ``reps/<rep>.safetensors``: tensor ``x`` with shape ``[N, d]`` (bf16) for each contextual
   representation (``L01``, ``L18``, ``L36``, ``L36n``) in ``occurrence_id`` order.
 - ``reps/embeddings.safetensors``: tensor ``weight`` with the input embedding rows of every
@@ -115,6 +119,17 @@ VOCAB_COLUMNS = [
     "f_corpus",
     "f_sample",
     "in_corpus",
+]
+
+SENSE_ANNOTATION_COLUMNS = [
+    "paragraph_id",
+    "char_start",  # with paragraph_id, the occurrence (as in occurrences.csv)
+    "target_word",
+    "title",  # title and local_context only help the reader
+    "local_context",
+    "sense",  # blank = not annotated
+    "left_determinable",  # true when the paragraph up to the word decides the sense
+    "annotator",
 ]
 
 POS_BUCKETS = [(1, 4, "1-4"), (5, 16, "5-16"), (17, 64, "17-64"), (65, None, "65+")]
@@ -227,6 +242,12 @@ class RunPaths:
     @property
     def corpus_manifest(self) -> Path:
         return self.corpus_dir / MANIFEST
+
+    @property
+    def sense_annotations(self) -> Path:
+        """Versioned sense labels of target occurrences, shared by every run."""
+
+        return self.root / "data" / "annotations" / "senses.csv"
 
     def manifest(self, directory: str) -> Path:
         """``_manifest.json`` of a per-run stage directory (sample, reps, knn, metrics, ...)."""

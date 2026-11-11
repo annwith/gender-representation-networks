@@ -17,7 +17,10 @@ Outputs in ``paths.analysis_dir`` (all CSV unless noted), read by the ``report``
 - ``p2_transitions.csv`` and ``p2_transitions_groups.csv``: change per transition.
 - ``p2_layers.csv``: layer-by-layer ``J(l-1, l)`` and ``D(l)`` from ``all_layers.npy``.
 - ``p3_agreement.csv``, ``p3_layer_nmi.csv``: community agreement with context labels.
-- ``p4_types.csv``, ``p4_groups.csv``, ``p4_senses.csv``: same-type occurrence separation.
+- ``p4_types.csv``, ``p4_groups.csv``, ``p4_senses.csv``: same-type occurrence separation;
+  ``p4_senses`` uses the annotated senses (:func:`read_sense_labels`), over every annotated
+  occurrence (``subset = all``) and over those whose sense the left context decides
+  (``subset = left``).
 - ``robustness_neighbors.csv``, ``robustness_graphs.csv``, ``core_metrics.csv``.
 - ``vocab_summary.csv``, ``vocab_communities.csv``, ``vocab_target_neighbors.csv``; their token
   lists (``examples``, ``neighbors``) are JSON lists of token texts.
@@ -623,7 +626,7 @@ def p4_tables(
     groups = type_groups(occurrences, settings)
     selected = sorted({int(t) for t in token_ids[f_sample >= P4_MIN_F]})
     members = {t: np.flatnonzero(token_ids == t) for t in selected}
-    senses = _read_senses(paths)
+    senses = read_sense_labels(paths, occurrences)
     rows: list[dict[str, Any]] = []
     sense_rows: list[dict[str, Any]] = []
     for rep in reps:
@@ -670,23 +673,25 @@ def p4_tables(
                     entry["nmi_community_theme"] = nmi(comm, labels)
             rows.append(entry)
         if senses is not None and vectors is not None:
-            for word, part in senses.groupby("target_word"):
-                index = part["occurrence_id"].to_numpy(dtype=np.int64)
-                labels = part["sense"].to_numpy()
-                if index.size < 2 or np.unique(labels).size < 2:
-                    continue
-                mean_all, within, between = _pair_means(vectors[index], labels)
-                sense_rows.append(
-                    {
-                        "rep": rep,
-                        "word": word,
-                        "n": int(index.size),
-                        "n_senses": int(np.unique(labels).size),
-                        "within_sense": within,
-                        "between_sense": between,
-                        "sense_gap": within - between,
-                    }
-                )
+            for subset, chosen in SENSE_SUBSETS.items():
+                for word, part in chosen(senses).groupby("target_word"):
+                    index = part["occurrence_id"].to_numpy(dtype=np.int64)
+                    labels = part["sense"].to_numpy()
+                    if index.size < 2 or np.unique(labels).size < 2:
+                        continue
+                    mean_all, within, between = _pair_means(vectors[index], labels)
+                    sense_rows.append(
+                        {
+                            "rep": rep,
+                            "subset": subset,
+                            "word": word,
+                            "n": int(index.size),
+                            "n_senses": int(np.unique(labels).size),
+                            "within_sense": within,
+                            "between_sense": between,
+                            "sense_gap": within - between,
+                        }
+                    )
         del vectors
     types = pd.DataFrame(rows)
     measures = ["self_similarity", "theme_gap", "effective_communities", "nmi_community_theme"]
@@ -700,12 +705,78 @@ def p4_tables(
     return types, grouped, pd.DataFrame(sense_rows)
 
 
-def _read_senses(paths: RunPaths) -> pd.DataFrame | None:
-    if not paths.senses.exists():
+# Occurrences each p4_senses subset keeps: every annotated one, or those whose sense the
+# paragraph up to the word already decides (the model is causal and sees nothing after it).
+SENSE_SUBSETS = {
+    "all": lambda frame: frame,
+    "left": lambda frame: frame[frame["left_determinable"]],
+}
+
+
+def read_sense_labels(paths: RunPaths, occurrences: pd.DataFrame) -> pd.DataFrame | None:
+    """Annotated senses of this run's occurrences, or None when there are none.
+
+    Columns ``occurrence_id, target_word, sense, left_determinable, annotator``. The labels come
+    from the versioned ``paths.sense_annotations``, matched to the sample by ``(paragraph_id,
+    char_start)``; rows of other samples, and of words that are no target in this run, are
+    ignored, and a row whose position holds another word is an error. Senses filled in this run's
+    ``sample/senses.csv`` template also count (``left_determinable`` false, as it is unknown).
+    """
+
+    key = occurrences["paragraph_id"].astype(str) + "#" + occurrences["char_start"].astype(str)
+    position = pd.Series(np.arange(len(occurrences)), index=key.to_numpy())
+    frames = []
+    if paths.sense_annotations.exists():
+        shared = pd.read_csv(paths.sense_annotations, dtype=str, keep_default_na=False)
+        shared = shared[shared["sense"].str.strip() != ""]
+        found = shared["paragraph_id"] + "#" + shared["char_start"]
+        shared = shared[found.isin(position.index)]
+        ids = position.loc[found[found.isin(position.index)]].to_numpy(dtype=np.int64)
+        left = parse_bool(shared["left_determinable"].replace("", "false"))
+        annotated = shared["target_word"].to_numpy()
+        surface = occurrences["word"].astype(str).str.lower().to_numpy()[ids]
+        wrong = annotated != surface
+        if wrong.any():
+            raise ValueError(
+                f"{paths.sense_annotations}: {int(wrong.sum())} anotações caem em ocorrências de "
+                "outra palavra (o corpus mudou?)"
+            )
+        # the same position may be drawn in another stratum of a run where the word is no target
+        keep = occurrences["target_word"].to_numpy()[ids] == annotated
+        shared, ids, left = shared[keep], ids[keep], left[keep]
+        frames.append(
+            pd.DataFrame(
+                {
+                    "occurrence_id": ids,
+                    "target_word": shared["target_word"].to_numpy(),
+                    "sense": shared["sense"].str.strip().to_numpy(),
+                    "left_determinable": left,
+                    "annotator": shared["annotator"].to_numpy(),
+                }
+            )
+        )
+    if paths.senses.exists():
+        local = pd.read_csv(paths.senses, dtype=str, keep_default_na=False)
+        local = local[local["sense"].str.strip() != ""]
+        frames.append(
+            pd.DataFrame(
+                {
+                    "occurrence_id": local["occurrence_id"].astype(np.int64).to_numpy(),
+                    "target_word": local["target_word"].to_numpy(),
+                    "sense": local["sense"].str.strip().to_numpy(),
+                    "left_determinable": False,
+                    "annotator": "",
+                }
+            )
+        )
+    senses = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if senses.empty:
         return None
-    senses = pd.read_csv(paths.senses, keep_default_na=False)
-    senses = senses[senses["sense"].astype(str).str.strip() != ""]
-    return senses if not senses.empty else None
+    labels = senses.groupby("occurrence_id")["sense"].nunique()
+    if (labels > 1).any():
+        clash = labels[labels > 1].index.tolist()[:10]
+        raise ValueError(f"Ocorrências com dois sentidos diferentes anotados: {clash}")
+    return senses.drop_duplicates("occurrence_id").sort_values("occurrence_id")
 
 
 # --------------------------------------------------------------------------------------------
@@ -790,8 +861,26 @@ def vocab_tables(
 # stage
 
 
+def _sense_summary(senses: pd.DataFrame | None) -> dict[str, Any]:
+    """Annotated occurrences used by p4_senses, and who annotated them (for the manifest)."""
+
+    if senses is None:
+        return {"n": 0}
+    return {
+        "n": len(senses),
+        "left_determinable": int(senses["left_determinable"].sum()),
+        "annotators": {str(k): int(v) for k, v in senses["annotator"].value_counts().items()},
+    }
+
+
 def analysis_inputs(paths: RunPaths) -> list[Path]:
-    return [paths.manifest("sample"), paths.manifest("knn"), paths.manifest("metrics")]
+    return [
+        paths.manifest("sample"),
+        paths.manifest("knn"),
+        paths.manifest("metrics"),
+        paths.sense_annotations,
+        paths.senses,
+    ]
 
 
 def _write(frame: pd.DataFrame, path: Path) -> None:
@@ -886,6 +975,7 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
         "representations": reps,
         "k": k,
         "p4_types": int(types["token_id"].nunique()) if not types.empty else 0,
+        "p4_sense_labels": _sense_summary(read_sense_labels(paths, occurrences)),
         "p3_rows": len(agreement_table),
         "layer_rows": layer_rows,
         "timings": timings,

@@ -21,9 +21,9 @@ escrito junto com a implementação, fica em `report/relatorio/`.
 > Estado: todas as etapas estão implementadas e testadas, e a execução principal
 > (`configs/experiment.yaml`) já rodou de ponta a ponta. As figuras, tabelas e números do
 > relatório técnico vêm dela. A entrega parcial da disciplina está pronta (veja
-> [Entrega parcial](#entrega-parcial)). Faltam a anotação manual dos sentidos
-> (`sample/senses.csv`) e parte da escrita do relatório técnico (resultados, robustez e
-> discussão).
+> [Entrega parcial](#entrega-parcial)). Os sentidos das palavras-alvo foram anotados pelo
+> Claude Opus 5.5 (veja [data/annotations/](data/annotations/README.md)). Falta parte da escrita
+> do relatório técnico (resultados, robustez e discussão).
 
 ## Estrutura
 
@@ -53,6 +53,7 @@ data/
   corpus/manifest.csv  pageid e revid de cada artigo do corpus
   graphml/             redes da entrega parcial em GraphML (ver data/graphml/README.md)
   crawl/               rede da coleta em GraphML
+  annotations/         sentidos anotados das palavras-alvo (ver data/annotations/README.md)
 docs/redes/            página interativa das redes da entrega parcial (GitHub Pages)
 docs/coleta/           página da coleta, do corpus e da amostra (GitHub Pages)
 report/
@@ -138,7 +139,8 @@ principal e grava suas redes e seu relatório gerado separados.
 |---|---|
 | `data/raw/wiki/` | cache das respostas cruas da API da Wikipédia (ignorado pelo git) |
 | `data/corpus/` | `articles.jsonl`, `paragraphs.jsonl` (ignorados) e `manifest.csv` (versionado) |
-| `outputs/experiment/<nome>/sample/` | `occurrences.csv`, `sequences.jsonl`, `vocab_types.csv`, `senses.csv` |
+| `outputs/experiment/<nome>/sample/` | `occurrences.csv`, `sequences.jsonl`, `vocab_types.csv`, `senses.csv` (modelo do que anotar) |
+| `data/annotations/senses.csv` | sentidos anotados (versionado), lidos pela etapa `analyze` em toda execução que sorteie o mesmo parágrafo |
 | `outputs/experiment/<nome>/reps/` | representações em bf16 (safetensors), memmap das 36 camadas, diagnósticos |
 | `outputs/experiment/<nome>/knn/` | candidatos e conjuntos de vizinhos (`.npz`) |
 | `outputs/experiment/<nome>/metrics/`, `analysis/`, `lens/` | tabelas CSV/JSON |
