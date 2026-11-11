@@ -12,10 +12,19 @@ atualizada a cada etapa.
     um artigo de Computação pode falar do Banco Central. Uma separação por tema pode, então,
     subestimar a separação por sentido (ocorrências com o ``sentido errado'' para o tema) ou
     refletir diferenças de tema que não são de sentido (vocabulário vizinho). Mitigações: a
-    anotação manual de cerca de 20 ocorrências por alvo (\cod{senses.csv}), analisada ao lado do
-    tema, e a comparação com os controles, que têm a mesma alocação por tema mas um sentido
-    estável: o que os controles mostrarem de ``separação por tema'' é o efeito do tema sem
-    mudança de sentido.
+    anotação do sentido de 20 ocorrências por alvo (Seção~\ref{sec:dados-sentidos}), analisada
+    ao lado do tema, e a comparação com os controles, que têm a mesma alocação por tema mas um
+    sentido estável: o que os controles mostrarem de ``separação por tema'' é o efeito do tema
+    sem mudança de sentido.
+
+    \item[A anotação de sentidos é de um modelo de linguagem.] Os sentidos foram anotados pelo
+    Claude Opus~5.5, sem revisão humana nem segundo anotador, então não há medida de
+    concordância. O próprio anotador definiu os rótulos. Com uma granularidade diferente (por
+    exemplo, juntar \emph{estado} físico e \emph{estado} de emergência), a separação muda.
+    Sentidos com uma só ocorrência entram só nos pares entre sentidos. A marca de contexto à
+    esquerda foi dada já sabendo o sentido. O arquivo e o protocolo estão versionados
+    (\cod{data/annotations/}). Uma revisão humana de parte das linhas permitiria medir a
+    concordância sem mudar o código.
 
     \item[O Qwen3 fragmenta o português.] Só 28\% dos vértices do estudo de viabilidade são
     palavras inteiras (Seção~\ref{sec:viabilidade}). Com isso, boa parte dos vértices é

@@ -197,8 +197,10 @@ Para cada tipo com $f_t\ge10$ (alvos, controles, multitema e palavras funcionais
     \item \textbf{autossimilaridade}: cosseno médio entre as próprias ocorrências do tipo
     (1 na camada lexical)~\cite{ethayarajh2019};
     \item \textbf{diferença entre o cosseno médio dentro do mesmo tema e entre temas};
-    \item \textbf{separação pelo sentido anotado} (cerca de 20 ocorrências por alvo, em
-    \cod{senses.csv}), que controla o fato de o tema ser só um indicador aproximado do sentido;
+    \item \textbf{separação pelo sentido anotado} (20 ocorrências por alvo, anotadas pelo Claude
+    Opus~5.5; Seção~\ref{sec:dados-sentidos}), em todas as ocorrências anotadas e só nas que o
+    contexto à esquerda decide. Ela controla o fato de o tema ser só um indicador aproximado do
+    sentido;
     \item \textbf{redes ego} de 2 ou 3 alvos, com layout fixo entre camadas, para inspeção
     qualitativa.
 \end{itemize}
