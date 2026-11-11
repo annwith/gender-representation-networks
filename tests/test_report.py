@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import shutil
@@ -23,7 +24,7 @@ from gender_networks.artifacts import (
     write_manifest,
 )
 from gender_networks.report import latex
-from gender_networks.settings import Settings
+from gender_networks.settings import ReportSettings, Settings
 
 REPO = Path(__file__).resolve().parents[1]
 RELATORIO = REPO / "report" / "relatorio"
@@ -441,3 +442,21 @@ def test_compile_report_tolerates_latin1_output(tmp_path: Path, monkeypatch) -> 
     (tmp_path / "relatorio.tex").write_text("", encoding="utf-8")
     monkeypatch.setattr(report.shutil, "which", lambda name: str(fake))
     assert report.compile_report(tmp_path)["compiled"] is True
+
+
+def test_report_representations_narrow_tables_and_panels(reported, tmp_path: Path) -> None:
+    # Runs last: it rewrites the report manifest of the shared run.
+    settings, paths = reported
+    narrowed = dataclasses.replace(
+        settings,
+        report=ReportSettings(representations=["lex", "L36"]),
+        paths=dataclasses.replace(settings.paths, report_dir=str(tmp_path / "relatorio")),
+    )
+    narrowed_paths = dataclasses.replace(paths, report_dir=tmp_path / "relatorio")
+    report.run(narrowed, narrowed_paths, force=True)
+
+    manifest = read_json(narrowed_paths.manifest("report"))
+    assert manifest["failed"] == []
+    for name in ("metricas_globais", "p1_resumo", "robustez", "knn_empates", "p3_concordancia"):
+        text = (narrowed_paths.tables_dir / f"{name}.tex").read_text(encoding="utf-8")
+        assert "L36" in text and "L18" not in text and "L01" not in text, name

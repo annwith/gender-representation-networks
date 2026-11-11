@@ -38,7 +38,7 @@ def table_p3_concordancia(ctx: Context) -> Tabular:
     core = _p3_core(ctx)
     from gender_networks.analysis import CORE_LABELS
 
-    reps = [r for r in ctx.settings.networks.representations if (core["rep"] == r).any()]
+    reps = [r for r in ctx.shown_reps if (core["rep"] == r).any()]
     rows: list[Any] = []
     for i, name in enumerate(ordered(list(core["label"]), CORE_LABELS)):
         if i:

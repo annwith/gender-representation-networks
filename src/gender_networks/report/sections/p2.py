@@ -71,7 +71,11 @@ def figure_p2_transicoes(ctx: Context) -> Any:
 
 def table_p2_transicoes(ctx: Context) -> Tabular:
     overall, groups = _transitions(ctx)
-    transitions = list(dict.fromkeys(overall["transition"]))
+    transitions = [
+        t
+        for t in dict.fromkeys(overall["transition"])
+        if all(ctx.shows(name) for name in t.split("->"))
+    ]
     if not transitions:
         raise Skip("p2_transitions.csv está vazio")
     categories = ordered(

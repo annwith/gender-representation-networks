@@ -33,7 +33,7 @@ def table_extracao_diagnosticos(ctx: Context) -> Tabular:
     rows = []
     factor = None
     n_top = 0
-    for rep in sort_names(reps):
+    for rep in sort_names(r for r in reps if ctx.shows(r)):
         info = reps[rep]
         q = info.get("norm_quantiles") or {}
         top = info.get("top_dims") or []
@@ -95,7 +95,7 @@ def figure_extracao_camadas(ctx: Context) -> Any:
     if curve.empty:
         raise Skip("diagnostics.json não tem a curva por camada (capture_all_layers desligado?)")
     lexical = (diagnostics.get("representations") or {}).get(LEX)
-    marked = {name: layer for name, layer in ctx.settings.model.layers.items()}
+    marked = {name: layer for name, layer in ctx.settings.model.layers.items() if ctx.shows(name)}
     return plots.extraction_layers_figure(curve, lexical, marked)
 
 
@@ -103,7 +103,8 @@ def figure_extracao_dimensoes(ctx: Context) -> Any:
     reps = _diagnostics(ctx).get("representations") or {}
     if not reps:
         raise Skip("diagnostics.json não tem representações")
-    return plots.extraction_dimensions_figure({rep: reps[rep] for rep in sort_names(reps)})
+    shown = sort_names(r for r in reps if ctx.shows(r))
+    return plots.extraction_dimensions_figure({rep: reps[rep] for rep in shown})
 
 
 def _yes(flag: Any) -> str:

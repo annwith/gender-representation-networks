@@ -176,6 +176,16 @@ class LensSettings:
 
 
 @dataclass(frozen=True)
+class ReportSettings:
+    """What the report shows; changes nothing that the computing stages produce."""
+
+    # Representations the tables and the per-representation panels show (a subset of
+    # networks.representations); null = all of them. A run over every block lists a few here,
+    # and the figures that put the representations on an axis still use every block.
+    representations: list[str] | None = None
+
+
+@dataclass(frozen=True)
 class Settings:
     """Complete configuration of one experiment run."""
 
@@ -187,6 +197,7 @@ class Settings:
     networks: NetworkSettings = field(default_factory=NetworkSettings)
     analysis: AnalysisSettings = field(default_factory=AnalysisSettings)
     lens: LensSettings = field(default_factory=LensSettings)
+    report: ReportSettings = field(default_factory=ReportSettings)
     source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -254,6 +265,16 @@ def _validate(settings: Settings) -> None:
     }
     if unknown_layers:
         raise ValueError(f"Unknown representations: {', '.join(sorted(unknown_layers))}")
+    shown = settings.report.representations
+    if shown is not None:
+        if not shown:
+            raise ValueError("report.representations must be null or list at least one name")
+        outside = [name for name in shown if name not in networks.representations]
+        if outside:
+            raise ValueError(
+                "report.representations must be a subset of networks.representations: "
+                + ", ".join(outside)
+            )
 
 
 def _known_representation(name: str, layers: dict[str, int]) -> bool:
@@ -312,6 +333,7 @@ def load_settings(path: str | Path) -> Settings:
         ),
         analysis=_build(AnalysisSettings, _section(raw, "analysis"), where="analysis"),
         lens=_build(LensSettings, _section(raw, "lens"), where="lens"),
+        report=_build(ReportSettings, _section(raw, "report"), where="report"),
         source=str(config_path),
     )
     _validate(settings)

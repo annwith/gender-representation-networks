@@ -40,7 +40,9 @@ def table_robustez(ctx: Context) -> Tabular:
     if index_path.exists():
         index = ctx.table(index_path)
     reps = [
-        r for r in ctx.contextual_reps if _graph_row(metrics, r, k, "union", "rand") is not None
+        r
+        for r in ctx.shown_contextual_reps
+        if _graph_row(metrics, r, k, "union", "rand") is not None
     ]
     if not reps:
         raise Skip(f"graph_metrics.csv não tem as redes contextuais com k = {k}")
@@ -174,7 +176,7 @@ def table_robustez(ctx: Context) -> Tabular:
 def figure_robustez_empates(ctx: Context) -> Any:
     occ = ctx.occurrences
     lex = ctx.nbr(LEX)
-    reps = [r for r in ctx.contextual_reps if ctx.paths.nbr(r, ctx.k).exists()]
+    reps = [r for r in ctx.shown_contextual_reps if ctx.paths.nbr(r, ctx.k).exists()]
     if not reps:
         raise Skip("faltam os vizinhos das camadas contextuais")
     measures = None

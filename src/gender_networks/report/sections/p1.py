@@ -92,7 +92,7 @@ def figure_p1_dominancia(ctx: Context) -> Any:
 
 def table_p1_resumo(ctx: Context) -> Tabular:
     frame = ctx.vertex_measures()
-    reps = [r for r in ctx.contextual_reps if f"J_lex_{r}" in frame and f"D_{r}" in frame]
+    reps = [r for r in ctx.shown_contextual_reps if f"J_lex_{r}" in frame and f"D_{r}" in frame]
     if not reps:
         raise Skip("vertex_measures.csv não tem as medidas por camada")
     groups: list[tuple[str, pd.Series]] = [(bold("Todos"), pd.Series(True, index=frame.index))]
@@ -155,7 +155,7 @@ def table_p1_resumo(ctx: Context) -> Tabular:
 def table_p1_hubs(ctx: Context) -> Tabular:
     hubs = ctx.analysis("p1_hubs")
     occ = ctx.occurrences
-    reps = [r for r in ctx.settings.networks.representations if (hubs["rep"] == r).any()]
+    reps = [r for r in ctx.shown_reps if (hubs["rep"] == r).any()]
     top = int(pd.to_numeric(hubs["rank"]).max())
     blocks = [reps[i : i + 2] for i in range(0, len(reps), 2)]
     rows: list[Any] = []

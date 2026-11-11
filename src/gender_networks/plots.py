@@ -16,6 +16,10 @@ color-free channel, so the figures stay readable in black and white:
   its own marker or hatch;
 - text (values, labels, legends) is always in the ink colors, never in a series color.
 
+A run over every block (``configs/all-layers.yaml``) has too many representations for one tick
+each: past :data:`LAYER_AXIS_MAX_BLOCKS` blocks, the figures that put the representations on the
+x axis switch to the layer number (``lex`` at 0) and draw lines with sparse markers.
+
 The builders take tidy data already read by :mod:`gender_networks.report` and return a
 :class:`~matplotlib.figure.Figure`; :func:`save` writes it without a creation date, so reruns give
 byte-identical files. Every label is in Portuguese and numbers use the decimal comma.
@@ -290,6 +294,47 @@ def plot_series(ax: Axes, x: Sequence[float], y: Sequence[float], style: Style, 
         clip_on=False,
         **kw,
     )
+
+
+# Up to this many blocks, a figure gives each representation its own tick; with more (a run
+# over every block) the x axis is the layer number, lex at 0.
+LAYER_AXIS_MAX_BLOCKS = 6
+LAYER_AXIS_LABEL = "camada ℓ (0 = lex)"
+
+
+def layer_axis(reps: Sequence[str]) -> bool:
+    """True when ``reps`` has too many blocks for one tick per representation."""
+
+    blocks = [r for r in reps if (rep := try_parse(r)) is not None and not rep.is_lexical]
+    return len(blocks) > LAYER_AXIS_MAX_BLOCKS
+
+
+def rep_positions(reps: Sequence[str]) -> np.ndarray:
+    """x of each representation: its index, or its layer number on a layer axis."""
+
+    if not layer_axis(reps):
+        return np.arange(len(reps))
+    return np.array([0.0 if is_lexical(r) else float(parse(r).block or 0) for r in reps])
+
+
+def rep_ticks(ax: Axes, reps: Sequence[str], xs: np.ndarray) -> None:
+    if layer_axis(reps):
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))
+    else:
+        ax.set_xticks(xs, [label(REP_LABELS, r) for r in reps])
+
+
+def plot_rep_series(
+    ax: Axes, reps: Sequence[str], xs: np.ndarray, y: Sequence[float], style: Style
+) -> None:
+    """One series over the representations: markers on every point, or a line on a layer axis."""
+
+    if not layer_axis(reps):
+        plot_series(ax, xs, y, style)
+        return
+    values = np.asarray(y, dtype=float)
+    ax.plot(xs, values, color=style.color, linewidth=1.2, label=style.label)
+    sparse_markers(ax, np.asarray(xs, dtype=float), values, style, n=7)
 
 
 def legend_top(fig: Figure, handles: Sequence[Any], ncol: int | None = None) -> None:
@@ -790,6 +835,8 @@ def jaccard_bands_figure(
     """Box plots of ``J(lex, l)`` per frequency band and layer, with the noise floor."""
 
     reps = list(values)
+    if layer_axis(reps):
+        return _jaccard_layers_figure(values, floors, bands)
     styles = rep_styles(reps)
     fig, axes = figure(1, 1, height=2.6)
     ax = axes[0, 0]
@@ -855,6 +902,50 @@ def jaccard_bands_figure(
     return fig
 
 
+def _jaccard_layers_figure(
+    values: Mapping[str, Mapping[str, np.ndarray]],
+    floors: Mapping[str, float],
+    bands: Sequence[str],
+) -> Figure:
+    """``J(lex, l)`` over every block: median and quartile ribbon per band, dotted noise floor."""
+
+    reps = list(values)
+    xs = rep_positions(reps)
+    styles = ordinal_styles(list(bands), {b: f"f_t {band_display(b)}" for b in bands})
+    fig, axes = figure(1, 1, height=2.6)
+    ax = axes[0, 0]
+    prepare(ax, "J(lex, ℓ) por faixa de frequência na amostra", grid="both")
+    for band in bands:
+        style = styles[band]
+        quartiles = []
+        for rep in reps:
+            data = np.asarray(values[rep].get(band, []), dtype=float)
+            data = data[np.isfinite(data)]
+            quartiles.append(
+                np.percentile(data, [25, 50, 75]) if data.size else np.full(3, np.nan)
+            )
+        q = np.array(quartiles).reshape(len(reps), 3)
+        ax.fill_between(xs, q[:, 0], q[:, 2], color=style.color, alpha=0.18, linewidth=0)
+        ax.plot(xs, q[:, 1], color=style.color, linewidth=1.3)
+        sparse_markers(ax, np.asarray(xs, dtype=float), q[:, 1], style, n=7)
+        floor = floors.get(band)
+        if floor is not None and np.isfinite(floor):
+            ax.axhline(floor, color=style.color, linewidth=0.9, linestyle=":")
+    ax.set_xlim(float(np.min(xs)) - 0.5, float(np.max(xs)) + 0.5)
+    ax.set_ylim(-0.02, 1.02)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))
+    ax.set_xlabel(LAYER_AXIS_LABEL)
+    ax.set_ylabel("J")
+    decimal_axis(ax, "y")
+    handles = [line_handle(styles[b]) for b in bands]
+    handles.append(Patch(facecolor=MUTED, alpha=0.3, linewidth=0, label="quartis (25%–75%)"))
+    handles.append(
+        Line2D([], [], color=INK, linewidth=0.9, linestyle=":", label="piso de ruído da faixa")
+    )
+    legend_top(fig, handles, ncol=min(len(handles), 4))
+    return fig
+
+
 def dominance_figure(
     data: pd.DataFrame, reps: Sequence[str], panels: Sequence[tuple[str, str, Sequence[str]]]
 ) -> Figure:
@@ -865,7 +956,7 @@ def dominance_figure(
     """
 
     fig, axes = figure(2, len(panels), height=4.4, sharex=True, sharey="row")
-    xs = np.arange(len(reps))
+    xs = rep_positions(reps)
     for col, (grouping, title, groups) in enumerate(panels):
         if grouping == "band_sample":
             styles = ordinal_styles(groups, {g: f"f_t {band_display(g)}" for g in groups})
@@ -882,10 +973,12 @@ def dominance_figure(
                     & (data["group"] == group)
                 ].set_index("rep")
                 y = [float(part["value"].get(rep, np.nan)) for rep in reps]
-                plot_series(ax, xs, y, styles[group])
+                plot_rep_series(ax, reps, xs, y, styles[group])
             ax.set_ylim(-0.02, 1.05)
             decimal_axis(ax, "y")
-            ax.set_xticks(xs, [label(REP_LABELS, r) for r in reps])
+            rep_ticks(ax, reps, xs)
+            if row == 1 and layer_axis(reps):
+                ax.set_xlabel(LAYER_AXIS_LABEL)
             if row == 0:
                 ax.legend(loc="upper right", fontsize=7, handlelength=1.4)
     return fig
@@ -900,6 +993,9 @@ def transition_share_figure(
     transition. The transitions are ordered, so the segments use the ordinal ramp plus hatches.
     """
 
+    destinations = [t.split("->")[-1] for t in transitions]
+    if layer_axis(destinations):
+        return _transition_share_layers_figure(blocks, transitions)
     rows = sum(len(frame) for _, frame in blocks)
     fig, axes = figure(1, len(blocks), height=0.75 + 0.2 * max(len(f) for _, f in blocks))
     styles = ordinal_styles(list(transitions), {t: t.replace("->", " → ") for t in transitions})
@@ -930,6 +1026,42 @@ def transition_share_figure(
         ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
     del rows
     legend_top(fig, [patch_handle(styles[t]) for t in transitions])
+    return fig
+
+
+def _transition_share_layers_figure(
+    blocks: Sequence[tuple[str, pd.DataFrame]], transitions: Sequence[str]
+) -> Figure:
+    """Share of vertices whose largest change falls in each transition ``l-1 → l``, as lines
+    over the destination layer ``l`` (one per group, ``todos`` in black)."""
+
+    xs = rep_positions([t.split("->")[-1] for t in transitions])
+    fig, axes = figure(1, len(blocks), height=2.8, sharey=True)
+    for ax, (title, frame) in zip(axes[0], blocks, strict=True):
+        prepare(ax, title, grid="both")
+        groups = [g for g in frame.index if g != "todos"]
+        styles = {"todos": Style(INK, "", label="todos"), **categorical_styles(groups)}
+        for group in frame.index:
+            y = np.array(
+                [float(frame.at[group, t]) if t in frame else np.nan for t in transitions]
+            )
+            style = styles[group]
+            ax.plot(
+                xs,
+                y,
+                color=style.color,
+                linewidth=1.8 if group == "todos" else 1.1,
+                label=style.label,
+                zorder=4 if group == "todos" else 3,
+            )
+            if style.marker:
+                sparse_markers(ax, np.asarray(xs, dtype=float), y, style, n=7)
+        ax.set_xlabel("transição ℓ−1 → ℓ (eixo: ℓ; ℓ = 1 parte de lex)")
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))
+        ax.yaxis.set_major_formatter(percent_formatter())
+        handles = [Line2D([], [], color=INK, linewidth=1.8, label="todos")]
+        handles += [line_handle(styles[g]) for g in groups]
+        ax.legend(handles=handles, loc="upper right", fontsize=6.5, handlelength=1.4)
     return fig
 
 
@@ -987,7 +1119,7 @@ def nmi_layers_figure(
     ncols = 3 if n <= 9 else 4
     nrows = math.ceil(n / ncols)
     fig, axes = figure(nrows, ncols, height=1.35 * nrows + 0.3, sharex=True)
-    xs = np.arange(len(reps))
+    xs = rep_positions(reps)
     values = pd.to_numeric(frame["nmi_minus_baseline"], errors="coerce")
     top = max(float(values.max()) if values.notna().any() else 0.1, 0.05) * 1.15
     bottom = min(float(values.min()) if values.notna().any() else 0.0, 0.0)
@@ -1000,24 +1132,30 @@ def nmi_layers_figure(
             float(pd.to_numeric(part["nmi_minus_baseline"], errors="coerce").get(r, np.nan))
             for r in reps
         ]
-        plot_series(ax, xs, y, style)
+        plot_rep_series(ax, reps, xs, y, style)
         ax.axhline(0, color=AXIS, linewidth=0.6)
         ax.set_ylim(bottom - 0.02, top)
         decimal_axis(ax, "y")
-        ax.set_xticks(xs, [label(REP_LABELS, r) for r in reps])
+        rep_ticks(ax, reps, xs)
     ax = flat[len(labels)]
     prepare(ax, "estabilidade do Leiden", grid="y")
     y = [stability.get(r, np.nan) for r in reps]
-    ax.bar(xs, y, width=0.6, color=MUTED, linewidth=0)
-    for x, v in zip(xs, y, strict=True):
-        if np.isfinite(v):
-            ax.text(x, v + 0.02, fmt_dec(v, 2), ha="center", va="bottom", fontsize=7)
-    ax.set_ylim(0, 1.15)
+    if layer_axis(reps):
+        plot_rep_series(ax, reps, xs, y, Style(MUTED, "o"))
+        ax.set_ylim(0, 1.05)
+    else:
+        ax.bar(xs, y, width=0.6, color=MUTED, linewidth=0)
+        for x, v in zip(xs, y, strict=True):
+            if np.isfinite(v):
+                ax.text(x, v + 0.02, fmt_dec(v, 2), ha="center", va="bottom", fontsize=7)
+        ax.set_ylim(0, 1.15)
     decimal_axis(ax, "y")
-    ax.set_xticks(xs, [label(REP_LABELS, r) for r in reps])
+    rep_ticks(ax, reps, xs)
     for extra in flat[len(labels) + 1 :]:
         extra.set_visible(False)
     fig.supylabel("NMI − linha de base", fontsize=8, color=INK_SECONDARY)
+    if layer_axis(reps):
+        fig.supxlabel(LAYER_AXIS_LABEL, fontsize=8, color=INK_SECONDARY)
     return fig
 
 
@@ -1033,7 +1171,7 @@ def separation_figure(
     nrows = math.ceil(len(measures) / ncols)
     fig, axes = figure(nrows, ncols, height=2.0 * nrows + 0.35, sharex=True)
     styles = categorical_styles(list(keys), GROUP_LABELS)
-    xs = np.arange(len(reps))
+    xs = rep_positions(reps)
     for ax, (column, title) in zip(axes.flat, measures, strict=False):
         prepare(ax, title, grid="both")
         for key in keys:
@@ -1041,12 +1179,14 @@ def separation_figure(
             if column not in part:
                 continue
             y = [float(pd.to_numeric(part[column], errors="coerce").get(r, np.nan)) for r in reps]
-            plot_series(ax, xs, y, styles[key])
+            plot_rep_series(ax, reps, xs, y, styles[key])
         decimal_axis(ax, "y")
-        ax.set_xticks(xs, [label(REP_LABELS, r) for r in reps])
+        rep_ticks(ax, reps, xs)
     for ax in list(axes.flat)[len(measures) :]:
         ax.set_visible(False)
     legend_top(fig, [line_handle(styles[k]) for k in keys], ncol=len(keys))
+    if layer_axis(reps):
+        fig.supxlabel(LAYER_AXIS_LABEL, fontsize=8, color=INK_SECONDARY)
     return fig
 
 

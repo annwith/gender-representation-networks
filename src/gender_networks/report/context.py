@@ -20,7 +20,7 @@ from gender_networks.artifacts import (
 from gender_networks.labels import (
     ordered,
 )
-from gender_networks.representations import is_lexical
+from gender_networks.representations import is_lexical, try_parse
 from gender_networks.sampling import band_names
 from gender_networks.settings import Settings
 
@@ -173,6 +173,28 @@ class Context:
     @property
     def contextual_reps(self) -> list[str]:
         return [rep for rep in self.settings.networks.representations if not is_lexical(rep)]
+
+    def shows(self, name: str) -> bool:
+        """Whether tables and per-representation panels include ``name``.
+
+        Every name when ``report.representations`` is unset; otherwise the listed ones and their
+        variants (``L36n`` and ``L36c`` follow ``L36``). Names that are not representations
+        (``vocab``) always show. Figures that put the representations on an axis ignore this.
+        """
+
+        shown = self.settings.report.representations
+        rep = try_parse(name)
+        if shown is None or rep is None:
+            return True
+        return rep.raw().source.name in shown
+
+    @property
+    def shown_reps(self) -> list[str]:
+        return [rep for rep in self.settings.networks.representations if self.shows(rep)]
+
+    @property
+    def shown_contextual_reps(self) -> list[str]:
+        return [rep for rep in self.contextual_reps if self.shows(rep)]
 
     def nbr(self, rep: str, k: int | None = None) -> dict[str, np.ndarray]:
         return self.npz(self.paths.nbr(rep, self.k if k is None else k))

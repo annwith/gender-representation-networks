@@ -49,6 +49,28 @@ def test_quota_themes_must_exist(tmp_path: Path) -> None:
         load_settings(path)
 
 
+def test_all_layers_config_lists_every_block_and_shows_four() -> None:
+    settings = load_settings(Path("configs/all-layers.yaml"))
+    blocks = [f"L{b:02d}" for b in range(1, 37)]
+
+    assert settings.model.layers == {name: b for b, name in enumerate(blocks, start=1)}
+    assert settings.networks.representations == ["lex", *blocks]
+    assert settings.report.representations == ["lex", "L01", "L18", "L36"]
+    assert load_settings(Path("configs/experiment.yaml")).report.representations is None
+
+
+def test_shown_representations_must_be_networks(tmp_path: Path) -> None:
+    path = tmp_path / "bad.yaml"
+    path.write_text(
+        "name: x\ncorpus:\n  themes: {a: [Categoria:A]}\n"
+        "networks:\n  representations: [lex, L01]\nreport:\n  representations: [lex, L18]\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="L18"):
+        load_settings(path)
+
+
 def test_run_paths_and_position_buckets(tmp_path: Path) -> None:
     paths = RunPaths.from_settings(load_settings(Path("configs/mini.yaml")), tmp_path)
 

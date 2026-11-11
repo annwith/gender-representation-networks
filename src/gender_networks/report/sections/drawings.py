@@ -65,8 +65,9 @@ def _ego_panels(
 
 
 def _drawing_reps(ctx: Context) -> list[str]:
-    drawable = [r for r in ctx.main_reps if parse(r).is_lexical or parse(r).is_block]
-    reps = drawable or ctx.main_reps
+    shown = [r for r in ctx.main_reps if ctx.shows(r)]
+    drawable = [r for r in shown if parse(r).is_lexical or parse(r).is_block]
+    reps = drawable or shown or ctx.main_reps
     return reps[:4]
 
 

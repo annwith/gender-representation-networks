@@ -27,7 +27,7 @@ def table_knn_empates(ctx: Context) -> Tabular:
         raise Skip("o manifesto do knn não tem representações")
     n = finite_or_none(manifest.get("n_occurrences"))
     rows: list[Any] = []
-    for rep in sort_names(reps):
+    for rep in sort_names(r for r in reps if ctx.shows(r)):
         info = reps[rep]
         per_k = info.get("k") or {}
         first = True

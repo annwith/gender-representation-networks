@@ -71,7 +71,7 @@ def table_metricas_globais(ctx: Context) -> Tabular:
     metrics = ctx.metrics_table("graph_metrics")
     k = ctx.k
     columns: list[tuple[str, pd.DataFrame, pd.DataFrame, str]] = []
-    for rep in ctx.settings.networks.representations:
+    for rep in ctx.shown_reps:
         main = metrics[(metrics["rep"] == rep) & (metrics["k"] == k) & (metrics["tie"] == "rand")]
         if not is_lexical(rep):
             main = main[main["seed"] == 0]
@@ -130,7 +130,7 @@ def figure_graus_camadas(ctx: Context) -> Any:
     hist = ctx.metrics_table("degree_hist")
     hist = hist[hist["kind"] == "in"]
     series = {}
-    for rep in ctx.settings.networks.representations:
+    for rep in ctx.shown_reps:
         part = hist[hist["graph_id"] == graph_id(rep, ctx.k, "directed", "rand", 0)]
         if not part.empty:
             series[rep] = (
