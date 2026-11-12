@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from test_analysis import tiny_settings, write_fake_run
+from test_analysis import tiny_settings, write_annotations, write_fake_run
 
 from gender_networks import analysis, knn, metrics, report
 from gender_networks.artifacts import (
@@ -263,6 +263,7 @@ def reported(tmp_path_factory: pytest.TempPathFactory):
     root = tmp_path_factory.mktemp("report")
     settings = tiny_settings()
     paths, occurrences = write_fake_run(root, settings)
+    write_annotations(paths, occurrences)
     write_corpus(paths, settings)
     write_sample_manifest(paths, settings, occurrences)
     write_extract_outputs(paths, settings, len(occurrences))

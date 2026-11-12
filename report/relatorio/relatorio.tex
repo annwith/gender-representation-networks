@@ -77,6 +77,31 @@
 \setlength{\LTpost}{4pt}
 
 % ------------------------------------------------------------
+% Figuras e tabelas não atravessam o início de uma seção
+% ------------------------------------------------------------
+% O mesmo efeito de \usepackage[section,above]{placeins}, sem depender do pacote:
+% antes de cada \section, o que ainda flutua é posto na página seguinte (ou, se não couber,
+% descarregado com \clearpage); depois do título, as figuras da nova seção não sobem para o
+% alto da página, acima dele.
+\makeatletter
+\newcommand{\@flutuantespendentes}{%
+    \let\@elt\relax\edef\@tempa{\@botlist\@deferlist\@dbldeferlist}}
+\newcommand{\barreiraflutuantes}{\par
+    \begingroup\@flutuantespendentes
+    \ifx\@tempa\@empty\endgroup\else
+        \endgroup\newpage
+        \begingroup\@flutuantespendentes
+        \ifx\@tempa\@empty\endgroup\else\endgroup\clearpage\fi
+    \fi}
+\makeatother
+\NewCommandCopy{\secaosembarreira}{\section}
+\RenewDocumentCommand{\section}{s o m}{%
+    \barreiraflutuantes
+    \IfBooleanTF{#1}{\secaosembarreira*{#3}}%
+        {\IfValueTF{#2}{\secaosembarreira[#2]{#3}}{\secaosembarreira{#3}}}%
+    \suppressfloats[t]}
+
+% ------------------------------------------------------------
 % Números gerados pela etapa `report`
 % ------------------------------------------------------------
 % tabelas/numeros.tex define (com \newcommand) as macros dos números citados no texto.

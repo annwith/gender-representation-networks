@@ -47,15 +47,22 @@ Tokens formados só por espaço (por exemplo, o espaço antes de um número) \te
 vértices}: eles não têm conteúdo próprio e apareceriam em quase toda sequência. Eles
 continuam no texto como contexto.
 
-A categoria é calculada pelos \emph{offsets} de caracteres de cada token no parágrafo (o trecho
-exato do texto que o token cobre), e \emph{não} pela decodificação isolada do id. Num BPE em
-bytes, um caractere acentuado pode ser dividido em dois tokens, e cada pedaço, decodificado
-sozinho, vira o caractere de substituição U+FFFD; os \emph{offsets} continuam apontando para o
-caractere certo. Cada ocorrência também guarda a palavra a que pertence, a posição do token na
-palavra, o número de tokens da palavra e se a palavra é funcional (artigos, preposições,
-pronomes, conjunções, verbos auxiliares; lista em \cod{tokens.py}). As interpretações
-semânticas se concentram em palavras inteiras de conteúdo, porque um fragmento como
-\tok{co} não tem significado próprio.
+A categoria é atribuída comparando os tokens com o texto original. O tokenizer informa as
+posições dos caracteres cobertos por cada token, chamadas \emph{offsets}. O programa encontra
+as palavras no texto e verifica quais tokens pertencem a cada uma. Por exemplo, se ``banco''
+for dividido em \tok{ban} e \tok{co}, o primeiro é marcado como início de palavra e o segundo
+como continuação. Se uma palavra tiver apenas um token, ele é marcado como palavra inteira.
+
+Usamos as posições no texto porque decodificar um token sozinho nem sempre revela o caractere
+que ele representa. Um caractere acentuado pode ser dividido entre tokens; nesse caso, cada
+pedaço isolado pode aparecer como o caractere de substituição U+FFFD. As posições ainda
+permitem consultar o caractere no texto original.
+
+Para cada ocorrência, também registramos a palavra, a posição do token nela, quantos tokens
+ela tem e se consta na lista de palavras funcionais em \cod{tokens.py}, que inclui artigos,
+preposições, pronomes, conjunções e verbos auxiliares. As interpretações semânticas se
+concentram em palavras inteiras de conteúdo, porque um fragmento como \tok{co} não tem
+significado próprio.
 
 A Tabela~\ref{tab:exemplos-tokens} mostra três casos reais do tokenizer do Qwen3-4B-Base (revisão
 fixada), que guiaram as regras acima.
@@ -96,21 +103,32 @@ as ocorrências comparadas partem do mesmo vetor lexical.
 
 \subsection{Faixas de frequência e de posição}\label{sec:faixas}
 
-Os tipos são agrupados em faixas de frequência na amostra, $f_t\in\{1\text{--}2\}$,
-$\{3\text{--}9\}$, $\{10\text{--}49\}$ e $\{50\}$, onde $50=f_{\max}$ é o limite de ocorrências
-por tipo. Como a amostra é em parte desenhada (as palavras-alvo são levadas até perto de 50
-ocorrências, as multitema até 20), a frequência na amostra reflete o desenho. Por isso cada
-ocorrência também tem a faixa de frequência \emph{no corpus}, com as mesmas fronteiras e o topo
-aberto ($50+$), que não depende da amostragem.
+Frequência é o número de vezes que um tipo de token aparece. Contamos essa frequência de duas
+formas: no \textbf{corpus}, considerando todos os textos, e na \textbf{amostra}, considerando
+apenas as ocorrências escolhidas para o experimento. Por exemplo, um tipo pode aparecer 800
+vezes no corpus e ter 50 ocorrências escolhidas para a amostra.
 
-Tipos com $f_t\le 2$ continuam como vértices (para que o conjunto de vértices seja o mesmo em
-todas as redes), mas ficam fora das análises por tipo: para $f_t=1$ a dominância lexical é nula
-por definição, e para $f_t=2$ ela não passa de $1/k$. Dominância e análises intra-tipo usam
-$f_t\ge3$, e a P4 usa $f_t\ge10$.
+Para comparar tipos com frequências semelhantes, agrupamos as contagens da amostra nas faixas
+1--2, 3--9, 10--49 e 50 ocorrências. O valor 50 é o limite de ocorrências por tipo na amostra.
+Essa contagem também reflete a seleção: as palavras-alvo são levadas até perto de 50 ocorrências
+e as multitema até 20. Por isso registramos também a faixa de frequência no corpus, que não
+depende dessa seleção. Ela usa os mesmos limites, mas a última faixa é aberta: 50 ou mais.
 
-A posição na sequência também é agrupada, em $\{1\text{--}4\}$, $\{5\text{--}16\}$,
-$\{17\text{--}64\}$ e $\{65+\}$. As primeiras posições têm estados atípicos (pouco contexto,
-normas grandes), e a faixa de posição serve de controle nas análises.
+Tipos com apenas uma ou duas ocorrências na amostra continuam como vértices, para manter o
+mesmo conjunto de vértices em todas as redes. Eles ficam, porém, fora das análises por tipo,
+que comparam ocorrências de um mesmo tipo: com uma ocorrência, a dominância lexical é nula por
+definição; com duas, ela não passa de $1/k$. As análises de dominância e intra-tipo exigem pelo
+menos três ocorrências na amostra; a P4 exige pelo menos dez.
+
+A posição é contada em \textbf{tokens} na sequência, não em caracteres ou palavras. A posição
+0 é ocupada pelo prefixo especial; os tokens do parágrafo começam na posição 1. Cada token tem
+sua própria posição: se ``banco'' for dividido em \tok{ban} na posição 5 e \tok{co} na posição
+6, as duas ocorrências terão posições diferentes. Agrupamos essas posições nas faixas 1--4,
+5--16, 17--64 e 65 ou mais.
+
+Essas faixas servem de controle nas análises. Perto do começo, o modelo dispõe de pouco texto
+anterior como contexto, e os estados das primeiras posições têm características atípicas, como
+normas grandes. Considerar a posição ajuda a interpretar diferenças entre as ocorrências.
 
 \subsection{Os três tipos de rede e a notação}\label{sec:tipos-rede}
 
@@ -131,7 +149,16 @@ um conjunto $T_i$ de \emph{tipos} distintos, e não de ocorrências.
 
 \subsection{Rede do vocabulário e tabela de tipos da amostra}\label{sec:vocab-vs-amostra}
 
-Há dois objetos lexicais ``de tipos'' no experimento, e eles não são a mesma coisa:
+O projeto compara representações de tokens antes e depois de eles receberem contexto. Nas
+redes por ocorrência, cada vértice representa uma ocorrência escolhida na amostra. Na rede
+lexical, ela usa o vetor de entrada do seu tipo; nas redes contextuais, usa o vetor produzido
+para aquela ocorrência em uma camada do modelo. Por exemplo, na rede da camada 18, os vizinhos
+de uma ocorrência são outras ocorrências da amostra, comparadas pelos seus vetores na própria
+camada 18. A rede da camada 36 usa os mesmos vértices, mas seus vizinhos podem ser diferentes.
+
+Além dessas redes por ocorrência, o experimento usa dois objetos calculados entre \textbf{tipos}
+de token. Um tipo identifica um token do vocabulário; uma ocorrência é uma aparição desse tipo
+em um texto. Os dois objetos têm finalidades diferentes:
 \begin{itemize}
     \item a \textbf{rede lexical de tipos}, com k-NN entre os $\approx$151,6 mil tipos do
     vocabulário. É uma rede reportada nos resultados, com as métricas da disciplina;
@@ -141,8 +168,22 @@ Há dois objetos lexicais ``de tipos'' no experimento, e eles não são a mesma 
     (Seção~\ref{sec:red-derivacao}) e (ii) dar o $T_i$ lexical da variante (c).
 \end{itemize}
 
-Seria tentador obter a tabela da amostra recortando a rede do vocabulário (o subgrafo induzido
-pelos tipos da amostra). Isso não funciona, e a Figura~\ref{fig:recorte} mostra por quê com um
+Para construir a tabela auxiliar, procuramos diretamente os vizinhos entre os tipos da amostra.
+Essa busca é útil na rede lexical por ocorrência porque todas as ocorrências de um mesmo tipo
+usam o mesmo vetor de entrada. Assim, basta calcular uma vez a similaridade entre dois tipos e
+reutilizá-la para suas ocorrências. A matriz completa dessas similaridades, junto com as
+contagens de ocorrências, permite derivar exatamente a rede lexical por ocorrência; a lista de
+tipos vizinhos também fornece o $T_i$ lexical da variante (c).
+
+Nas redes contextuais, essa simplificação não basta: ocorrências do mesmo tipo podem ter vetores
+diferentes, pois aparecem em contextos diferentes. Por isso, os vizinhos são calculados entre os
+vetores das próprias ocorrências, separadamente para cada camada ou representação contextual.
+
+A busca entre os tipos da amostra não é obtida simplesmente removendo da rede do vocabulário os
+tipos que estão fora da amostra. O exemplo a seguir mostra a diferença entre remover esses tipos
+e procurar novamente os vizinhos entre os que restam.
+
+A Figura~\ref{fig:recorte} mostra isso com um
 vocabulário de cinco tipos, $A$--$E$, dos quais só $A$, $B$ e $C$ aparecem na amostra, e $k=1$.
 As similaridades são
 $s(A,D)=0{,}9$, $s(B,E)=0{,}8$, $s(C,D)=0{,}7$, $s(A,B)=0{,}6$, $s(A,E)=0{,}4$,
@@ -154,11 +195,10 @@ $s(A,C)=0{,}3$, $s(B,C)=0{,}2$ e as demais menores.
     \item O k-NN calculado só entre $A$, $B$ e $C$ dá $A\to B$, $B\to A$ e $C\to A$, arestas que
     \emph{não existem} na rede do vocabulário.
 \end{itemize}
-Logo, nenhuma das duas é subgrafo da outra: o recorte perde os vizinhos que estão fora da
-amostra, e não tem as arestas que o k-NN restrito à amostra tem. Para as redes por ocorrência,
-a vizinhança certa é a restrita à amostra, porque nas camadas contextuais só existem vetores
-para tokens que aparecem no texto; para comparar a camada lexical com as contextuais de forma
-justa, o $T_i$ lexical também precisa ser calculado entre os tipos da amostra.
+O recorte perde as ligações com tipos fora da amostra e não cria as novas ligações encontradas
+quando a busca é refeita. Por isso, calculamos as similaridades diretamente entre os tipos da
+amostra. Na comparação com as redes contextuais, a rede lexical por ocorrência usa as mesmas
+ocorrências da amostra como vértices.
 
 Isso corrige uma frase da Seção~7.3 da proposta, escrita quando a rede de tipos ainda seria
 construída só com os tipos da amostra: \emph{na etapa lexical, $T_i$ coincide com o k-NN entre

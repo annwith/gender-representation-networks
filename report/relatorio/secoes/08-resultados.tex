@@ -145,8 +145,10 @@ etapas \etapa{metrics} (comunidades) e \etapa{analyze} (concordância).}
 funcionais: número efetivo de comunidades $e^{H_t}$, NMI comunidade$\times$tema dentro do tipo,
 autossimilaridade, diferença entre cosseno intra e entre temas, por camada. Comparação entre
 alvos e controles (mesma alocação de temas e cotas) para testar a H4. Separação pelo sentido
-anotado (Seção~\ref{sec:dados-sentidos}), em todas as ocorrências anotadas e só nas que o
-contexto à esquerda decide. Redes ego de 2 ou 3 alvos com layout fixo entre camadas. Dados:
+anotado (Seção~\ref{sec:dados-sentidos}), pelo cosseno e pelo NMI comunidade$\times$sentido,
+em todas as ocorrências anotadas e só nas que o
+contexto à esquerda decide. Redes ego de 2 ou 3 alvos com layout fixo entre camadas e, para
+cada alvo, os sentidos anotados repartidos pelas comunidades. Dados:
 etapas \etapa{metrics} e \etapa{analyze}; anotação de sentidos pelo Claude Opus~5.5.}
 
 \figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p4_separacao}
@@ -154,13 +156,23 @@ etapas \etapa{metrics} e \etapa{analyze}; anotação de sentidos pelo Claude Opu
     temas e NMI comunidade$\times$tema, para alvos, controles e multitema.}
     {fig:p4-separacao}
 \tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p4_alvos}
-    {P4: medidas de separação por palavra-alvo e de controle no bloco 36, com o valor na camada
-    lexical como referência.}
+    {P4: medidas de separação por palavra-alvo e de controle no bloco 36, pelo tema e pelo
+    sentido anotado.}
     {tab:p4-alvos}
 \figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p4_ego_banco}
     {Rede ego de \tok{\esp banco} nas redes \cod{lex}, \cod{L01}, \cod{L18} e \cod{L36}, com
     as ocorrências coloridas pelo tema de sentido e posições fixas entre camadas.}
     {fig:p4-ego-banco}
+\figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p4_comunidades_sentidos}
+    {Sentidos anotados das palavras-alvo e as comunidades em que caem, nas camadas em que
+    alguma palavra se divide em mais de uma comunidade (complementa a
+    Figura~\ref{fig:p4-ego-banco}). Cada barra é um sentido, com comprimento igual ao número de
+    ocorrências; os segmentos são as comunidades dessas ocorrências, numeradas em cada painel
+    pela ordem do número de ocorrências da palavra (a mesma cor em painéis diferentes não indica
+    a mesma comunidade). Um sentido que a rede separa é uma barra de uma só cor que as outras
+    barras da palavra não usam. Acima de cada painel: a camada, o NMI comunidade$\times$sentido
+    e, entre parênteses, o NMI esperado ao acaso.}
+    {fig:p4-comunidades-sentidos}
 
 % ------------------------------------------------------------
 \subsection{Extensão: vizinhos no vocabulário}\label{sec:res-lente}

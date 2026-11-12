@@ -159,6 +159,7 @@ ANALYSIS_TABLES = (
     "p4_types",
     "p4_groups",
     "p4_senses",
+    "p4_sense_communities",
     "robustness_neighbors",
     "robustness_graphs",
     "core_metrics",

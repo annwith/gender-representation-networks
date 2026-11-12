@@ -20,7 +20,11 @@ Outputs in ``paths.analysis_dir`` (all CSV unless noted), read by the ``report``
 - ``p4_types.csv``, ``p4_groups.csv``, ``p4_senses.csv``: same-type occurrence separation;
   ``p4_senses`` uses the annotated senses (:func:`read_sense_labels`), over every annotated
   occurrence (``subset = all``) and over those whose sense the left context decides
-  (``subset = left``).
+  (``subset = left``). Each NMI between the type's communities and a label (theme or sense)
+  comes with its ``_baseline``, the mean NMI after permuting the label (as in P3).
+- ``p4_sense_communities.csv``: one row per annotated occurrence and representation with a
+  community partition: ``rep, word, occurrence_id, sense, left_determinable, community``, the
+  contingency tables behind the NMI community x sense of ``p4_senses``.
 - ``robustness_neighbors.csv``, ``robustness_graphs.csv``, ``core_metrics.csv``.
 - ``vocab_summary.csv``, ``vocab_communities.csv``, ``vocab_target_neighbors.csv``; their token
   lists (``examples``, ``neighbors``) are JSON lists of token texts.
@@ -61,7 +65,7 @@ from gender_networks.neighborhood import (
     type_composition_jaccard,
     type_set_jaccard,
 )
-from gender_networks.partitions import agreement, nmi
+from gender_networks.partitions import agreement, nmi, nmi_baseline
 from gender_networks.representations import (
     LEX,
     is_lexical,
@@ -101,6 +105,7 @@ REQUIRED_OUTPUTS = [
     "p3_agreement",
     "p4_types",
     "p4_groups",
+    "p4_sense_communities",
     "robustness_neighbors",
 ]
 
@@ -615,11 +620,14 @@ def _effective_communities(membership: np.ndarray) -> tuple[int, float]:
 
 def p4_tables(
     paths: RunPaths, settings: Settings, occurrences: pd.DataFrame, reps: Sequence[str]
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """``p4_types``, ``p4_groups``, ``p4_senses`` and ``p4_sense_communities``."""
+
     from gender_networks.knn import load_embeddings, load_representation, normalize_rows
 
     k = settings.networks.k_main
     res = float(settings.analysis.resolution)
+    permutations, seed = settings.analysis.permutations, settings.sample.seed
     token_ids = occurrences["token_id"].to_numpy(dtype=np.int64)
     themes = occurrences["theme"].to_numpy()
     f_sample = occurrences["f_sample"].to_numpy(dtype=np.int64)
@@ -629,9 +637,25 @@ def p4_tables(
     senses = read_sense_labels(paths, occurrences)
     rows: list[dict[str, Any]] = []
     sense_rows: list[dict[str, Any]] = []
+    sense_communities: list[pd.DataFrame] = []
     for rep in reps:
         found = community_membership(paths, graph_id(rep, k, "union", "rand", 0), res)
         membership = found[0] if found else None
+        if senses is not None and membership is not None:
+            annotated = senses.sort_values(["target_word", "occurrence_id"])
+            ids = annotated["occurrence_id"].to_numpy(dtype=np.int64)
+            sense_communities.append(
+                pd.DataFrame(
+                    {
+                        "rep": rep,
+                        "word": annotated["target_word"].to_numpy(),
+                        "occurrence_id": ids,
+                        "sense": annotated["sense"].to_numpy(),
+                        "left_determinable": annotated["left_determinable"].to_numpy(),
+                        "community": membership[ids],
+                    }
+                )
+            )
         if is_lexical(rep):
             weight = load_embeddings(paths.embeddings)
             vectors = None
@@ -663,6 +687,7 @@ def p4_tables(
                 "n_communities": math.nan,
                 "effective_communities": math.nan,
                 "nmi_community_theme": math.nan,
+                "nmi_community_theme_baseline": math.nan,
             }
             if membership is not None:
                 comm = membership[index]
@@ -671,6 +696,9 @@ def p4_tables(
                 )
                 if entry["n_themes"] > 1:
                     entry["nmi_community_theme"] = nmi(comm, labels)
+                    entry["nmi_community_theme_baseline"] = nmi_baseline(
+                        comm, labels, permutations, seed
+                    )
             rows.append(entry)
         if senses is not None and vectors is not None:
             for subset, chosen in SENSE_SUBSETS.items():
@@ -680,18 +708,25 @@ def p4_tables(
                     if index.size < 2 or np.unique(labels).size < 2:
                         continue
                     mean_all, within, between = _pair_means(vectors[index], labels)
-                    sense_rows.append(
-                        {
-                            "rep": rep,
-                            "subset": subset,
-                            "word": word,
-                            "n": int(index.size),
-                            "n_senses": int(np.unique(labels).size),
-                            "within_sense": within,
-                            "between_sense": between,
-                            "sense_gap": within - between,
-                        }
-                    )
+                    sense_entry: dict[str, Any] = {
+                        "rep": rep,
+                        "subset": subset,
+                        "word": word,
+                        "n": int(index.size),
+                        "n_senses": int(np.unique(labels).size),
+                        "within_sense": within,
+                        "between_sense": between,
+                        "sense_gap": within - between,
+                        "nmi_community_sense": math.nan,
+                        "nmi_community_sense_baseline": math.nan,
+                    }
+                    if membership is not None:
+                        comm = membership[index]
+                        sense_entry["nmi_community_sense"] = nmi(comm, labels)
+                        sense_entry["nmi_community_sense_baseline"] = nmi_baseline(
+                            comm, labels, permutations, seed
+                        )
+                    sense_rows.append(sense_entry)
         del vectors
     types = pd.DataFrame(rows)
     measures = ["self_similarity", "theme_gap", "effective_communities", "nmi_community_theme"]
@@ -702,7 +737,10 @@ def p4_tables(
     )
     if not grouped.empty:
         grouped.columns = ["_".join(c).strip("_") for c in grouped.columns.to_flat_index()]
-    return types, grouped, pd.DataFrame(sense_rows)
+    communities = (
+        pd.concat(sense_communities, ignore_index=True) if sense_communities else pd.DataFrame()
+    )
+    return types, grouped, pd.DataFrame(sense_rows), communities
 
 
 # Occurrences each p4_senses subset keeps: every annotated one, or those whose sense the
@@ -942,10 +980,11 @@ def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -
     timings["p3_s"] = round(time.perf_counter() - tick, 2)
 
     tick = time.perf_counter()
-    types, groups, senses = p4_tables(paths, settings, occurrences, reps)
+    types, groups, senses, sense_communities = p4_tables(paths, settings, occurrences, reps)
     _write(types, paths.analysis_table("p4_types"))
     _write(groups, paths.analysis_table("p4_groups"))
     _write(senses, paths.analysis_table("p4_senses"))
+    _write(sense_communities, paths.analysis_table("p4_sense_communities"))
     timings["p4_s"] = round(time.perf_counter() - tick, 2)
 
     tick = time.perf_counter()

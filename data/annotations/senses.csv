@@ -1,173 +1,400 @@
 paragraph_id,char_start,target_word,title,local_context,sense,left_determinable,annotator
+7293959-3,288,banco,Nome conservado, volume é gerada a partir de um «banco» de dados que também contém um histórico,banco_de_dados,false,claude-opus-5-5
+7293959-3,493,banco,Nome conservado,igo 53.5). O «banco» de dados pode ser consultado online.,banco_de_dados,true,claude-opus-5-5
+42277-22,95,banco,Inflação,árias (mais frequentemente o «banco» central de uma nação) para control,instituicao_financeira,true,claude-opus-5-5
 234941-24,1,banco,Cheque,O «banco» emissor do cheque não pode questionar,instituicao_financeira,false,claude-opus-5-5
 234941-34,263,banco,Cheque," cheque foi efetivamente levado ao «banco» para desconto, dessa forma, som",instituicao_financeira,true,claude-opus-5-5
 234941-47,40,banco,Cheque, deixar claro que o visto que o «banco» coloca no cheque não se confunde,instituicao_financeira,false,claude-opus-5-5
+294663-5,339,banco,Programa de Incentivo à Redução do Setor Público Estadual na Atividade Bancária,"zo expressivo, estava levando o «banco» para uma liquidação ou para uma",instituicao_financeira,true,claude-opus-5-5
+371235-6,197,banco,Hipoteca, vez que diminui o risco do «banco». Os empréstimos com garant,instituicao_financeira,true,claude-opus-5-5
 612031-1,125,banco,Capital de risco," a aplicação tradicional, em qualquer «banco» tem um risco, mas pela ap",instituicao_financeira,true,claude-opus-5-5
+2233339-7,749,banco,Polêmica sobre empréstimos ocultos no Anglo Irish Bank, fora transferido temporariamente para outro «banco» antes da auditoria de fim de ano,instituicao_financeira,true,claude-opus-5-5
+2233339-16,225,banco,Polêmica sobre empréstimos ocultos no Anglo Irish Bank," chefe da auditoria interna do «banco», Walter Tyrrell, explicou para",instituicao_financeira,true,claude-opus-5-5
+2243914-6,318,banco,Banco islâmico," da aplicação de uma taxa, um «banco» islâmico pode recolher a",instituicao_financeira,true,claude-opus-5-5
+2243914-13,161,banco,Banco islâmico,"(ou não), a critério do «banco», e não pode ser ""garant",instituicao_financeira,true,claude-opus-5-5
+2243914-16,1,banco,Banco islâmico,O «banco» gera um lucro por determinar,instituicao_financeira,false,claude-opus-5-5
 4424157-2,125,banco,Expansão quantitativa," normais de mercado aberto de um «banco» central, que visam regular as tax",instituicao_financeira,true,claude-opus-5-5
 5093900-9,327,banco,Tecnologia financeira, estar necessariamente associadas a um «banco» ou financeira para operar. A,instituicao_financeira,true,claude-opus-5-5
+5891020-19,264,banco,RecargaPay,"ações para as empresas Pipefy e o «banco» Nubank, respetivamente.",instituicao_financeira,true,claude-opus-5-5
+6525079-8,671,banco,Financeirização,"ita depósitos de funcionar como «banco» de investimento, pois o último imp",instituicao_financeira,true,claude-opus-5-5
 7857672-4,826,banco,Economia do bitcoin, de bitcoin não se conectam a um «banco» e também podem cobrar taxas de,instituicao_financeira,true,claude-opus-5-5
+452-9,308,banco,Banco de dados," programas consigam acessar um mesmo «banco» de dados ao mesmo tempo, sem imp",banco_de_dados,true,claude-opus-5-5
 452-18,225,banco,Banco de dados," objeto (tabela, visão, «banco» de dados, função, linguagem proced",banco_de_dados,true,claude-opus-5-5
 452-23,21,banco,Banco de dados,A área de pesquisa de «banco» de dados tem vários periódicos acad,banco_de_dados,false,claude-opus-5-5
+132291-16,12,banco,DBASE,O sistema de «banco» de dados dBase foi um dos prime,banco_de_dados,false,claude-opus-5-5
+440395-8,441,banco,Replicação de dados,"ios que novas tecnologias de «banco» de dados, como o NoSQL e",banco_de_dados,true,claude-opus-5-5
+446884-2,111,banco,Front-end e back-end," -end e o back-end para o «banco» de dados, o usuário e para os",banco_de_dados,true,claude-opus-5-5
+1791669-2,482,banco,Bloco (armazenamento de dados), Sistemas de gerenciamento de «banco» de dados frequentemente usam seus próp,banco_de_dados,true,claude-opus-5-5
 2581062-3,652,banco,NoSQL,"ner (embora tecnicamente um «banco» de dados NewSQL), Symas LM",banco_de_dados,true,claude-opus-5-5
+2581062-6,286,banco,NoSQL," surgimento de um número crescente de «banco» de dados não relacionais, que não",banco_de_dados,true,claude-opus-5-5
+2829863-2,138,banco,Apache Cassandra, e um sistema de gerenciamento de «banco» de dados tabular. Seu modelo,banco_de_dados,true,claude-opus-5-5
 3312700-0,11,banco,BrandZ,BrandZ é um «banco» de dados brand equity que detém dados,banco_de_dados,false,claude-opus-5-5
 3483076-4,255,banco,Mnesia, pelo fato da aplicação e o «banco» de dados executarem todos sobre a mesma,banco_de_dados,true,claude-opus-5-5
+6184773-4,18,banco,RavenDB,RavenDB Cloud é um «banco» de dados gerenciado como serviço em,banco_de_dados,true,claude-opus-5-5
+6303696-2,158,banco,Shadow pages," uma transação deve ser gravado no «banco» imediatamente após o commit,",banco_de_dados,true,claude-opus-5-5
 7387820-0,41,banco,DuckDB, é um sistema de gerenciamento de «banco» de dados relacional (SGBD,banco_de_dados,true,claude-opus-5-5
+7653621-0,1,banco,Banco genético,O «banco» de dados de sementes é um,banco_de_dados,false,claude-opus-5-5
 7936865-11,153,banco,Banco de dados analítico embarcado,entemente dos sistemas gerenciadores de «banco» de dados convencionais baseados na,banco_de_dados,true,claude-opus-5-5
 25588-0,197,banco,Base de dados geográficos,ográficas (SIG). Este tipo de «banco» de dados tem o intuito manipular,banco_de_dados,true,claude-opus-5-5
+95926-17,136,banco,Relevo, um tômbolo. Caso um «banco» de areia se deposite de modo,deposito_sedimentar,true,claude-opus-5-5
 831216-4,423,banco,Reambulação,idade no terreno e alimentando um «banco» de dados com todas as instâncias,banco_de_dados,true,claude-opus-5-5
 5262816-3,303,banco,Habitat subaquático,. O SBS 2 é um «banco» de sementes com oito bi,reserva_biologica,false,claude-opus-5-5
 6766444-5,602,banco,Longa Depressão,0 em capital para a empresa; o «banco» faliu quando a emissão de,instituicao_financeira,true,claude-opus-5-5
 6766444-16,225,banco,Longa Depressão," de 1870, o «banco» aderiu à febre especul",instituicao_financeira,true,claude-opus-5-5
 7505763-29,126,banco,Ciclo do carbono nos oceanos, os oceanos. Usando dados do «banco» de dados Global Reservoirs and D,banco_de_dados,false,claude-opus-5-5
+19414-5,133,campo,Endereço IP,", um endereço de rede tem o «campo» identificador de host com todos os bits",campo_de_dados,true,claude-opus-5-5
+19414-5,315,campo,Endereço IP,", quando, por convenção, o «campo» identificador de host deve ter todos os",campo_de_dados,true,claude-opus-5-5
 414370-6,43,campo,Gol contra," contra"" no hóquei em «campo» variou nos últimos anos. Em ",campo_de_jogo,true,claude-opus-5-5
+654510-0,280,campo,Copa Intercontinental de 1973," foi decidida em partida única, em «campo» ""neutro"", na Itál",campo_de_jogo,true,claude-opus-5-5
+18610-39,91,campo,Teoria das cordas, região do espaço-tempo na qual o «campo» gravitacional é tão forte que n,campo_fisico,true,claude-opus-5-5
+18610-87,1051,campo,Teoria das cordas," mais rápido do que na teoria de «campo», sugerindo que novos objetos que",campo_fisico,true,claude-opus-5-5
+18610-88,298,campo,Teoria das cordas,"ativas, e eles abriram um novo «campo» com rica estrutura matemática",area_de_estudo,true,claude-opus-5-5
 48541-4,596,campo,Objeto astronômico," e Angelo Secchi foram pioneiros no «campo» da espectroscopia, o que",area_de_estudo,true,claude-opus-5-5
+92490-0,217,campo,Singularidade gravitacional, do espaço-tempo (associado ao «campo» gravitacional) de um corpo são,campo_fisico,true,claude-opus-5-5
+282333-68,543,campo,História da física, são conhecidos como as equações de «campo» de Einstein. Essas equações podem,campo_fisico,true,claude-opus-5-5
 282333-81,1777,campo,História da física," de Dirac como uma equação de «campo» de verdade, neste caso, para a",campo_fisico,true,claude-opus-5-5
 3074593-2,341,campo,Dinâmica de voo (satélites), da atitude desejada. O «campo» de estudo integrado que combina,area_de_estudo,false,claude-opus-5-5
+3074593-10,45,campo,Dinâmica de voo (satélites)," um aparelho que monitora um «campo» magnético e, utilizando um eixo",campo_fisico,true,claude-opus-5-5
 3074593-20,54,campo,Dinâmica de voo (satélites)," o satélite ao longo do «campo» magnético da Terra, graças a",campo_fisico,true,claude-opus-5-5
 3458098-0,344,campo,Efeito Cotton-Mouton,quido devido à presença de um «campo» magnético. A grandeza deste e,campo_fisico,true,claude-opus-5-5
 3458416-0,131,campo,Efeito Overhauser, se aplica a uma substância um «campo» de radiofrequência na freqü,campo_fisico,true,claude-opus-5-5
+3979681-0,265,campo,Medalha Albert A. Michelson," Michelson pesquisou, principalmente no «campo» da óptica. Foi conced",area_de_estudo,true,claude-opus-5-5
+4744436-0,607,campo,Magnetômetro fluxgate,ado. Essa constante mudança no «campo» magnético induz uma corrente elé,campo_fisico,true,claude-opus-5-5
+5116936-40,271,campo,Formulação de Feynman da mecânica quântica,íveis evoluções temporais de um «campo» sobre todo o espaço. A ação,campo_fisico,true,claude-opus-5-5
+6601010-9,358,campo,Surge Test,", onde a energia armazenada no «campo» magnético da indutância é transfer",campo_fisico,true,claude-opus-5-5
 7935184-9,106,campo,História das equações de Maxwell, doze equações gerais para o «campo» eletromagnético no Capítulo,campo_fisico,true,claude-opus-5-5
+2623-0,230,campo,Futebol americano, dois times de onze jogadores em um «campo» retangular com traves em cada extrem,campo_de_jogo,true,claude-opus-5-5
 50230-21,115,campo,America Football Club (Rio de Janeiro)," desempenho de excelência em «campo» do time principal, como as da Ta",campo_de_jogo,true,claude-opus-5-5
 50230-28,273,campo,America Football Club (Rio de Janeiro),"ônidas marcando e os seis em «campo»), da Taça do Atlânt",campo_de_jogo,true,claude-opus-5-5
+75963-16,158,campo,São Cristóvão de Futebol e Regatas," 1916 (como o «campo» estava enlameado, trocou",campo_de_jogo,true,claude-opus-5-5
 130027-8,370,campo,História do futebol,aca armada no fundo de cada «campo». Não havia limite de jogadores,campo_de_jogo,true,claude-opus-5-5
+828473-1,1193,campo,Copa Europeia/Sul-Americana de 1982,"iu em disparada desde o meio de «campo», teve o chute prensado",campo_de_jogo,true,claude-opus-5-5
+1071703-0,143,campo,Regra do golo fora," jogos, sendo um mando de «campo» de cada time. Nele, se",campo_de_jogo,true,claude-opus-5-5
+2081973-9,352,campo,Capitão (futebol), teve de se recuperar em um «campo» detenção na Ucrânia.,area_delimitada,true,claude-opus-5-5
+2758586-7,93,campo,Waka Waka (This Time for Africa), futebol com soldados em um «campo» de batalha e os encor,area_delimitada,false,claude-opus-5-5
 3222290-20,133,campo,Rugby, É dividido pela linha do meio de «campo». Também é dividido em duas reg,campo_de_jogo,true,claude-opus-5-5
 4587452-0,494,campo,Assassinato de Otávio Jordão da Silva," morte dele, invadiram o «campo» e apedrejaram Otá",campo_de_jogo,true,claude-opus-5-5
 5881376-2,149,campo,Numeração de camisa no futebol," inicial, e também a única posição no «campo» que sem a qual o jogo não pode",campo_de_jogo,true,claude-opus-5-5
+6335385-1,115,campo,Zona 14,"res, em Liverpool, dividiram o «campo» em 18 pedaços e",campo_de_jogo,false,claude-opus-5-5
+6735128-3,63,campo,Talleres 2 x 2 Independiente (1978),"iente ameaçaram abandonar o «campo». Julio Grondona, então presidente",campo_de_jogo,true,claude-opus-5-5
+7872051-2,367,campo,Trava (chuteira)," intervalo, dando estabilidade superior no «campo» enlameado.",campo_de_jogo,true,claude-opus-5-5
+46174-14,162,campo,Meridiano (geografia)," da vertical local, afetada pelo «campo» gravitacional, enquanto os sistemas ge",campo_fisico,true,claude-opus-5-5
 57905-6,184,campo,Geografia física,) influenciou fortemente o «campo» da geografia como a geografia neste,area_de_estudo,true,claude-opus-5-5
+74457-21,964,campo,Tectónica de placas," idades apresentam uma direção de «campo» magnético variável, evidenciada",campo_fisico,true,claude-opus-5-5
 74457-22,431,campo,Tectónica de placas,"ceânicas e das inversões do «campo» magnético, publicadas entre 1",campo_fisico,true,claude-opus-5-5
 447537-10,216,campo,Estação total, como um computador portátil de «campo». Estações modernas também podem usar,trabalho_de_campo,true,claude-opus-5-5
 3339401-1,272,campo,Campo Hidrotermal Moytirra, um dos aspectos mais distintivos do «campo»: a presença de chaminés hid,regiao_geologica,true,claude-opus-5-5
+3343972-0,293,campo,Campo Hidrotermal Menez Gwen,ção tripla dos Açores. O «campo» hidrotermal foi descoberto,regiao_geologica,true,claude-opus-5-5
 3344869-20,430,campo,Campo Hidrotermal Rainbow,agem geológica. É também o único «campo» fumarólico do MAR visitado,regiao_geologica,false,claude-opus-5-5
+3912636-2,106,campo,Cratera de Darvaza, pensando que este poderia ser um «campo» de petróleo. A partir dessa,regiao_geologica,false,claude-opus-5-5
+4901677-0,20,campo,Campo Hidrotermal Castelo de Loki,Castelo de Loki é um «campo» formado por cinco fontes hidro,regiao_geologica,false,claude-opus-5-5
+7268011-0,159,campo,Números de Love," em resposta a forças no seu no «campo» gravitacional, como por exemplo as",campo_fisico,true,claude-opus-5-5
+7281453-24,672,campo,Planície Oxnard, fornecer água a um lago no «campo» de golfe River Ridge em 2,campo_de_jogo,false,claude-opus-5-5
+7388384-1,441,campo,Campo vulcânico monogenético, e cem vulcões. O «campo» de Michoacán-Guanaju,regiao_geologica,true,claude-opus-5-5
 7856522-7,173,campo,Dipolo do Oceano Índico Subtropical,". Além disso, experimentos de «campo» indicam que as anomalias quentes",trabalho_de_campo,true,claude-opus-5-5
+444-1,350,órgão,Biólogo,re-se com o registro profissional no «órgão» competente para a fiscalização de seu,orgao_institucional,true,claude-opus-5-5
+13380-0,15,órgão,Órgão (anatomia),"Em biologia, um «órgão» (do latim organum, """,orgao_biologico,true,claude-opus-5-5
 13380-1,55,órgão,Órgão (anatomia),"ologia - principalmente na anatomia, um «órgão» é um conjunto de tecidos que ev",orgao_biologico,true,claude-opus-5-5
+25406-0,161,órgão,Língua, do processo digestivo e é o principal «órgão» do paladar. A superfície,orgao_biologico,true,claude-opus-5-5
 37344-10,59,órgão,Sistema nervoso central," situa-se o cerebelo, «órgão» responsável pela coordenação motora form",orgao_biologico,true,claude-opus-5-5
 42111-0,220,órgão,Vagina, do útero à vulva. Este «órgão» permite a passagem do fluxo menstrual,orgao_biologico,true,claude-opus-5-5
 42175-18,15,órgão,Timo,"Como o timo é o «órgão» do desenvolvimento das células T,",orgao_biologico,true,claude-opus-5-5
 52369-2,352,órgão,Androceu,"utura é a parte fértil do «órgão», no interior da qual se localiz",orgao_biologico,true,claude-opus-5-5
 52369-12,122,órgão,Androceu, nomenclatura classificativa para o «órgão» e para as suas partes constitutivas,orgao_biologico,true,claude-opus-5-5
+111688-1,167,órgão,Nutrição mineral de plantas,", sendo as folhas, o principal «órgão» amostrado para a maioria das",orgao_biologico,true,claude-opus-5-5
+113751-0,22,órgão,Órgão sexual,Frequentemente o termo «órgão» sexual refere-se por extensão a,orgao_biologico,false,claude-opus-5-5
+118109-0,84,órgão,Nariz," e de alguns animais, é o «órgão» do olfato e a principal via",orgao_biologico,true,claude-opus-5-5
 138670-0,608,órgão,Nastia,encialmente determinados pela estrutura do «órgão» que os executa..,orgao_biologico,true,claude-opus-5-5
+257912-34,500,órgão,Cancro da mama," de acordo com a sua função nesse «órgão». No entanto, as células",orgao_biologico,true,claude-opus-5-5
+3309568-4,223,órgão,Ecologia de comunidades, que se assemelham a um «órgão» em relação ao sistema onde este está inser,orgao_biologico,true,claude-opus-5-5
+6128803-0,140,órgão,Conação,ilos iguais de uma flor). Os «órgão» ou verticilos fundidos são desc,orgao_biologico,true,claude-opus-5-5
+7376594-1,251,órgão,Prolapso dos órgãos pélvicos," de prolapso, dependendo do «órgão»: cistocelo (bex",orgao_biologico,true,claude-opus-5-5
 230-99,496,órgão,Anarquismo,"ato é o grupo essencial, o «órgão» específico de luta de classes e o",orgao_institucional,true,claude-opus-5-5
 41676-2,544,órgão,Plebiscito,iberação (já tomada pelo «órgão» de Estado respectivo).,orgao_institucional,true,claude-opus-5-5
 274611-2,277,órgão,Comitê,"ado, o comitê é um «órgão» permanente e trabalha gerenciando",orgao_institucional,true,claude-opus-5-5
 274611-6,190,órgão,Comitê," região. Nessas entidades, o «órgão» de direção máxima partidária é",orgao_institucional,true,claude-opus-5-5
 4943072-5,112,órgão,Constituição da República da Guiné-Bissau,"abilidades que lhe cabem como «órgão» máximo da soberania, a Assemble",orgao_institucional,true,claude-opus-5-5
+5851244-6,255,órgão,Escola sem Homofobia,"idenciais desse ano, o «órgão» determinou a remoção de vídeos",orgao_institucional,true,claude-opus-5-5
 6618695-9,380,órgão,Constituição romana,"adas ""Senado"", não era um «órgão» legislativo, mas sim consultivo",orgao_institucional,true,claude-opus-5-5
 179376-3,347,órgão,Cantus firmus,ão para base dos arranjos para «órgão» solo e grupo coral A cappella,instrumento_musical,true,claude-opus-5-5
 179376-8,148,órgão,Cantus firmus,"uterana, baseada na música para «órgão». O emprego das melodias d",instrumento_musical,true,claude-opus-5-5
 649729-1,196,órgão,BWV,", em seguida as peças para «órgão», depois outras obras para teclado e",instrumento_musical,true,claude-opus-5-5
+869010-0,175,órgão,Extensão (música),ente da qualidade produzida. O «órgão» é o instrumento com maior escala,instrumento_musical,true,claude-opus-5-5
+882792-2,407,órgão,Monodia,"orba, um cravo, um «órgão», e até, em certas oc",instrumento_musical,true,claude-opus-5-5
+2353205-19,290,órgão,Coro Académico da Universidade do Minho, músicas de Natal com acompanhamento de «órgão». O CD “Homenagem a,instrumento_musical,true,claude-opus-5-5
+3304483-0,227,órgão,Organ²/ASLSP,"osta em 1987 para «órgão», foi adaptada de um trabalho anterior",instrumento_musical,true,claude-opus-5-5
 3304483-1,187,órgão,Organ²/ASLSP,ando a circunstância de um «órgão» fazer ressoar indefinidamente,instrumento_musical,true,claude-opus-5-5
 3304483-2,24,órgão,Organ²/ASLSP,A peça é executada em um «órgão» dedicado em exclusivo a esta performance,instrumento_musical,true,claude-opus-5-5
+5044198-2,273,órgão,História da Música Brasileira," Lanzelotte (cravo e «órgão»), Regina Schlochauer (p",instrumento_musical,true,claude-opus-5-5
 5044198-6,689,órgão,História da Música Brasileira, arquitetura sacra e ao «órgão» histórico da Catedral de Mariana,instrumento_musical,true,claude-opus-5-5
+5044198-7,689,órgão,História da Música Brasileira,"atedral, trabalhando junto ao «órgão» que foi assunto do terceiro",instrumento_musical,true,claude-opus-5-5
+5220764-1,390,órgão,Crise na indústria musical em 2013-2014,"ale Italiana (FIMI), «órgão» responsável pela música na Itália,",orgao_institucional,true,claude-opus-5-5
+5673163-0,190,órgão,Harmonicon,clado foi posta em um pequeno «órgão» que possuia registros de flaut,instrumento_musical,true,claude-opus-5-5
 6734209-0,213,órgão,Doppio Borgato,"ais, semelhante ao do «órgão».",instrumento_musical,true,claude-opus-5-5
+45272-27,556,estado,Mecânica estatística,amente restauraria um gás para um «estado» de equilíbrio.,condicao,true,claude-opus-5-5
 377821-0,11,estado,Teoria do estado estacionário,A Teoria do «estado» estacionário (SS Cosmology,condicao,false,claude-opus-5-5
+377821-0,83,estado,Teoria do estado estacionário,ês Steady-state) ou modelo do «estado» estacionário foi elaborada em ,condicao,true,claude-opus-5-5
 377821-1,158,estado,Teoria do estado estacionário, encarnação das idéias de «estado» estacionário significou para explicar,condicao,true,claude-opus-5-5
+4288950-0,260,estado,Spin-½, conhecidos têm spin-½. O «estado» quântico de uma partícul,condicao,true,claude-opus-5-5
+4288950-1,1,estado,Spin-½,O «estado» quântico de uma partícul,condicao,false,claude-opus-5-5
 5116936-14,220,estado,Formulação de Feynman da mecânica quântica,"íveis histórias do sistema, de um «estado» inicial a um estado final. Um diagram",condicao,true,claude-opus-5-5
+5116936-14,240,estado,Formulação de Feynman da mecânica quântica," sistema, de um estado inicial a um «estado» final. Um diagrama de Feyn",condicao,true,claude-opus-5-5
+6415013-10,36,estado,NVM Express,Quase todas as primeiras unidades de «estado» sólido NVMe são HHHL,condicao,false,claude-opus-5-5
+6415013-10,201,estado,NVM Express,. Uma placa de unidade de «estado» sólido HHHL NVMe é,condicao,true,claude-opus-5-5
+1410-49,205,estado,Planeta," estrutura física, levando a um «estado» de equilíbrio hidrost",condicao,true,claude-opus-5-5
+2606-16,923,estado,Termodinâmica,ixa nesta classificação de variáveis de «estado». A razão é que a ent,condicao,true,claude-opus-5-5
 2606-34,138,estado,Termodinâmica," valores assumidos pelas variáveis de «estado» do sistema, e não da forma como",condicao,true,claude-opus-5-5
+2606-41,20,estado,Termodinâmica,Como as variáveis de «estado» finais e iniciais são ig,condicao,false,claude-opus-5-5
+13228-20,127,estado,Universo," evolução do Universo de um «estado» primordial muito uniforme, quente",condicao,true,claude-opus-5-5
 13228-38,209,estado,Universo,ie pode estar exatamente no mesmo «estado» ao mesmo tempo. Existem duas classes,condicao,true,claude-opus-5-5
+18610-0,424,estado,Teoria das cordas, e outras propriedades determinadas pelo «estado» vibracional da corda. Na te,condicao,true,claude-opus-5-5
 18610-56,678,estado,Teoria das cordas, então repentinamente transitam para um «estado» isolante. Durante a transição,condicao,true,claude-opus-5-5
+25053-2,254,estado,Inércia," passageiro tende a conservar seu «estado» anterior de movimento, enquanto o veículo",condicao,true,claude-opus-5-5
 25053-13,374,estado,Inércia, de que o repouso era um «estado» natural que dispensava explicação. F,condicao,true,claude-opus-5-5
 25053-16,148,estado,Inércia, com a Terra se manterá no «estado» em que tiver sido colocado.,condicao,true,claude-opus-5-5
+45272-20,29,estado,Mecânica estatística,Uma vez calculada a função de «estado» característica para um conjunto e sistema determin,condicao,false,claude-opus-5-5
 152945-6,1755,estado,Onda gravitacional,"opold Infeld, que havia «estado» em contato com Robertson, convenceu",verbo_estar,true,claude-opus-5-5
+282333-55,699,estado,História da física,estados) que produzem o mesmo «estado» macroscópico (macroestado,condicao,true,claude-opus-5-5
+282333-78,389,estado,História da física, parcial que descreve como o «estado» quântico de algumas mudan,condicao,true,claude-opus-5-5
+282333-81,151,estado,História da física, por uma queda de electrões para um «estado» quantum de energia mais baixo. Com,condicao,true,claude-opus-5-5
 7600054-12,551,estado,Creatio ex nihilo,", não poderia ter mudado de «estado» entre o sexto e o sét",condicao,true,claude-opus-5-5
+212067-0,518,estado,Direitos políticos, partidário instituídos em cada «estado».,entidade_politica,true,claude-opus-5-5
+227374-22,441,estado,Estética totalitária," mesmo que o porrete significa para o «estado» totalitário"". Desta forma,",entidade_politica,true,claude-opus-5-5
+1501275-2,188,estado,Gerrymandering, os motivos para a absorção do «estado» da Guanabara pelo Rio de,unidade_federativa,true,claude-opus-5-5
+1970080-8,472,estado,Direito à vida," legítima defesa (ou sob «estado» de necessidade, sem prejuí",condicao,true,claude-opus-5-5
 2168511-7,44,estado,Bem público," uso especial: são aqueles que o «estado» usa para realizar seus serviços, como os",entidade_politica,true,claude-opus-5-5
 2268551-12,52,estado,Política social, XXI é complexa e em cada «estado» está sujeita aos governos loc,entidade_politica,true,claude-opus-5-5
+2349832-1,162,estado,Esfera de influência,le país e servir realmente como um «estado» satélite ou colônia de,entidade_politica,true,claude-opus-5-5
+5342716-18,464,estado,Corte itinerante, político muito maior para a construção de um «estado» centralizado). Durante o reinado,entidade_politica,true,claude-opus-5-5
+5505299-42,93,estado,Crimes de guerra soviéticos, Japão e invadiu o «estado» fantoche japonês de Manch,entidade_politica,true,claude-opus-5-5
 5505299-58,218,estado,Crimes de guerra soviéticos," de Janeiro, usado para impor um «estado» de emergência em Baku e interven",condicao,true,claude-opus-5-5
+5634276-4,195,estado,Parlamento Jovem Brasileiro," ocupam 40 vagas por «estado» através de sorteio, participam de",unidade_federativa,true,claude-opus-5-5
 5634276-6,443,estado,Parlamento Jovem Brasileiro,(a) jovem para representar cada «estado».,unidade_federativa,true,claude-opus-5-5
 5980393-4,877,estado,Socialismo para os ricos e capitalismo para os pobres,"em ser capazes de administrar o «estado» de babá"" para que ""qu",entidade_politica,true,claude-opus-5-5
 6212096-35,611,estado,Anarquismo nos Estados Unidos, Goldman na oposição à autoridade do «estado» soviético. Depois de uma,entidade_politica,true,claude-opus-5-5
 6212096-37,55,estado,Anarquismo nos Estados Unidos, atrofiou o desenvolvimento do «estado» de bem-estar social norte-am,entidade_politica,true,claude-opus-5-5
 6385777-1,12,estado,Captura de estado,A captura de «estado» é um problema cujas expressões mais,entidade_politica,true,claude-opus-5-5
+6618695-16,662,estado,Constituição romana,olos do poder coercitivo do «estado». Os questores não eram mag,entidade_politica,true,claude-opus-5-5
+6817366-5,779,estado,História política do mundo,", ajudando assim a unificação do «estado». O ambiente geopolítico dos eg",entidade_politica,true,claude-opus-5-5
+6817366-34,375,estado,História política do mundo," fim do Império Romano, um «estado» que remonta a e durou qu",entidade_politica,true,claude-opus-5-5
+6817366-59,345,estado,História política do mundo,amento e tentou um golpe de «estado» que resultou no massacre de Seguro,entidade_politica,true,claude-opus-5-5
+6820232-2,872,estado,Políticas mundiais,rasadas'. Eles viam o «estado»-nação como a melhor e mais elev,entidade_politica,true,claude-opus-5-5
 6820244-6,267,estado,Ditadura civil, começaram sob proclamações de «estado» de emergência. Durante a Seg,condicao,true,claude-opus-5-5
 6820266-1,301,estado,Eleitoralismo," outras características da democracia, como o «estado» de direito e a separação instit",entidade_politica,false,claude-opus-5-5
+3146212-5,174,carga,Unidade de liquefação de gás natural," o Methane Pioneer, transportou uma «carga» do Lago Charles, Louisiana, para",carga_transportada,true,claude-opus-5-5
+13228-13,210,carga,Universo, linear ou angular. A ausência de «carga» líquida e impulso result,carga_eletrica,true,claude-opus-5-5
 18610-6,644,carga,Teoria das cordas," são cordas, com sua massa, «carga» e outras propriedades determinadas pelo",carga_eletrica,true,claude-opus-5-5
+18610-42,665,carga,Teoria das cordas,-tempo de modo que sua massa e «carga» combinadas sejam iguais a uma,carga_eletrica,true,claude-opus-5-5
+18610-43,343,carga,Teoria das cordas, massa possível compatível com uma dada «carga». Strominger e Vafa também re,carga_eletrica,true,claude-opus-5-5
+149383-2,278,carga,Teoria do éter," de uma força que depende: da «carga» da partícula, do campo magn",carga_eletrica,true,claude-opus-5-5
+282333-48,228,carga,História da física," um dos primeiros acumuladores de «carga», antecessor do capacitor. Benjamin",carga_eletrica,true,claude-opus-5-5
+282333-85,322,carga,História da física," as partículas foram classificados por «carga» e spin por Werner Heisenberg,",carga_eletrica,true,claude-opus-5-5
 282333-103,427,carga,História da física,"bita, os elétrons com «carga» negativa (o modelo de Rutherford",carga_eletrica,true,claude-opus-5-5
+570432-4,541,carga,História do eletromagnetismo,", sendo estes o conceito de «carga» elétrica (referente ao """,carga_eletrica,true,claude-opus-5-5
+570432-8,277,carga,História do eletromagnetismo," - para distinguir os dois tipos de «carga». Nessa época, já haviam",carga_eletrica,true,claude-opus-5-5
 611715-0,247,carga,Teorema de Poynting," trabalho feito sobre uma distribuição de «carga» pelo campo elétrico, através do",carga_eletrica,true,claude-opus-5-5
+611715-1,176,carga,Teorema de Poynting," de tempo) sobre uma distribuição de «carga», mais o fluxo de energia deix",carga_eletrica,true,claude-opus-5-5
 924461-4,1262,carga,Propulsão,umente usados em aviões de «carga» e aviões. Algumas aeron,carga_transportada,true,claude-opus-5-5
+1310940-8,222,carga,Par de Cooper, de Cooper são responsáveis pelo transporte de «carga» neste estado metálico. Essa,carga_eletrica,true,claude-opus-5-5
 2094718-3,301,carga,Câmara de bolhas, suas velocidades. Como a magnitude da «carga» de todas as partículas subat,carga_eletrica,true,claude-opus-5-5
 2776583-0,187,carga,Lei de Moseley," átomo, em que toda a «carga» positiva está contida no núcle",carga_eletrica,true,claude-opus-5-5
+2776583-1,194,carga,Lei de Moseley,"ada de Z, ou seja, à «carga» elétrica no núcleo (",carga_eletrica,true,claude-opus-5-5
+2776583-10,171,carga,Lei de Moseley,", em que assumia que toda a «carga» elétrica positiva se concentrava",carga_eletrica,true,claude-opus-5-5
+3733519-1,302,carga,Conservação de carga,"o não alteraria a quantidade total de «carga» no universo. Contudo, sabe",carga_eletrica,true,claude-opus-5-5
 3733519-5,350,carga,Conservação de carga," Por sua vez, a conservação da «carga» elétrica é obtida a partir",carga_eletrica,true,claude-opus-5-5
 3852250-1,171,carga,Voo orbital, o foguete deve transmitir à «carga» útil um delta-v de cerca de ,carga_transportada,true,claude-opus-5-5
 3852250-3,526,carga,Voo orbital, lançamento de arma foi proposto para «carga».,carga_transportada,true,claude-opus-5-5
+3852250-4,386,carga,Voo orbital,"es, como as carenagens de «carga» útil e o uso de impressão ",carga_transportada,true,claude-opus-5-5
+4815401-0,686,carga,Dinâmica estrutural," estrutura. Se é aplicada uma «carga» lentamente o suficientemente, as",esforco_aplicado,true,claude-opus-5-5
 4815401-1,3,carga,Dinâmica estrutural,Uma «carga» estática é aquela que varia,esforco_aplicado,false,claude-opus-5-5
+12378-3,61,carga,Produto interno bruto, conceito de PIB para calcular a «carga» tributária e argumentar que os,onus,false,claude-opus-5-5
+105676-1,462,carga,Benefícios e despesas indiretas,"ertas disponíveis no mercado); (4) «carga» tributária específica, nas várias es",onus,false,claude-opus-5-5
 141576-3,120,carga,Acoplamento (engenharia mecânica)," de rotação, o tipo de «carga» aplicada, a existência de des",esforco_aplicado,true,claude-opus-5-5
+149358-9,614,carga,Siderurgia," de energia elétrica. Quando a «carga» metálica, podendo ser suc",carga_transportada,true,claude-opus-5-5
 149358-11,252,carga,Siderurgia, carregamento para a seção de «carga» do transportador. Um sistema de arr,carga_transportada,true,claude-opus-5-5
 166076-28,360,carga,Controlador lógico programável,"ais o CLP pode alimentar uma «carga». Assim como as entradas,",esforco_aplicado,true,claude-opus-5-5
 533035-2,145,carga,Pelotização,"este tipo de equipamento, toda a «carga» de óxido de ferro,",carga_transportada,true,claude-opus-5-5
 533035-3,455,carga,Pelotização," para suportar o próprio peso da «carga» do forno, para que não h",carga_transportada,true,claude-opus-5-5
+945015-3,296,carga,Taxa alfandegária," as taxas de movimentação de «carga», de fiscalização do peso, mult",carga_transportada,true,claude-opus-5-5
+1194893-4,225,carga,Sigilo fiscal," contribuintes, haja vista a «carga» tributária ser suportada por",onus,true,claude-opus-5-5
+1194893-5,281,carga,Sigilo fiscal,", em última análise, aumentar a «carga» tributária dos demais contribuint",onus,true,claude-opus-5-5
+1325031-7,161,carga,Direito aduaneiro," instrutiva: o conhecimento de «carga», a fatura comercial e outros est",carga_transportada,true,claude-opus-5-5
+1325031-9,295,carga,Direito aduaneiro," apresentando o documento de conhecimento de «carga», o comprovante de pagamento da",carga_transportada,true,claude-opus-5-5
+3239481-3,618,carga,Previsivelmente Irracional,ÁTIS! inclui uma tal «carga» emocional que percecionamos o que,onus,false,claude-opus-5-5
 4221230-12,704,carga,Imposto pigouviano, deve engolir este excesso de «carga» de 35 centavos sem,onus,true,claude-opus-5-5
+6446969-2,479,carga,Teorema de Henry George, que estão deprimidos devido à «carga» tributária existente sobre o trabalho,onus,false,claude-opus-5-5
+6447704-2,65,carga,Imposto sobre valor da terra," imposto progressivo, em que a «carga» tributária recai sobre os tit",onus,true,claude-opus-5-5
 6447704-10,200,carga,Imposto sobre valor da terra," quantidade de terra é fixa, a «carga» tributária não pode ser repass",onus,true,claude-opus-5-5
 6447704-23,191,carga,Imposto sobre valor da terra, os proprietários não podem transferir a «carga» tributária para os inquilinos,onus,true,claude-opus-5-5
+7176424-8,592,carga,Imposto sobre o Valor Acrescentado da União Europeia, IVA resultavam numa elevada «carga» administrativa e de custos para o,onus,true,claude-opus-5-5
+7207721-13,220,carga,Paul Vario, 350 mil de empresas de «carga» aérea no aeroporto JFK,carga_transportada,true,claude-opus-5-5
 7450150-26,1061,carga,Contabilidade do carbono,"ículos motorizados de passageiros e de «carga» na estrada, uso de energia no",carga_transportada,true,claude-opus-5-5
+7456709-1,622,carga,Imposto progressivo,"ivos, uma vez que aumentam a «carga» fiscal das famílias com rendimentos",onus,true,claude-opus-5-5
 7875456-56,456,carga,Impacto econômico da pandemia da COVID-19, distanciamento social aumentaram a «carga» de trabalho doméstico e de cuid,onus,true,claude-opus-5-5
+19414-5,122,rede,Endereço IP," Por convenção, um endereço de «rede» tem o campo identificador de host com",rede_de_computadores,true,claude-opus-5-5
+19414-5,249,rede,Endereço IP, referir a todos os hosts de uma «rede» através de um endereço por difus,rede_de_computadores,true,claude-opus-5-5
+19414-5,472,rede,Endereço IP, endereço por difusão para a «rede» do host origem do datagrama,rede_de_computadores,true,claude-opus-5-5
+19414-8,531,rede,Endereço IP," Em alguns casos, um administrador de «rede» pode implementar endereços atribuí",rede_de_computadores,true,claude-opus-5-5
 19414-8,920,rede,Endereço IP,mente e manualmente cada computador na «rede».,rede_de_computadores,true,claude-opus-5-5
 6189291-1,87,rede,LoRaWAN,"WAN especifica a camada de «rede», incluindo protocolos para comun",rede_de_computadores,true,claude-opus-5-5
+6189291-1,364,rede,LoRaWAN, os encaminham para servidores de «rede».,rede_de_computadores,true,claude-opus-5-5
+3822-6,198,rede,Rede de computadores,ia soviética com base em uma «rede» de centros de computação. A,rede_de_computadores,false,claude-opus-5-5
+3822-35,183,rede,Rede de computadores, um conjunto diversificado de capacidades de «rede». Os protocolos possuem um es,rede_de_computadores,true,claude-opus-5-5
+3822-74,567,rede,Rede de computadores,XOPs) no padrão de «rede» doméstica ITU-T G.h,rede_de_computadores,true,claude-opus-5-5
+80326-75,405,rede,Linux (núcleo), indica uma compilação de teste de «rede» sem fio (WireLess). Além,rede_de_computadores,true,claude-opus-5-5
+105994-1,424,rede,Virtual LAN,ários ganham mobilidade física dentro da «rede» e a própria velocidade da rede aument,rede_de_computadores,true,claude-opus-5-5
 375185-2,311,rede,Hardware de rede Artisoft, a necessidade de um terminador de «rede».,rede_de_computadores,true,claude-opus-5-5
+375185-7,171,rede,Hardware de rede Artisoft,"ir mensagens de voz através de uma «rede» LANtastic. Em ambiente Windows,",rede_de_computadores,true,claude-opus-5-5
 511693-14,434,rede,Ericsson, a primeira operadora a manter uma «rede» 3G em funcionamento e us,rede_de_computadores,true,claude-opus-5-5
 1144322-5,137,rede,EIGRP," automaticamente no limite de um número de «rede». Além disso, o protocolo",rede_de_computadores,true,claude-opus-5-5
 1144322-8,307,rede,EIGRP, de modo confiável. Em uma «rede» de multiacesso com capacidade multicast,rede_de_computadores,true,claude-opus-5-5
 1313888-0,246,rede,Network simulator,", suporta os protocolos de «rede» mais populares tanto para redes cabead",rede_de_computadores,true,claude-opus-5-5
 1391466-0,168,rede,Intranet," local, como, por exemplo, a «rede» de uma empresa, que só pode ser",rede_de_computadores,true,claude-opus-5-5
+2456285-4,255,rede,Wi-Fi Protected Access, de firmware em placas de interface de «rede» sem fio projetadas para WEP,rede_de_computadores,true,claude-opus-5-5
 3490864-2,130,rede,Cérebro global," autores, a exência de uma «rede» global de computadores firmemente conectada",rede_de_computadores,false,claude-opus-5-5
 3759956-2,350,rede,"Mensagens Unicast, Broadcast e Multicast", no caso com o auxílio da «rede».,rede_de_computadores,false,claude-opus-5-5
+4484333-0,738,rede,Network cloaking,"contrar"" o suposto nome da «rede» ""escondida"". Se o objetivo",rede_de_computadores,true,claude-opus-5-5
+5000052-5,158,rede,Fog computing, características específicas que um nó em uma «rede» de névoa (Fog Node,rede_de_computadores,true,claude-opus-5-5
+5000052-6,316,rede,Fog computing,", é importante salientar que a «rede» em névoa e a computação",rede_de_computadores,true,claude-opus-5-5
+38712-18,298,rede,Golfo Pérsico,fo fazia parte de uma vasta «rede» comercial que envolvia os assent,rede_de_relacoes,false,claude-opus-5-5
 45627-52,241,rede,Globalização," por sua vez, sustentam uma «rede» ordenada de agências em escala",rede_de_relacoes,true,claude-opus-5-5
+507133-27,199,rede,Recife de coral," linha é permitida, pesca com «rede» e lanças são restritos para tr",malha,true,claude-opus-5-5
+507133-30,862,rede,Recife de coral," ilegal. CAM mantém uma grande «rede» de pesquisadores, operadores da",rede_de_relacoes,false,claude-opus-5-5
+802286-0,128,rede,Sumidouro,ertura natural que se comunica com uma «rede» de galerias e através da qual o,sistema_interligado,true,claude-opus-5-5
 835245-2,214,rede,Densidade hidrográfica,agem relaciona o comprimento total da «rede» de drenagem à área da b,sistema_interligado,true,claude-opus-5-5
+1683168-0,262,rede,Hidrografia da Colômbia,8 km perde-se numa vasta «rede» de planaltos (ciénagas,sistema_interligado,true,claude-opus-5-5
+3343972-0,550,rede,Campo Hidrotermal Menez Gwen,atura 2000 e na «rede» de áreas marinhas protegidas da,rede_de_relacoes,true,claude-opus-5-5
+4598285-2,191,rede,Delta do Macacu," entrecruzam, formando uma «rede» de irrigação. Esses rios",sistema_interligado,true,claude-opus-5-5
+4627345-9,863,rede,Sistemas alternativos de drenagem, evita também a sobrecarga da «rede» de drenagem convencional.,sistema_interligado,true,claude-opus-5-5
 4649716-0,220,rede,Número de Strahler,"ir o tamanho de um trecho da «rede» fluvial, baseando-se na",sistema_interligado,true,claude-opus-5-5
 5459825-15,159,rede,Material particulado em suspensão,"abertura pela qual a água entra), «rede» de malha fina e copo",malha,true,claude-opus-5-5
 5486302-0,334,rede,Rede Brasileira de Monitoramento Contínuo dos Sistemas GNSS,. A RBMC também faz parte da «rede» SIRGAS.,sistema_interligado,true,claude-opus-5-5
+5645831-1,20,rede,Bayou,Os bayous formam uma «rede» navegável de milhares de quil,sistema_interligado,true,claude-opus-5-5
 5964481-5,120,rede,Institutos históricos e geográficos do Brasil," do Brasil, no sentido de criar uma «rede» de integração e colaboração,",rede_de_relacoes,true,claude-opus-5-5
+7316885-0,216,rede,Hidrografia da Rússia,". Ela é caracterizada por uma «rede» de rios imponentes, lag",sistema_interligado,false,claude-opus-5-5
 7432803-2,866,rede,Mundo atlântico,"obra escrava. Uma elaborada «rede» de troca econômica, geopol",rede_de_relacoes,true,claude-opus-5-5
+7432803-10,246,rede,Mundo atlântico," do Sul, estabeleceu uma «rede» de poderosos vice-reinos para administr",rede_de_relacoes,false,claude-opus-5-5
 7765335-3,364,rede,Bloqueio geográfico," ser oferecido em outros países porque sua «rede» controladora, a HBO, já lic",empresa_de_midia,false,claude-opus-5-5
+7765335-6,119,rede,Bloqueio geográfico," IP é empregado, serviços de «rede» privada virtual (VPN) e anon",rede_de_computadores,true,claude-opus-5-5
 7765335-11,50,rede,Bloqueio geográfico," judiciais que suspenderam a «rede» social X no Brasil, o Suprem",empresa_de_midia,false,claude-opus-5-5
+7876092-43,698,rede,História da longitude," direção de Edward David Ashe, uma «rede» de determinações telegráficas de longitude",sistema_interligado,false,claude-opus-5-5
+7876092-44,809,rede,História da longitude,", e o erro provável. A «rede» foi expandida para o noro",sistema_interligado,true,claude-opus-5-5
 7876092-49,1,rede,História da longitude,A «rede» telegráfica de longitude foi menos importante na,sistema_interligado,false,claude-opus-5-5
+7969235-4,57,rede,Espigão (geografia), dissecação de uma superfície pela «rede» de drenagem. À medida que,sistema_interligado,true,claude-opus-5-5
+11361-9,258,nota,Moeda, até que alguém resgatasse a «nota»; e permitia uma divisão da,cedula,true,claude-opus-5-5
 11361-10,91,nota,Moeda,". Em primeiro lugar, visto que uma «nota» não possui um valor intrínseco",cedula,false,claude-opus-5-5
+66546-51,349,nota,Debênture, contrário do que ocorre com a «nota» promissória ou a letra de câ,titulo_de_credito,false,claude-opus-5-5
+82454-15,343,nota,Al Capone,cia; Capone rasgou uma «nota» de 100 dólares ao meio,cedula,false,claude-opus-5-5
+105359-9,626,nota,Substituição tributária, que seu cliente não tenha pago a «nota» emitida.,documento_fiscal,false,claude-opus-5-5
+234941-18,333,nota,Cheque, crédito por instrumento mais simples que a «nota» promissória fez desenvolver a,titulo_de_credito,true,claude-opus-5-5
 234941-20,198,nota,Cheque," por isso, é muito importante sempre tomar «nota» dos valores preenchidos, estabe",anotacao,true,claude-opus-5-5
+247669-3,2,nota,Nota promissória,"Na «nota» promissória pro-soluto,",titulo_de_credito,false,claude-opus-5-5
+247669-10,12,nota,Nota promissória,Aplicam-se à «nota» promissória rural no que forem,titulo_de_credito,false,claude-opus-5-5
+247669-19,1,nota,Nota promissória,A «nota» promissória também é conhecida no,titulo_de_credito,false,claude-opus-5-5
+336596-1,147,nota,Imposto ad valorem," valorem baseia-se no valor da «nota» fiscal do produto ou produtos, ou seja",documento_fiscal,true,claude-opus-5-5
 593383-4,1097,nota,Mercado financeiro," a “elite” dos mercados, «nota»-se que, assim como nos ambientes",verbo_notar,true,claude-opus-5-5
 1610541-0,60,nota,Classificação de crédito," crédito (também chamada de «nota» de risco, rating, classificação",classificacao,true,claude-opus-5-5
 1610541-3,13,nota,Classificação de crédito,"Na Moody's, a «nota» mais baixa de todas é a C",classificacao,true,claude-opus-5-5
 1610541-5,730,nota,Classificação de crédito, anuncia o rebaixamento da «nota» para BB-.,classificacao,true,claude-opus-5-5
 2233339-5,51,nota,Polêmica sobre empréstimos ocultos no Anglo Irish Bank,ual do Anglo Irish Bank contém uma «nota» mostrando o total de emprést,anotacao,true,claude-opus-5-5
+2706258-41,126,nota,Impressão 3D,quitetura. Digno de «nota» são as experiências do italiano Enrico,anotacao,true,claude-opus-5-5
 3203342-3,1,nota,Bitcoin,A «nota» é uma referência a uma manch,anotacao,false,claude-opus-5-5
 5590068-0,172,nota,Marco Arrúncio Áquila (cônsul em 77),"lio Céler. Ronald Syme «nota» que, como outros cônsules ori",verbo_notar,true,claude-opus-5-5
+5639797-9,630,nota,Identificador de Entidade Jurídica, junto a agentes que não emitem «nota» fiscal brasileira ou que sonegam,documento_fiscal,true,claude-opus-5-5
 6920267-6,819,nota,Imposto sobre ganhos de capital," QFIIs. No entanto, «nota»-se que houve casos em que os",verbo_notar,true,claude-opus-5-5
+7875456-74,640,nota,Impacto econômico da pandemia da COVID-19, com o rebaixamento de sua «nota» de classificação de crédito pela agência,classificacao,true,claude-opus-5-5
+52974-2,425,nota,Didjeridu, de seus pulmões mantendo uma «nota» pelo tempo que desejar.,nota_musical,true,claude-opus-5-5
 65187-4,85,nota,Altura (música), de intervalo. A distância entre a «nota» dó e a próxima nota dó é cham,nota_musical,true,claude-opus-5-5
+65187-5,21,nota,Altura (música),Vejamos um exemplo: a «nota» lá acima do dó central do piano,nota_musical,false,claude-opus-5-5
 94025-2,83,nota,Sustenido," clave, todas as ocorrências da «nota» marcada ao longo de toda a",nota_musical,true,claude-opus-5-5
+94025-3,34,nota,Sustenido,ando o compositor deseja que uma «nota» marcada com sustenido seja executada,nota_musical,true,claude-opus-5-5
+181282-2,41,nota,Acorde,"Acordes também são classificados pela sua «nota» fundamental ou tônica, é a nota",nota_musical,true,claude-opus-5-5
 181282-7,575,nota,Acorde,o de 3 tons e meio da «nota» fundamental.,nota_musical,true,claude-opus-5-5
+181282-8,580,nota,Acorde," número equivalente ao intervalo entre esta «nota» e a fundamental do acorde, como",nota_musical,true,claude-opus-5-5
 279685-2,292,nota,Escala pentatônica," Por essa razão foi retirada a «nota» si desta escala, sendo formada",nota_musical,true,claude-opus-5-5
+279685-3,102,nota,Escala pentatônica," incluir, ainda, uma sexta «nota» no grau b5, também cham",nota_musical,true,claude-opus-5-5
 575058-5,421,nota,Modos gregorianos," quarta abaixo, ou seja, a «nota» Dó. Além da extensão",nota_musical,true,claude-opus-5-5
+828341-2,336,nota,Ouvido absoluto," com bastante exatidão, a «nota». Isso não é bem verdade.",nota_musical,true,claude-opus-5-5
+828341-4,72,nota,Ouvido absoluto," têm a capacidade de cantar qualquer «nota» que se lhe é solicitada,",nota_musical,true,claude-opus-5-5
+828341-10,532,nota,Ouvido absoluto,reconhecer e nomear uma «nota») e de discriminação (detect,nota_musical,true,claude-opus-5-5
+908268-4,611,nota,Consonância e dissonância,amente mais dissonantes. Qualquer «nota» que não se enquadre na harmon,nota_musical,true,claude-opus-5-5
 975391-0,337,nota,You Suffer, só um grito acompanhado por uma «nota» de guitarra.,nota_musical,true,claude-opus-5-5
+1847963-0,449,nota,Batida (música),ida pode se produzir através da «nota» fundamental e o harmônico superior da,nota_musical,true,claude-opus-5-5
 2154752-0,214,nota,Boogie," é um groove repetitivo, com «nota» swung ou ritmo shuffle, ""gro",nota_musical,true,claude-opus-5-5
+2154752-8,84,nota,Boogie, no qual a duração da primeira «nota» de um par é aumentada e a,nota_musical,true,claude-opus-5-5
 2719400-0,360,nota,Phasing," outro, então a duplicação com cada «nota» ouvida por duas vezes, em seg",nota_musical,true,claude-opus-5-5
 2719400-1,138,nota,Phasing, phasing é realizado ao inserir uma «nota» extra na frase de um dos dois mús,nota_musical,true,claude-opus-5-5
 5268665-2,581,nota,Manossolfa,"is empregados para representar a «nota» lá, demonstram pequena diferença,",nota_musical,true,claude-opus-5-5
+5528671-5,83,nota,Tons salmódicos," em relação às demais; é a «nota» final (a atual tônica), que",nota_musical,true,claude-opus-5-5
+6025064-1,222,nota,Unidade equivalente ao álbum," é um artista pop sedento de «nota», você pode, teoricamente,",classificacao,false,claude-opus-5-5
+6218746-3,579,nota,Gênero (teoria musical),"12. Em qualquer caso, a «nota» zo (equivalente ao si)",nota_musical,true,claude-opus-5-5
+6447704-28,849,capital,Imposto sobre valor da terra," de concorrentes ricos está na «capital», e é aí que sempre se",cidade_sede,true,claude-opus-5-5
+42277-14,991,capital,Inflação, aumento no valor de um ativo de «capital» é valorização. O Índ,recurso_economico,true,claude-opus-5-5
+109755-6,223,capital,Produtividade," falar da produtividade do «capital», das matérias-prima,",recurso_economico,true,claude-opus-5-5
+370556-11,106,capital,Capital financeiro,"ção de classe. Ou seja, o «capital» financeiro se apoderaria do Estado",recurso_economico,true,claude-opus-5-5
 593383-12,168,capital,Mercado financeiro, e fluidez dos fluxos de «capital» entre os países e pelo surgimento de,recurso_economico,true,claude-opus-5-5
+612031-13,51,capital,Capital de risco,"970, as sociedades de «capital» de risco preferiram investir em",recurso_economico,true,claude-opus-5-5
+612031-24,546,capital,Capital de risco," para se tornar uma ""empresa de «capital» de risco"". Em 19",recurso_economico,true,claude-opus-5-5
 612031-26,109,capital,Capital de risco, muito superiores aos investimentos de venture «capital». As operações emblemáticas de private,recurso_economico,true,claude-opus-5-5
 624463-3,539,capital,Desenvolvimento econômico local," de investimento em capital humano e em «capital» social"".",capital_imaterial,false,claude-opus-5-5
 1680356-0,316,capital,Problema econômico, os fatores de produção (como «capital» e trabalho) deverão ser aloc,recurso_economico,true,claude-opus-5-5
+2243914-26,31,capital,Banco islâmico,Desde o lançamento de fundos de «capital» islâmicos no início da década de,recurso_economico,true,claude-opus-5-5
+3244605-0,418,capital,FairTax," empresas, impostos sobre ganhos de «capital», impostos sobre a folha de",recurso_economico,true,claude-opus-5-5
 3247032-0,119,capital,Imposto lump-sum,"os sobre a renda ou sobre o «capital», os impostos lump sum são independent",recurso_economico,true,claude-opus-5-5
 4276209-4,494,capital,Product Space," dois produtos requerem instituições, «capital», infraestrutura, tecnologia entre",recurso_economico,true,claude-opus-5-5
 4276209-5,517,capital,Product Space,"ilham instituições similares, «capital», infra-estrutura, tecnologia",recurso_economico,true,claude-opus-5-5
 6525079-1,687,capital,Financeirização, equipamentos ou edifícios de «capital» físico porque são obrigadas a usar sua,recurso_economico,true,claude-opus-5-5
+6920267-4,505,capital,Imposto sobre ganhos de capital,"ais como imposto sobre ganho de «capital» está, na verdade, dentro da estr",recurso_economico,true,claude-opus-5-5
 6920267-5,502,capital,Imposto sobre ganhos de capital," como se fossem um ganho de «capital», em vez de lucro comercial.",recurso_economico,true,claude-opus-5-5
+7387908-1,387,capital,Política industrial, a tributação dos ganhos de «capital». Exemplos tradicionais de,recurso_economico,true,claude-opus-5-5
+7418351-4,236,capital,Fuga de capitais," os juros, dividendos e do «capital» realizado normalmente retornam ao país de",recurso_economico,true,claude-opus-5-5
 7456709-16,347,capital,Imposto progressivo, diminuindo assim o nível global de «capital» humano numa economia. No entanto,capital_imaterial,false,claude-opus-5-5
+7625284-7,201,capital,Capital jurídico," os benefícios extraídos do «capital» jurídico, pois ocorre a",capital_imaterial,false,claude-opus-5-5
+7625346-0,304,capital,Ciclo da litigância, estoque socialmente desejável de «capital» jurídico no comportamento da lit,capital_imaterial,false,claude-opus-5-5
+7875456-18,561,capital,Impacto econômico da pandemia da COVID-19, da regra tradicional da chave de «capital» (que vincula proporcionalmente,recurso_economico,true,claude-opus-5-5
+7875456-80,146,capital,Impacto econômico da pandemia da COVID-19,"0, agendados para iniciar na «capital» Tóquio ao final do m",cidade_sede,true,claude-opus-5-5
+230-7,1666,capital,Anarquismo,aneamente inverter as relações do «capital» e do trabalho e inverter as rel,recurso_economico,true,claude-opus-5-5
 97825-12,506,capital,Crime de guerra," 4 de Julho entrou na «capital» Kigali, enquanto tropas fr",cidade_sede,true,claude-opus-5-5
+394087-7,194,capital,Sociedade civil,", essas entidades constroem «capital» social, promovem confiança",capital_imaterial,false,claude-opus-5-5
 565865-11,252,capital,Relação de poder," incorporadas — e nos diferentes tipos de «capital» (econômico, cultural,",capital_imaterial,true,claude-opus-5-5
 1970080-4,416,capital,Direito à vida,", a última aplicação legal da pena «capital» ocorreu em 1876",pena_capital,true,claude-opus-5-5
+1970080-7,493,capital,Direito à vida," pioneiros na extinção da pena «capital», em 1867,",pena_capital,true,claude-opus-5-5
 5342716-2,123,capital,Corte itinerante,ha - em que a aparência da «capital» durou muito longo. O governo,cidade_sede,true,claude-opus-5-5
 5342716-6,30,capital,Corte itinerante,Alemanha nunca desenvolveu uma «capital» fixa durante o período medieval.”Mult,cidade_sede,true,claude-opus-5-5
+5342716-17,292,capital,Corte itinerante,so tinha sido Guimarães a «capital» do condado Portucalense.,cidade_sede,true,claude-opus-5-5
 6212096-12,465,capital,Anarquismo nos Estados Unidos, concentração desproporcional de «capital» nas mãos de poucos como resultado,recurso_economico,true,claude-opus-5-5
 6618695-17,243,capital,Constituição romana,"rossantos. Era considerado crime «capital» ferir um tribuno, tentar",pena_capital,true,claude-opus-5-5
 6817366-19,417,capital,História política do mundo, que por sua vez saquearam a «capital» de Báctria. Isso lev,cidade_sede,true,claude-opus-5-5
+6817366-29,915,capital,História política do mundo," 762, transferiram a «capital» para Bagdá. O Emir",cidade_sede,true,claude-opus-5-5
 6817366-38,1009,capital,História política do mundo, e eles estabeleceram sua «capital» da Cidade do México nas ruín,cidade_sede,true,claude-opus-5-5
 6913678-4,159,capital,Manifesto de Oxford,es e interesses do trabalho e do «capital» são complementares; a consulta organizada,recurso_economico,true,claude-opus-5-5
+7705876-7,714,capital,Teorias do Estado,isando como o neoliberalismo e o «capital» financeiro condicionam as políticas,recurso_economico,true,claude-opus-5-5
+7705876-10,684,capital,Teorias do Estado, entre coerção militar e acumulação de «capital». Joel Migdal descreveu,recurso_economico,true,claude-opus-5-5
+1494238-25,547,família,Frank Costello,"ãos galo, membros da «família» Profaci e trabalhando sob ord",grupo_organizado,false,claude-opus-5-5
+19909-10,233,família,Estame," em forma e tamanho, dependendo da «família» botânica a que a espéc",grupo_taxonomico,true,claude-opus-5-5
+25406-26,257,família,Língua, — têm línguas (a «família» de pipídeos dos sapos,grupo_taxonomico,true,claude-opus-5-5
 47239-15,77,família,Género (biologia),"icos superiores, como o nome da «família» Canidae (""Canídeos",grupo_taxonomico,true,claude-opus-5-5
+52369-6,230,família,Androceu," única exceção são alguns membros da «família» Triuridaceae, especialmente Lac",grupo_taxonomico,true,claude-opus-5-5
 318460-30,167,família,Bioluminescência,"hantes a camarões, principalmente da «família» Cyprididae. Ferom",grupo_taxonomico,true,claude-opus-5-5
 318460-35,24,família,Bioluminescência,"As larvas de besouros da «família» Phengodidae, como as",grupo_taxonomico,true,claude-opus-5-5
 318460-43,115,família,Bioluminescência,"ão de águas profundas da «família» Stomiidae, nos gê",grupo_taxonomico,true,claude-opus-5-5
+802817-2,334,família,Doação de sangue," pessoa, geralmente um membro da «família», doa sangue para transfus",grupo_familiar,true,claude-opus-5-5
+1303341-12,98,família,Poliploidia,"romossomos e pertence à «família» Poaceae, subfamília",grupo_taxonomico,true,claude-opus-5-5
+2258576-2,368,família,Aconselhamento genético,ista torna-se um aliado da «família» e tem uma atitude ativa de,grupo_familiar,true,claude-opus-5-5
+2258576-14,279,família,Aconselhamento genético, ética e o impacto para a «família».,grupo_familiar,true,claude-opus-5-5
+2258576-18,57,família,Aconselhamento genético,ida como uma abordagem para a «família» de um paciente afetado por uma,grupo_familiar,false,claude-opus-5-5
+3374158-0,295,família,Cremocarpo,ística das plantas pertencentes à «família» das Apiaceae.,grupo_taxonomico,true,claude-opus-5-5
+3656935-0,164,família,Circunscrição (taxonomia), a circunscrição na qual essa «família» inclui as subfamílias,grupo_taxonomico,true,claude-opus-5-5
 3683878-2,643,família,Plêuston," a película superficial, os insectos da «família» Gerridae (Gerromorpha",grupo_taxonomico,true,claude-opus-5-5
+4040406-7,341,família,Taxonomia,as informações para os outros membros da «família» ou grupo.,grupo_familiar,true,claude-opus-5-5
+4794642-3,702,família,Biossensores,culas parentais. Os elementos da «família» que se ligam especificamente a um,classe_de_objetos,true,claude-opus-5-5
 5815207-1,132,família,Isoetes," em geral considerado o único género da «família» Isoetaceae, embora alguns",grupo_taxonomico,true,claude-opus-5-5
 6052924-6,1347,família,Petrificação, tenha servido como uma casa de «família» ou centro cerimonial.,grupo_familiar,true,claude-opus-5-5
+6117194-6,374,família,Transplante de cérebro,) para a propriedade de sua «família» para ser leiloada para um proced,grupo_familiar,true,claude-opus-5-5
+6330010-1,41,família,Cultivo de cannabis, pertence ao gênero Cannabis da «família» Cannabaceae. Ela pode,grupo_taxonomico,true,claude-opus-5-5
 6330010-35,744,família,Cultivo de cannabis," inalado pelo produtor ou sua «família», pois ele é prejudicial para os",grupo_familiar,true,claude-opus-5-5
 7646725-3,392,família,Mammillaria spinosissima, e morfologicamente variados da «família» dos cactos. Estima-se,grupo_taxonomico,true,claude-opus-5-5
+7680313-1,55,família,Estrabopídeos," foi anteriormente incluída como uma «família», mas após a descoberta de",grupo_taxonomico,true,claude-opus-5-5
 7736334-3,22,família,Lupinus arboreus,"Como muitos membros da «família» Fabaceae, é um eficiente",grupo_taxonomico,false,claude-opus-5-5
 46789-2,505,família,Censo demográfico,"as categorias, como chefes de «família», homens em idade militar, etc",grupo_familiar,true,claude-opus-5-5
 97825-13,277,família,Crime de guerra,"a a difícil tarefa de defender sua «família» e amigos tútsis, da re",grupo_familiar,true,claude-opus-5-5
@@ -176,46 +403,107 @@ paragraph_id,char_start,target_word,title,local_context,sense,left_determinable,
 1970080-14,498,família,Direito à vida, importância dos aspectos emocionais da «família» e faz com que toda a equipe seja,grupo_familiar,true,claude-opus-5-5
 1970080-18,131,família,Direito à vida," determinar que é ""dever da «família», da sociedade e do Estado as",grupo_familiar,true,claude-opus-5-5
 2268551-8,672,família,Política social,"io ao rendimento, abono de «família» e vários subsídios destinados a",grupo_familiar,true,claude-opus-5-5
+2268551-13,423,família,Política social," habitação social, a política da «família», a assistência social, a prote",grupo_familiar,true,claude-opus-5-5
 4156756-2,232,família,Chefatura," guerra que se tornou chefe de «família», os homens que inicialmente se",grupo_familiar,true,claude-opus-5-5
 6590355-1,263,família,World Values Survey," em relação ao meio ambiente, trabalho, «família», política, identidade nacional, cultura",grupo_familiar,true,claude-opus-5-5
 7098255-1,591,família,Doe v. Unidade Escolar Regional 26, de gênero. Nicole e sua «família» receberam 75 mil dólares de,grupo_familiar,true,claude-opus-5-5
 1410-13,378,massa,Planeta," sua estrela, com base na «massa» do planeta, seu semieixo",massa_fisica,true,claude-opus-5-5
 1410-34,12,massa,Planeta,Um objeto de «massa» planetária ou planemo é um objeto,massa_fisica,true,claude-opus-5-5
 1410-35,30,massa,Planeta, planeta anão é um objeto de «massa» planetária que não é nem um plan,massa_fisica,true,claude-opus-5-5
+2606-17,668,massa,Termodinâmica," entropia é diferente de energia e «massa», porque não é localmente conservada",massa_fisica,true,claude-opus-5-5
+13228-37,664,massa,Universo,assem em hádrons e a «massa» do Universo fosse dominada por,massa_fisica,true,claude-opus-5-5
+13228-39,711,massa,Universo,duo de léptons. A «massa» do Universo foi então dominada por,massa_fisica,true,claude-opus-5-5
+13228-40,299,massa,Universo,pico porque o fóton tem «massa» de repouso zero; isto,massa_fisica,true,claude-opus-5-5
+18610-6,637,massa,Teoria das cordas," que não são cordas, com sua «massa», carga e outras propriedades determin",massa_fisica,true,claude-opus-5-5
+18610-43,304,massa,Teoria das cordas, como buracos negros com a menor «massa» possível compatível com uma dada carga,massa_fisica,true,claude-opus-5-5
+67708-12,289,massa,Classificação estelar," do que o de uma anã de «massa» semelhante. Portanto,",massa_fisica,true,claude-opus-5-5
 67708-50,223,massa,Classificação estelar, limite de fusão de deutério de «massa» de 13 Júpiter,massa_fisica,true,claude-opus-5-5
+67765-8,584,massa,Sequência principal," sequência principal são conhecidas, a «massa» e o raio podem ser determinados",massa_fisica,true,claude-opus-5-5
+67765-15,272,massa,Sequência principal," geração de energia por unidade de «massa», ε = L/M, é prop",massa_fisica,true,claude-opus-5-5
 67765-25,295,massa,Sequência principal,ência principal ainda seria mal definida porque «massa» não é o único parâmetro que,massa_fisica,true,claude-opus-5-5
 152945-15,483,massa,Onda gravitacional,",4 M (sendo M a «massa» do Sol) e o tamanho de suas",massa_fisica,true,claude-opus-5-5
+152945-19,1432,massa,Onda gravitacional,"10^30 Kg), a «massa» do buraco negro resultante foi de",massa_fisica,true,claude-opus-5-5
 282333-94,1457,massa,História da física,"o contendo a maior parte da sua «massa», e que consiste em pesadas",massa_fisica,true,claude-opus-5-5
+459767-2,309,massa,Teoria Alpher-Bethe-Gamov, um isótopo estável de «massa» atômica cinco ou oito.,massa_fisica,true,claude-opus-5-5
 924461-6,475,massa,Propulsão,ção do que os sistemas de transporte de «massa» com rodas. Alega-se,em_massa,true,claude-opus-5-5
 2597752-6,469,massa,Teoria aristotélica da gravitação, era supostamente proporcional à «massa» do objeto.,massa_fisica,true,claude-opus-5-5
+2597752-14,354,massa,Teoria aristotélica da gravitação, taxa de queda é proporcional à «massa» e inversamente proporcional à dens,massa_fisica,true,claude-opus-5-5
 3074593-4,174,massa,Dinâmica de voo (satélites),"iroscópios consistem em uma «massa» em rotação, mas também podem",porcao_de_materia,true,claude-opus-5-5
+5107700-6,288,massa,Núcleo galáctico ativo, fazem com que grandes quantidades de «massa» sejam expelidas. Para que,massa_fisica,true,claude-opus-5-5
+6622032-4,129,massa,Experimento de Schiehallion, gravitação universal e estimativas da «massa» e densidade da Terra. Como as,massa_fisica,true,claude-opus-5-5
+7285819-1,887,massa,Função de massa inicial, volume de espaço em uma faixa de «massa» e um intervalo de tempo. Para,massa_fisica,true,claude-opus-5-5
+9539-10,224,massa,Oceano, facilidade quando o planeta tinha menor «massa» durante sua formação. Esse processo,massa_fisica,true,claude-opus-5-5
 9539-30,828,massa,Oceano," arrebenta, tombando em uma «massa» de água espumosa. Essa",porcao_de_materia,true,claude-opus-5-5
+16023-4,230,massa,Estuário,", sua presença lado a lado com a «massa» d’água oceânica",porcao_de_materia,true,claude-opus-5-5
 38712-5,369,massa,Golfo Pérsico,ava o reconhecimento do nome da «massa» de água como tal. De acordo com,porcao_de_materia,true,claude-opus-5-5
 45627-9,60,massa,Globalização, incremento no acesso à comunicação em «massa» acionado pela globalização tem impact,em_massa,true,claude-opus-5-5
+47870-0,92,massa,Cabo (geografia),idente geográfico formado por uma «massa» de terra que se estende por um,porcao_de_materia,true,claude-opus-5-5
 74457-20,193,massa,Tectónica de placas, continentes atuais formaram uma única «massa» de terra (mais tarde denominada,porcao_de_materia,true,claude-opus-5-5
+74457-35,75,massa,Tectónica de placas,"as rochosos está relacionado à «massa» planetária, sendo esperado que planet",massa_fisica,true,claude-opus-5-5
+95926-10,189,massa,Relevo,"-la em gelo. Quando essa enorme «massa» de gelo se desloca,",porcao_de_materia,true,claude-opus-5-5
 116839-4,35,massa,Alcalinidade," solução padrão é composta por uma «massa» pesada em balança analítica,",porcao_de_materia,true,claude-opus-5-5
+1135851-3,317,massa,Efeito de Eötvös,"anto maior o peso aparente da «massa» interna, maior é o alongamento",porcao_de_materia,false,claude-opus-5-5
+1135851-5,534,massa,Efeito de Eötvös,ças na forma ou na distribuição de «massa» da Terra.,massa_fisica,true,claude-opus-5-5
+1135851-17,343,massa,Efeito de Eötvös,amento para gramas inteiras. A «massa» do corpo permanece igual a 1,massa_fisica,true,claude-opus-5-5
+1839796-4,148,massa,Domo de lava," abertura vulcânica. Esta «massa» pode assumir diferentes formas, mas geral",porcao_de_materia,true,claude-opus-5-5
 1839796-9,863,massa,Domo de lava, temperatura permite que penetre profundamente na «massa» magmática já contida na câm,porcao_de_materia,true,claude-opus-5-5
 4448825-0,141,massa,Densidade de área, objeto bidimensional é calculada como a «massa» por unidade de área. O SI,massa_fisica,true,claude-opus-5-5
+4843709-3,130,massa,Poça de maré," do mar que, por causa da enorme «massa» de água que alberga, ora",porcao_de_materia,true,claude-opus-5-5
+5459825-17,125,massa,Material particulado em suspensão,co obtido a partir da diferença de «massa» da membrana antes e depois da fil,massa_fisica,true,claude-opus-5-5
+5459959-1,162,massa,Picnoclina,"ais adjacentes de água, sendo a «massa» de água superior menos densa e a",porcao_de_materia,true,claude-opus-5-5
 5459959-9,785,massa,Picnoclina,ina permanente. O fluxo de «massa» de água que sai da picnocl,porcao_de_materia,false,claude-opus-5-5
+5459959-11,666,massa,Picnoclina," trajetória. Assim, a «massa» de água é isolada da atmosfer",porcao_de_materia,true,claude-opus-5-5
+6326327-36,394,massa,Represa do Renascimento,"ais originais consideraram apenas uma «massa» rochosa ""genérica"", sem",porcao_de_materia,false,claude-opus-5-5
+7552422-0,203,massa,Água de Fundo Antártica,"5,0 g/kg. Como a «massa» de água mais densa dos oceanos",porcao_de_materia,true,claude-opus-5-5
 7552422-3,60,massa,Água de Fundo Antártica, a formação da AFA é a «massa» de água quente ao largo da costa,porcao_de_materia,true,claude-opus-5-5
 7572857-5,640,massa,Circulação de capotamento do oceano Antártico," 90 anos para metade da «massa» de água, e algumas águas",porcao_de_materia,false,claude-opus-5-5
+395144-0,3,matriz,Matriz de rotação,Uma «matriz» de rotação é uma matriz quadr,matriz_matematica,false,claude-opus-5-5
+395144-0,27,matriz,Matriz de rotação,"ma matriz de rotação é uma «matriz» quadrada que, quando aplicada sobre",matriz_matematica,true,claude-opus-5-5
+395144-0,112,matriz,Matriz de rotação,ação matemática de vetor - uma «matriz» coluna - tem o efeito de,matriz_matematica,true,claude-opus-5-5
 395144-0,311,matriz,Matriz de rotação, rotação definido pelos elementos da «matriz»; por um valor angular também por eles,matriz_matematica,true,claude-opus-5-5
+395144-0,408,matriz,Matriz de rotação, O resultado da operação é uma segunda «matriz» coluna que encerra as coordenadas,matriz_matematica,true,claude-opus-5-5
 24874-2,188,matriz,Parede celular,ilas estão imersas em uma «matriz» que contém hemiceluloses,substancia_envolvente,true,claude-opus-5-5
+52608-4,206,matriz,Peroxissoma,"lasma da célula. A sua «matriz» apresenta-se, habitualmente, com",substancia_envolvente,true,claude-opus-5-5
+52608-6,255,matriz,Peroxissoma,inalizam as proteínas da «matriz» para que estas sejam importadas para,substancia_envolvente,true,claude-opus-5-5
+58284-9,43,matriz,Esterilização de materiais, membrana são constituídos de uma «matriz» porosa que permite que a solução passe,substancia_envolvente,true,claude-opus-5-5
 107995-1,719,matriz,Cerebelo,"blastos derivados das células da «matriz», na zona ventricular, migram",tecido_de_origem,true,claude-opus-5-5
+145489-17,1447,matriz,Encéfalo, outras áreas do cérebro: uma «matriz» sináptica inicial é gerada,modelo_estrutural,false,claude-opus-5-5
+145489-19,547,matriz,Encéfalo,", é necessária para refinar a «matriz» de conexões sinápticas.",modelo_estrutural,false,claude-opus-5-5
 298348-5,237,matriz,ISPA – Instituto Universitário, do ensino superior. Com esta nova «matriz» institucional o ISPA passou,modelo_estrutural,true,claude-opus-5-5
 1579302-6,251,matriz,Estatura,"oblastos, sintetizam «matriz» óssea formada de mucopol",substancia_envolvente,true,claude-opus-5-5
+4272802-4,391,matriz,Medicina regenerativa,imento e das citocinas dentro da «matriz» extracelular danificada.,substancia_envolvente,true,claude-opus-5-5
+4794642-1,222,matriz,Biossensores, um determinado analito presente em uma «matriz» com outros compostos químicos ou,substancia_envolvente,true,claude-opus-5-5
 5232302-0,550,matriz,Membrana biológica, uma membrana celular fornece uma «matriz» fluida para que as proteínas,substancia_envolvente,true,claude-opus-5-5
 5286728-13,328,matriz,Distribuição disjunta,", contrastando fortemente com a «matriz» semiárida ao redor.",entorno_paisagem,false,claude-opus-5-5
+5286728-15,89,matriz,Distribuição disjunta," de altitude, que não ocorrem na «matriz» circundante, como Vismia",entorno_paisagem,true,claude-opus-5-5
+6052924-7,1691,matriz,Petrificação, matéria da madeira e formam uma «matriz» de silicatos dentro da madeira,substancia_envolvente,true,claude-opus-5-5
 7271447-0,205,matriz,Fermentação em estado sólido, é executado sob um substrato de «matriz» sólida em condições de humidade,substancia_envolvente,true,claude-opus-5-5
+7271447-4,409,matriz,Fermentação em estado sólido," que se encontram agarrados à «matriz» sólida, absorvem a",substancia_envolvente,true,claude-opus-5-5
 7288711-0,546,matriz,Podossomo, degradação ao longo da «matriz» extracelular. Muitas,substancia_envolvente,true,claude-opus-5-5
 7288711-1,697,matriz,Podossomo, um papel na degradação da «matriz». Para refletir esta natureza,substancia_envolvente,true,claude-opus-5-5
+7455870-26,136,matriz,Distância biológica," de Componente Principal (sobre a «matriz» de covariância), Escalonamento",matriz_matematica,true,claude-opus-5-5
+7552471-0,607,matriz,Grânulo cortical, e a libertarem o seu conteúdo na «matriz» extracelular do ovócito,substancia_envolvente,true,claude-opus-5-5
+7552471-3,1236,matriz,Grânulo cortical, para fazer pequenas modificações na «matriz» extracelular do ovócito,substancia_envolvente,true,claude-opus-5-5
+7897019-1,559,matriz,Mecanobiologia,β) e metaloproteinases da «matriz» que desempenham papéis na,substancia_envolvente,true,claude-opus-5-5
+7897019-4,586,matriz,Mecanobiologia,"nicos, como a rigidez da «matriz» extracelular (MEC),",substancia_envolvente,true,claude-opus-5-5
 7897019-6,415,matriz,Mecanobiologia,"queleto, núcleos, «matriz» extracelular e inúmeras",substancia_envolvente,true,claude-opus-5-5
+64307-16,479,matriz,Matriz (matemática)," método para calcular o determinante de qualquer «matriz». Finalmente, a expansão de",matriz_matematica,true,claude-opus-5-5
+64307-39,254,matriz,Matriz (matemática), finito de estados. Uma linha da «matriz» estocástica fornece a,matriz_matematica,true,claude-opus-5-5
 64307-46,370,matriz,Matriz (matemática),"o, e onde as entradas da «matriz» são determinadas pelo circuito.",matriz_matematica,true,claude-opus-5-5
 91406-3,290,matriz,Mapa de Karnaugh,"anjo mais conveniente, é uma «matriz» 4x4, desta forma.",matriz_matematica,true,claude-opus-5-5
 495046-0,181,matriz,Matriz inversa," é o inverso do determinante da «matriz» em questão, e a mesma estratégia pode",matriz_matematica,true,claude-opus-5-5
+1391466-4,198,matriz,Intranet, conteúdos que estejam na sua «matriz». Ela cria um canal de comun,sede_empresarial,true,claude-opus-5-5
 1622258-17,520,matriz,Matriz esparsa, provavelmente insignificante para uma «matriz» suficientemente grande.,matriz_matematica,true,claude-opus-5-5
 2077745-3,213,matriz,Matriz triangular,) é semelhante a uma «matriz» triangular. Isso pode ser provado,matriz_matematica,true,claude-opus-5-5
+2077745-5,272,matriz,Matriz triangular,ária como mudança de base) a uma «matriz» triangular superior; isto segue tomando,matriz_matematica,true,claude-opus-5-5
+2077745-12,489,matriz,Matriz triangular," matriz triangular unitária não é igual à «matriz» unitária, e uma matriz triangular norm",matriz_matematica,true,claude-opus-5-5
+2903025-0,47,matriz,Matriz CKM," das partículas fundamentais, a «matriz» CKM (matriz de Cabib",matriz_matematica,true,claude-opus-5-5
 3359027-2,170,matriz,Operação elementar (matrizes),geralmente um número real). A «matriz» elementar correspondente é uma matriz diagonal,matriz_matematica,true,claude-opus-5-5
+5185982-4,76,matriz,Algoritmo de autovalor, encontrar o autoespaço de uma «matriz» normal correspondente a um autovalor tem,matriz_matematica,true,claude-opus-5-5
 5185982-8,68,matriz,Algoritmo de autovalor,"indo para o espaço de coluna da «matriz», que transporta para si próprio.",matriz_matematica,true,claude-opus-5-5
+5185982-13,31,matriz,Algoritmo de autovalor," exemplo, uma projeção é uma «matriz» quadrada satisfazendo. As ra",matriz_matematica,true,claude-opus-5-5
+7870248-1,239,matriz,Matriz de Hadamard," por 1. Equivalentemente, uma «matriz» de Hadamard tem determinante máximo",matriz_matematica,true,claude-opus-5-5
 7870248-7,178,matriz,Matriz de Hadamard,"é a equivalência, há uma única «matriz» de Hadamard de ordens ",matriz_matematica,true,claude-opus-5-5
+7896863-8,338,matriz,Níveis padrão de RAID," pertencentes à matriz, e a «matriz» só pode ser tão grande quanto o menor",arranjo_de_dispositivos,true,claude-opus-5-5
+7896863-29,549,matriz,Níveis padrão de RAID," de 250 GB, a «matriz» terá uma capacidade total de ",arranjo_de_dispositivos,true,claude-opus-5-5
 7896863-32,346,matriz,Níveis padrão de RAID,"massive array of idle disks"" ou «matriz» massiva de discos ociosos",arranjo_de_dispositivos,true,claude-opus-5-5

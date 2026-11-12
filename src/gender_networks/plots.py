@@ -1190,6 +1190,137 @@ def separation_figure(
     return fig
 
 
+@dataclass(frozen=True)
+class SensePanel:
+    """One word of the sense x community figure.
+
+    ``counts[i]`` is the contingency table in ``titles[i]``'s representation: one row per sense
+    (in the order of ``senses``), one column per community, the community holding most of the
+    word's occurrences first.
+    """
+
+    word: str
+    senses: Sequence[str]
+    counts: Sequence[np.ndarray]
+    titles: Sequence[str]
+
+
+# Height of one bar row and of the space above each word (in bar rows) in the sense figure.
+SENSE_ROW_IN = 0.135
+SENSE_WORD_ROWS = 1.3
+
+
+def _split_balanced(sizes: Sequence[int]) -> int:
+    """Where to cut ``sizes`` (at least two) into two runs of nearly equal sum, both non-empty."""
+
+    total, running = sum(sizes), 0
+    for i, size in enumerate(sizes):
+        if running + size / 2 > total / 2:
+            return min(max(i, 1), len(sizes) - 1)
+        running += size
+    return len(sizes) - 1
+
+
+def sense_communities_figure(words: Sequence[SensePanel], note: str = "") -> Figure:
+    """Annotated senses (bars) split by community (segments), one panel per representation.
+
+    Each bar is a sense of the word and its length is the number of occurrences; the segments
+    are the communities those occurrences fall in, colored by the community's rank among the
+    word's occurrences in that panel (the same color in two panels is not the same community).
+    A sense that the network separates is a bar of one color that no other bar of the word
+    shares. With up to two representations the words go in two columns.
+    """
+
+    n_reps = max(len(w.counts) for w in words)
+    if n_reps <= 2 and len(words) > 1:
+        cut = _split_balanced([len(w.senses) for w in words])
+        columns = [list(words[:cut]), list(words[cut:])]
+    else:
+        columns = [list(words)]
+    units = max(sum(len(w.senses) + SENSE_WORD_ROWS for w in col) for col in columns)
+    fig = plt.figure(figsize=(WIDTH_IN, units * SENSE_ROW_IN + 1.0), layout="constrained")
+    fig.get_layout_engine().set(w_pad=0.02, h_pad=0.02, wspace=0.0, hspace=0.0)
+    n_ranks = max(c.shape[1] for w in words for c in w.counts)
+    ranks = [str(r + 1) for r in range(n_ranks)]
+    styles = categorical_styles(ranks, {r: f"{r}ª" for r in ranks})
+    xmax = max(float(c.sum(axis=1).max()) for w in words for c in w.counts)
+    subfigures = fig.subfigures(1, len(columns), wspace=0.03, squeeze=False)[0]
+    for sub, column in zip(subfigures, columns, strict=True):
+        axes = sub.subplots(
+            len(column),
+            n_reps,
+            sharex=True,
+            squeeze=False,
+            gridspec_kw={
+                "height_ratios": [len(w.senses) + SENSE_WORD_ROWS for w in column],
+                "hspace": 0.0,
+                "wspace": 0.06,
+            },
+        )
+        for i, word in enumerate(column):
+            ys = np.arange(len(word.senses))[::-1]
+            for j, ax in enumerate(axes[i]):
+                prepare(ax, grid="x")
+                if j >= len(word.counts):
+                    ax.set_visible(False)
+                    continue
+                counts = np.asarray(word.counts[j], dtype=float)
+                left = np.zeros(len(word.senses))
+                for r in range(counts.shape[1]):
+                    style = styles[ranks[r]]
+                    ax.barh(
+                        ys,
+                        counts[:, r],
+                        left=left,
+                        height=0.74,
+                        color=style.color,
+                        hatch=style.hatch,
+                        edgecolor=SURFACE,  # separates the segments; the hatch is tone-on-tone
+                        linewidth=0.4,
+                    )
+                    left += counts[:, r]
+                ax.set_title(word.titles[j], loc="right", fontsize=7, color=INK_SECONDARY, pad=2)
+                ax.set_ylim(-0.55, len(word.senses) - 0.45)
+                ax.set_xlim(0, xmax)
+                ax.xaxis.set_major_locator(MaxNLocator(nbins=3, integer=True))
+                if j == 0:
+                    ax.set_yticks(ys, list(word.senses), fontsize=7)
+                    ax.set_ylabel(
+                        word.word,
+                        rotation=0,
+                        ha="right",
+                        va="bottom",
+                        fontsize=8,
+                        fontweight="bold",
+                        color=INK,
+                    )
+                    ax.yaxis.set_label_coords(-0.04, 1.0)
+                else:
+                    ax.set_yticks(ys, [])
+                if i < len(column) - 1:
+                    ax.tick_params(labelbottom=False)
+        for ax in axes[-1]:
+            ax.set_xlabel("ocorrências", fontsize=7)
+    shown = ranks[: len(CATEGORICAL)]
+    handles = [patch_handle(styles[r]) for r in shown]
+    if n_ranks > len(CATEGORICAL):
+        handles.append(patch_handle(Style(MUTED, label=f"{len(CATEGORICAL) + 1}ª em diante")))
+    title = "Comunidade, pela ordem do número de ocorrências da palavra no painel"
+    fig.legend(
+        handles=handles,
+        loc="outside upper left",
+        ncol=len(handles),
+        title=title + (f"\n{note}" if note else ""),
+        title_fontsize=7.5,
+        alignment="left",
+        frameon=False,
+        columnspacing=1.0,
+        handletextpad=0.4,
+        handlelength=1.4,
+    )
+    return fig
+
+
 # --------------------------------------------------------------------------------------------
 # robustness, vocabulary, lens
 

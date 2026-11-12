@@ -193,14 +193,16 @@ Para cada tipo com $f_t\ge10$ (alvos, controles, multitema e palavras funcionais
     na comunidade $c$ (vale 1 quando todas estão juntas; na rede lexical tende a 1, porque
     ocorrências do mesmo tipo são idênticas e ligadas entre si);
     \item \textbf{NMI entre comunidade e tema} dentro do tipo: as ocorrências se separam
-    \emph{segundo o tema}, ou só se espalham?
+    \emph{segundo o tema}, ou só se espalham? Com poucas dezenas de ocorrências por tipo, o
+    NMI ao acaso não é desprezível, e ele vem com a mesma linha de base de permutação da P3;
     \item \textbf{autossimilaridade}: cosseno médio entre as próprias ocorrências do tipo
     (1 na camada lexical)~\cite{ethayarajh2019};
     \item \textbf{diferença entre o cosseno médio dentro do mesmo tema e entre temas};
-    \item \textbf{separação pelo sentido anotado} (20 ocorrências por alvo, anotadas pelo Claude
-    Opus~5.5; Seção~\ref{sec:dados-sentidos}), em todas as ocorrências anotadas e só nas que o
-    contexto à esquerda decide. Ela controla o fato de o tema ser só um indicador aproximado do
-    sentido;
+    \item \textbf{separação pelo sentido anotado} (todas as ocorrências dos alvos, anotadas pelo
+    Claude Opus~5.5; Seção~\ref{sec:dados-sentidos}): a diferença de cosseno intra $-$ entre
+    sentidos e o NMI entre comunidade e sentido, com a sua linha de base, em todas as
+    ocorrências e só nas que o contexto à esquerda decide. Ela controla o fato de o tema ser só
+    um indicador aproximado do sentido;
     \item \textbf{redes ego} de 2 ou 3 alvos, com layout fixo entre camadas, para inspeção
     qualitativa.
 \end{itemize}

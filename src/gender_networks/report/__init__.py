@@ -74,7 +74,11 @@ from gender_networks.report.sections.p2 import (
     table_p2_transicoes,
 )
 from gender_networks.report.sections.p3 import figure_p3_nmi_camadas, table_p3_concordancia
-from gender_networks.report.sections.p4 import figure_p4_separacao, table_p4_alvos
+from gender_networks.report.sections.p4 import (
+    figure_p4_comunidades_sentidos,
+    figure_p4_separacao,
+    table_p4_alvos,
+)
 from gender_networks.report.sections.robustness import figure_robustez_empates, table_robustez
 from gender_networks.report.sections.sample import (
     figure_amostra_composicao,
@@ -129,6 +133,7 @@ ITEMS = [
     Item("figure", "p4_separacao", figure_p4_separacao),
     Item("table", "p4_alvos", table_p4_alvos),
     Item("figure", "p4_ego_banco", figure_p4_ego_banco),
+    Item("figure", "p4_comunidades_sentidos", figure_p4_comunidades_sentidos),
     Item("table", "robustez", table_robustez),
     Item("figure", "robustez_empates", figure_robustez_empates),
     Item("figure", "vocab_graus", figure_vocab_graus),

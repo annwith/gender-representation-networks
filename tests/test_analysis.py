@@ -14,6 +14,7 @@ from gender_networks.artifacts import (
     RunPaths,
     write_csv,
 )
+from gender_networks.partitions import nmi
 from gender_networks.settings import (
     AnalysisSettings,
     CorpusSettings,
@@ -266,6 +267,27 @@ def test_p4_senses_uses_the_shared_annotations(analyzed) -> None:
     assert list(n["all"]) == [int((occurrences["target_word"] == "alvo").sum())]
     assert list(n["left"]) == [8]
     assert set(senses["word"]) == {"alvo"} and set(senses["n_senses"]) == {2}
+    for column in ["nmi_community_sense", "nmi_community_sense_baseline"]:
+        values = senses[column].astype(float)
+        assert values.notna().all() and values.between(0, 1).all()
+
+    # p4_sense_communities holds the contingency tables behind nmi_community_sense
+    communities = read(paths, "p4_sense_communities.csv")
+    assert set(communities["rep"]) == set(settings.networks.representations)
+    sizes = communities.groupby("rep")["occurrence_id"].agg(["size", "nunique"])
+    assert set(sizes["size"]) == set(n["all"]) and (sizes["nunique"] == sizes["size"]).all()
+    for _, row in senses.iterrows():
+        part = communities[communities["rep"] == row["rep"]]
+        if row["subset"] == "left":
+            part = part[part["left_determinable"]]
+        expected = nmi(part["community"].to_numpy(), part["sense"].to_numpy())
+        assert row["nmi_community_sense"] == pytest.approx(expected)
+
+    types = read(paths, "p4_types.csv")
+    several = types["n_themes"].astype(int) > 1
+    has_baseline = types["nmi_community_theme_baseline"].astype(float).notna()
+    assert (has_baseline == types["nmi_community_theme"].astype(float).notna()).all()
+    assert has_baseline[several].any() and not has_baseline[~several].any()
 
 
 def test_sense_labels_merge_the_template_and_reject_clashes(analyzed, tmp_path) -> None:

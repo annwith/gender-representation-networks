@@ -224,15 +224,14 @@ por (sequência, posição), com origem (tema, artigo, revisão, parágrafo, sen
 faixa de posição, grupo de prefixo, token (id, texto, \emph{offsets}, vizinhos na sequência),
 palavra e categoria, frequências e faixas na amostra e no corpus, estrato, palavra-alvo, tema
 de sentido e contexto local. A ordem das linhas define o desempate por posição
-(Seção~\ref{sec:red-empates}). Para a separação por sentido na P4, 20 ocorrências por alvo têm
-o sentido anotado (abaixo).
+(Seção~\ref{sec:red-empates}). Para a separação por sentido na P4, todas as ocorrências dos
+alvos têm o sentido anotado (abaixo).
 
-\paragraph{Anotação de sentidos.}\label{sec:dados-sentidos} As 20 ocorrências por alvo de
-\cod{sample/senses.csv}, sorteadas em rodízio entre os temas de sentido, foram anotadas pelo
-modelo de linguagem Claude Opus~5.5 (Anthropic), sem revisão humana. Cada ocorrência foi lida
-com o trecho do parágrafo em volta, sem o tema e sem o título do artigo, para que o rótulo
-registrasse o sentido e não o tema. Os rótulos de cada palavra (de 2 a 6 sentidos) foram
-definidos durante a leitura. O Qwen3 é causal: a representação de uma ocorrência depende só do
+\paragraph{Anotação de sentidos.}\label{sec:dados-sentidos} Todas as ocorrências das
+palavras-alvo, inclusive as que estão no núcleo, foram anotadas pelo modelo de linguagem Claude
+Opus~5.5 (Anthropic), sem revisão humana. Cada ocorrência foi lida com o trecho do parágrafo em
+volta, sem o tema e sem o título do artigo, para que o rótulo registrasse o sentido e não o
+tema. Os rótulos de cada palavra (de 3 a 7 sentidos) foram definidos durante a leitura. O Qwen3 é causal: a representação de uma ocorrência depende só do
 parágrafo até a palavra. Por isso cada ocorrência recebeu também uma segunda marca, que diz se
 esse trecho à esquerda já decide o sentido. Essa passada não foi cega, porque o sentido já era
 conhecido. A separação por sentido é medida em dois recortes: todas as ocorrências anotadas e

@@ -138,17 +138,22 @@ def table_p1_resumo(ctx: Context) -> Tabular:
             ["", ""] + [rf"\multicolumn{{4}}{{c}}{{\texttt{{{tex_text(r)}}}}}" for r in reps]
         ),
         "".join(rf"\cmidrule(lr){{{3 + 4 * i}-{6 + 4 * i}}}" for i in range(len(reps))),
-        header_row(
-            ["Grupo", "$n$"] + [r"$J$", r"$M\!-\!M^{\mathrm{r}}$", "$D$", r"$\tilde D$"] * len(reps)
-        ),
+        header_row(["Grupo", "$n$"] + [r"$J$", r"$M^{+}$", "$D$", r"$\tilde D$"] * len(reps)),
     ]
     notes = [
-        r"$J=J_i(\mathrm{lex},\ell)$; $M\!-\!M^{\mathrm{r}}$: mudança acima do piso de ruído "
+        r"$J=J_i(\mathrm{lex},\ell)$; $M^{+}=M-M^{\mathrm{r}}$: mudança acima do piso de ruído "
         r"(piso de $J$ entre sementes lexicais menos $J$); $D$: dominância lexical; "
         r"$\tilde D$: $D$ sobre o teto $\min(f_t-1,k)/k$ (só $f_t\geq2$). Médias por vértice."
     ]
+    # Short headings (M^+ instead of M - M^r) give the four columns of each layer the same
+    # width; extra space before each layer sets the blocks apart.
     return Tabular(
-        "lr" + "rrrr" * len(reps), header, rows, size=r"\footnotesize", notes=notes, colsep="3.5pt"
+        "lr" + r"!{\hspace{6pt}}cccc" * len(reps),
+        header,
+        rows,
+        size=r"\footnotesize",
+        notes=notes,
+        colsep="3.5pt",
     )
 
 
