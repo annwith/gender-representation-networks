@@ -307,6 +307,24 @@ def test_item_lists_match_the_report_sections() -> None:
     assert set(report.MACROS) == provided - {"pendente"}
 
 
+def test_final_report_only_uses_generated_material() -> None:
+    """The final delivery reads the technical report's generated files and copies none of them."""
+    final = RELATORIO.parent / "entrega-final"
+    main = (final / "entrega-final.tex").read_text(encoding="utf-8")
+    text = "\n".join(
+        p.read_text(encoding="utf-8") for p in sorted((final / "secoes").glob("*.tex"))
+    )
+    figures = set(re.findall(r"\\figuraopcional\s*\{([^}]*)\}", text))
+    tables = set(re.findall(r"\\tabelaopcional\s*\{([^}]*)\}", text))
+    assert figures and figures <= set(report.FIGURES)
+    assert tables and tables <= set(report.TABLES)
+    assert not (final / "figuras").exists() and not (final / "tabelas").exists()
+    provided = set(re.findall(r"\\providecommand\{\\(\w+)\}", main))
+    used = {m for m in report.MACROS if re.search(rf"\\{m}(?![A-Za-z])", main + text)}
+    assert provided <= set(report.MACROS)
+    assert used <= provided
+
+
 def test_numbers_use_brazilian_formatting(reported) -> None:
     _, paths = reported
     text = (paths.tables_dir / "numeros.tex").read_text(encoding="utf-8")

@@ -61,6 +61,7 @@ report/
   plano-de-execucao.md           plano de execução
   relatorio/                     relatório técnico vivo (ver report/relatorio/README.md)
   estudo-de-viabilidade/         estudo de viabilidade (congelado), feito antes do pipeline
+  entrega-final/                 relatório final da disciplina (usa o material gerado do técnico)
   entrega-parcial/               entrega parcial: redes não direcionadas (itens 1 a 8)
   entrega-parcial-direcionada/   entrega parcial: redes direcionadas (itens 1 a 8)
   entrega-parcial-visualizacao/  entrega parcial: visualização das redes (item 9)

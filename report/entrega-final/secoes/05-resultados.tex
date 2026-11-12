@@ -1,0 +1,74 @@
+% ============================================================
+\section{Resultados}\label{sec:resultados}
+% ============================================================
+
+\previsto{Cerca de 4 páginas, uma subseção por pergunta, cada uma abrindo com a resposta em
+uma frase. Escrita junto com a Seção 8 do relatório técnico, de onde vêm as figuras.}
+
+% ------------------------------------------------------------
+\subsection{Visão geral das redes}\label{sec:res-geral}
+
+\previsto{O que muda nas métricas globais entre \cod{lex}, \cod{L01}, \cod{L18} e
+\cod{L36}, e o que é esperado por construção.}
+
+\tabelaopcional{metricas_globais}
+    {Métricas estruturais das redes da configuração principal ($k=10$, união; média $\pm$
+    desvio entre as 20 sementes na rede lexical, semente 0 nas camadas contextuais).}
+    {tab:metricas-globais}
+\figuraopcional{graus_camadas}
+    {Distribuição do grau de entrada (CCDF, escala log-log) nas redes por ocorrência
+    direcionadas, por representação. A linha vertical marca $k$, a média comum a todas.}
+    {fig:graus-camadas}
+
+% ------------------------------------------------------------
+\subsection{P1: quanto e de que forma a organização muda}\label{sec:res-p1}
+
+\previsto{Persistência da vizinhança e dominância lexical por camada, faixa de frequência e
+categoria de token, contra o piso de ruído. Resposta à H1.}
+
+\figuraopcional{p1_jaccard_faixas}
+    {Distribuição de $J_i(\mathrm{lex},\ell)$ para $\ell\in\{1,18,36\}$ por faixa de frequência
+    na amostra, com o piso de ruído $1-M^{\text{ruído}}$ de cada faixa.}
+    {fig:p1-jaccard-faixas}
+\figuraopcional{p1_dominancia}
+    {Dominância lexical $D$ e dominância relativa ao teto $\tilde D$ por camada, faixa de
+    frequência e categoria de token ($f_t\ge3$).}
+    {fig:p1-dominancia}
+
+% ------------------------------------------------------------
+\subsection{P2: em que camadas a mudança se concentra}\label{sec:res-p2}
+
+\previsto{Curvas camada a camada nas 36 camadas e em que transição a mudança se concentra,
+por categoria de token. Resposta à H2.}
+
+\figuraopcional{p2_curvas_camadas}
+    {Curvas camada a camada: $J(\ell,\ell+1)$ entre blocos consecutivos e dominância
+    $D(\ell)$, por categoria de token.}
+    {fig:p2-curvas-camadas}
+
+% ------------------------------------------------------------
+\subsection{P3: comunidades e contexto}\label{sec:res-p3}
+
+\previsto{Concordância das comunidades com tipo, tema, artigo, parágrafo, sentença e próximo
+token, por camada, no núcleo. Resposta à H3.}
+
+\figuraopcional{p3_nmi_camadas}
+    {NMI menos a linha de base de permutação entre as comunidades de cada camada e cada rótulo
+    (núcleo da amostra), na semente 0 do desempate. A estabilidade do Leiden (NMI médio entre
+    as 10 execuções) é informada ao lado.}
+    {fig:p3-nmi-camadas}
+
+% ------------------------------------------------------------
+\subsection{P4: separação das ocorrências de um mesmo token}\label{sec:res-p4}
+
+\previsto{Separação intra-tipo por camada para alvos, controles e multitema; comparação entre
+alvos e controles e separação pelo sentido anotado. Rede ego de \emph{banco}. Resposta à H4.}
+
+\figuraopcional{p4_separacao}
+    {Separação intra-tipo por camada: autossimilaridade, diferença entre cosseno intra e entre
+    temas e NMI comunidade$\times$tema, para alvos, controles e multitema.}
+    {fig:p4-separacao}
+\figuraopcional{p4_ego_banco}
+    {Rede ego de \tok{\esp banco} nas redes \cod{lex}, \cod{L01}, \cod{L18} e \cod{L36}, com
+    as ocorrências coloridas pelo tema de sentido e posições fixas entre camadas.}
+    {fig:p4-ego-banco}

@@ -1,0 +1,162 @@
+% ============================================================
+% Relatório final (entrega da disciplina) do projeto
+% "Da rede lexical à rede contextual" -- MO438 Redes Complexas, Unicamp.
+%
+% Compilação:  cd report/entrega-final && latexmk -pdf entrega-final.tex
+%
+% Versão condensada do relatório técnico (report/relatorio/), para quem nunca viu o
+% repositório. O texto é escrito à mão; figuras, tabelas e números NÃO são copiados: vêm do
+% material gerado pela etapa `report` em ../relatorio/figuras, ../relatorio/tabelas e
+% ../relatorio/tabelas/numeros.tex. O que ainda não foi gerado aparece como "pendente".
+% ============================================================
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% Pacotes
+% ------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{caption}
+% Sem siunitx de propósito: os números gerados já vêm formatados em pt-BR (ex.: 15.104; 0,83).
+\usepackage{hyperref}
+
+% ------------------------------------------------------------
+% Layout (o do relatório técnico: as figuras geradas foram desenhadas para essa largura)
+% ------------------------------------------------------------
+\geometry{top=2.0cm, bottom=2.0cm, left=2.0cm, right=2.0cm}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\emergencystretch}{2.5em}
+
+\setlist[itemize]{leftmargin=1.35em, itemsep=1pt, topsep=2pt, parsep=0pt}
+\setlist[enumerate]{leftmargin=1.55em, itemsep=1pt, topsep=2pt, parsep=0pt}
+\setlist[description]{leftmargin=1.2em, itemsep=2pt, topsep=2pt, parsep=0pt}
+
+\titleformat{\section}{\bfseries\large}{\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{12pt}{4pt}
+\titleformat{\subsection}{\bfseries\normalsize}{\thesubsection}{0.6em}{}
+\titlespacing*{\subsection}{0pt}{8pt}{2pt}
+
+\captionsetup{font=small, labelfont=bf, margin=0.5cm}
+\captionsetup[table]{position=top, skip=4pt}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue,
+    pdftitle={Da rede lexical à rede contextual: relatório final},
+    pdfauthor={Juliana Midlej do Espirito Santo},
+}
+
+\newcommand{\repo}{https://github.com/annwith/gender-representation-networks}
+\newcommand{\tecnico}{\repo/tree/main/report/relatorio}
+\newcommand{\viabilidade}{\repo/blob/main/report/estudo-de-viabilidade/estudo-de-viabilidade.pdf}
+\newcommand{\coleta}{https://annwith.github.io/gender-representation-networks/coleta/}
+
+% ------------------------------------------------------------
+% Material gerado (pela etapa `report`, na pasta do relatório técnico)
+% ------------------------------------------------------------
+\newcommand{\gerado}{../relatorio}
+% Números citados no texto: tabelas/numeros.tex define as macros com \newcommand. Os
+% \providecommand abaixo só valem enquanto o arquivo não existe ou não define a macro.
+% Para citar um número novo, acrescente aqui o \providecommand (a macro já deve existir em
+% ../relatorio/relatorio.tex; os testes conferem).
+\newcommand{\pendente}{\textit{[pendente]}}
+\IfFileExists{\gerado/tabelas/numeros.tex}{\input{\gerado/tabelas/numeros.tex}}{}
+\providecommand{\nArtigos}{\pendente}
+\providecommand{\nParagrafos}{\pendente}
+\providecommand{\nVertices}{\pendente}
+\providecommand{\nVerticesNucleo}{\pendente}
+\providecommand{\dataExecucao}{\pendente}
+
+\newsavebox{\caixafigura}
+% Inclui um PDF no tamanho natural, reduzindo só se for mais largo que a coluna.
+\newcommand{\incluirlimitado}[1]{%
+    \sbox{\caixafigura}{\includegraphics{#1}}%
+    \ifdim\wd\caixafigura>\linewidth
+        \includegraphics[width=\linewidth]{#1}%
+    \else
+        \usebox{\caixafigura}%
+    \fi}
+\newcommand{\caixapendente}[1]{%
+    \fcolorbox{black!45}{black!4}{%
+        \parbox{0.9\linewidth}{\centering\small\color{black!75}%
+            \rule{0pt}{1.8em}#1\par\vspace{1.1em}}}}
+% \figuraopcional{arquivo sem extensão}{legenda}{rótulo}: arquivo em ../relatorio/figuras/
+\newcommand{\figuraopcional}[3]{%
+    \begin{figure}[htbp]
+        \centering
+        \IfFileExists{\gerado/figuras/#1.pdf}{%
+            \incluirlimitado{\gerado/figuras/#1.pdf}%
+        }{%
+            \caixapendente{\textbf{Figura pendente:}
+                \texttt{\detokenize{figuras/#1.pdf}} (etapa \texttt{report})}%
+        }
+        \caption{#2}\label{#3}
+    \end{figure}}
+% \tabelaopcional{arquivo sem extensão}{legenda}{rótulo}: arquivo em ../relatorio/tabelas/
+\newcommand{\tabelaopcional}[3]{%
+    \begin{table}[htbp]
+        \centering
+        \caption{#2}\label{#3}
+        \IfFileExists{\gerado/tabelas/#1.tex}{%
+            \small\input{\gerado/tabelas/#1.tex}%
+        }{%
+            \caixapendente{\textbf{Tabela pendente:}
+                \texttt{\detokenize{tabelas/#1.tex}} (etapa \texttt{report})}%
+        }
+    \end{table}}
+
+% ------------------------------------------------------------
+% Notação
+% ------------------------------------------------------------
+\newcommand{\tok}[1]{\texttt{#1}}              % um token, como aparece no texto
+\newcommand{\esp}{\textvisiblespace}           % espaço inicial de um token
+\newcommand{\cod}[1]{\texttt{#1}}              % código, arquivos, comandos
+% Quadro do que cada seção vai conter, enquanto ela não está escrita.
+\newcommand{\previsto}[1]{%
+    \par\noindent\fcolorbox{black!30}{white}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
+        \small\textbf{Conteúdo previsto.} #1}}\par}
+
+% ============================================================
+\begin{document}
+
+\begin{center}
+    {\large\bfseries MO438 -- Redes Complexas: Relatório Final}\\[4pt]
+    {\LARGE\bfseries Da rede lexical à rede contextual}\\[3pt]
+    {\large Reorganização das representações internas de Transformers com Redes Complexas}\\[8pt]
+    Juliana Midlej do Espirito Santo (RA 200208)\\[2pt]
+    {\small Números da execução de \dataExecucao{}; as revisões do código estão no relatório técnico.}
+\end{center}
+
+\begin{abstract}
+\noindent
+\previsto{Resumo de um parágrafo: pergunta, construção das redes, principais resultados de
+P1--P4 e a conclusão. Escrito por último.}
+\end{abstract}
+
+\input{secoes/01-introducao}
+\input{secoes/02-dados}
+\input{secoes/03-redes}
+\input{secoes/04-metodos}
+\input{secoes/05-resultados}
+\input{secoes/06-robustez}
+\input{secoes/07-discussao}
+\input{secoes/08-limitacoes}
+\input{secoes/09-material}
+
+\end{document}
