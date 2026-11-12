@@ -115,187 +115,30 @@ tipos distintos.
 % ------------------------------------------------------------
 \subsection{Estudo de viabilidade}\label{sec:viabilidade}
 
-Antes de implementar o pipeline, um estudo rápido (scripts em \cod{scripts/feasibility/})
-respondeu a três perguntas: (i) a meta de cerca de 15 mil vértices é alcançável com parágrafos
-inteiros? (ii) Parágrafos inteiros deixam palavras repetidas suficientes, em temas diferentes,
-para a P4? (iii) Que tokenizer, e portanto que modelo, usar?
-
-\paragraph{Dados do estudo.} O \cod{fetch\_wiki.py} baixou uma versão simplificada do corpus:
-os mesmos oito temas, busca até a profundidade 2, 120 artigos por tema, limpeza só com
-\cod{strip\_code} e os mesmos filtros de parágrafo. Resultaram \textbf{958 artigos} e
-\textbf{7.876 parágrafos} (Biologia 965, Computação 1.034, Economia 1.147, Esporte 836, Física
-948, Geografia 785, Música 1.032, Política 1.129), com \textbf{1,28 milhão de tokens} do
-Qwen3 (1.276.475) e cerca de 23 mil tipos distintos. Três tokenizers foram comparados: o do
-Qwen3-4B (idêntico ao do Qwen3-4B-Base, 151.669 ids), o do Tucano-2b4 (treinado em português) e
-o do GPT-2 small português (o modelo do piloto).
-
-\paragraph{Amostragem natural.} O \cod{simulate\_sample.py} simula a amostragem mais simples:
-parágrafos inteiros, em rodízio entre os temas, com todos os tokens como vértices e um limite
-$f_{\max}$ por tipo, até chegar a 15 mil vértices. Também simula uma variante
-``direcionada'', que começa pelos parágrafos que contêm as palavras-alvo (até 12 por palavra e
-tema) e depois segue a ordem natural. As saídas estão em \cod{sim\_<modelo>.txt}.
-
-\paragraph{Desenho híbrido.} O \cod{sim\_hybrid.py} simula a alternativa adotada: um
-\emph{núcleo} denso de parágrafos inteiros mais estratos esparsos de ocorrências escolhidas
-(palavras-alvo, controles e palavras de conteúdo presentes em vários temas), em que só as
-posições sorteadas viram vértices e o resto do parágrafo é contexto. As saídas estão em
-\cod{hyb\_<modelo>.txt}.
-
-Nas contagens a seguir, \emph{palavra de conteúdo} é um tipo cuja categoria mais comum é
-palavra inteira, só com letras, com pelo menos 3 letras e fora de uma lista de palavras
-funcionais. O critério da P4 é ter $f_t\ge10$ na amostra e pelo menos 3 ocorrências em pelo
-menos 3 temas.
-
-\begin{table}[htbp]
-\centering
-\caption{Estudo de viabilidade: tokenizers e amostragem natural até 15 mil vértices com
-$f_{\max}=50$. Fontes: linha \cod{pool:} e bloco \cod{f\_max=50, amostragem natural} de
-\cod{scripts/feasibility/sim\_<modelo>.txt}.}\label{tab:viab-natural}
-\small
-\begin{tabular}{@{}l r r r@{}}
-\toprule
-& \textbf{Qwen3-4B} & \textbf{Tucano-2b4} & \textbf{GPT-2 small PT} \\
-\midrule
-Tokens no \emph{pool} de 7.876 parágrafos & 1.276.475 & 953.290 & 939.895 \\
-Tokens por palavra & 1,78 & 1,33 & 1,31 \\
-Palavras-alvo candidatas que são um token só & 12 de 16 & 16 de 16 & 16 de 16 \\
-\midrule
-Parágrafos para chegar a 15 mil vértices & 101 & 134 & 160 \\
-Tipos distintos na amostra & 3.693 & 6.144 & 6.213 \\
-Vértices com $f_t\le2$ & 19\% & 40\% & 39\% \\
-Vértices que são palavras inteiras & 28\% & 54\% & 72\% \\
-Tipos com $f_t\ge10$ & 293 & 183 & 170 \\
-Conteúdo com $f_t\ge10$ e $\ge3$ oc.\ em $\ge3$ temas & 4 & 5 & 9 \\
-Alvos com $\ge10$ oc.\ em $\ge2$ temas & 0 & 0 & 0 \\
-\midrule
-\multicolumn{4}{@{}l}{\emph{Variante direcionada (alvos primeiro), $f_{\max}=50$}} \\
-Conteúdo com $f_t\ge10$ e $\ge3$ oc.\ em $\ge3$ temas & 10 & 10 & 21 \\
-Alvos com $\ge10$ oc.\ em $\ge2$ temas & 2 & 1 & 2 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\figuraopcional[\cod{scripts/feasibility/plot\_feasibility.py}]{viabilidade_tokenizers}
-    {Comparação dos tokenizers no \emph{pool} do estudo de viabilidade: tokens por palavra e
-    fração dos vértices que são palavras inteiras na amostragem natural ($f_{\max}=50$). O
-    Qwen3 (em destaque) é o tokenizer do modelo escolhido. Fonte:
-    \cod{scripts/feasibility/sim\_<modelo>.txt}.}
-    {fig:viab-tokenizers}
-
-A Tabela~\ref{tab:viab-natural} e a Figura~\ref{fig:viab-tokenizers} mostram três coisas.
-
-\textbf{A meta de vértices é fácil.} Com qualquer tokenizer, 15 mil vértices saem de 100 a 160
-parágrafos (de 18 a 21 mil tokens), uma fração pequena do \emph{pool}. Com $f_{\max}=20$ bastam
-de 127 a 177 parágrafos.
-
-\textbf{Parágrafos inteiros não servem para a P4.} Mesmo com 15 mil vértices, só de 4 a 9
-palavras de conteúdo têm $f_t\ge10$ com ocorrências espalhadas por 3 temas, e \emph{nenhuma}
-palavra-alvo chega a 10 ocorrências em 2 temas. O motivo é a lei de Zipf: num trecho pequeno de
-texto, só palavras funcionais e pontuação se repetem muito; palavras de conteúdo aparecem uma
-ou duas vezes. Começar pelos parágrafos que contêm as palavras-alvo (variante direcionada)
-melhora pouco (de 10 a 21 palavras de conteúdo, 1 ou 2 alvos).
-
-\textbf{O Qwen3 fragmenta muito o português.} São 1,78 tokens por palavra, contra 1,33 do
-Tucano e 1,31 do GPT-2 português, e só 28\% dos vértices são palavras inteiras (54\% e 72\% nos
-outros). Quatro das 16 palavras-alvo candidatas não são um token só no Qwen3 (\emph{corrente},
-\emph{onda}, \emph{célula} e \emph{núcleo}; por exemplo, ``\esp célula'' vira
-\tok{\esp cél}${}+{}$\tok{ula}) e saíram da lista, que ficou com 12. Essa foi a principal
-desvantagem pesada contra o Qwen3 na escolha do modelo (Seção~\ref{sec:mod-escolha}).
-
-\begin{table}[htbp]
-\centering
-\caption{Estudo de viabilidade: desenho híbrido com 15 mil vértices e $f_{\max}=50$
-(núcleo de parágrafos inteiros, 12 ou 16 alvos, 6 controles e 150 palavras multitema com 20
-ocorrências cada). Fonte: \cod{scripts/feasibility/hyb\_<modelo>.txt}.}\label{tab:viab-hibrido}
-\small
-\begin{tabular}{@{}l r r r@{}}
-\toprule
-& \textbf{Qwen3-4B} & \textbf{Tucano-2b4} & \textbf{GPT-2 small PT} \\
-\midrule
-Vértices & 15.104 & 15.002 & 15.099 \\
-\quad núcleo & 11.251 & 10.954 & 11.045 \\
-\quad alvos & 553 & 748 & 754 \\
-\quad controles & 300 & 300 & 300 \\
-\quad multitema & 3.000 & 3.000 & 3.000 \\
-Parágrafos inteiros no núcleo & 78 & 93 & 107 \\
-Vértices por parágrafo do núcleo (média) & 144 & 118 & 103 \\
-Parágrafos tocados no total & 2.894 & 2.943 & 3.017 \\
-Tokens a processar no modelo & 329.555 & 243.959 & 248.579 \\
-Tipos distintos & 3.257 & 4.904 & 4.856 \\
-Vértices com $f_t\le2$ & 17\% & 32\% & 30\% \\
-Tipos com $f_t\ge10$ & 354 & 274 & 286 \\
-Conteúdo com $f_t\ge10$ e $\ge3$ oc.\ em $\ge3$ temas & 169 & 172 & 173 \\
-Alvos com $\ge10$ oc.\ em $\ge2$ temas & 3 de 12 & 7 de 16 & 7 de 16 \\
-Alvos com $\ge5$ oc.\ em $\ge3$ temas & 11 de 12 & 14 de 16 & 14 de 16 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\figuraopcional[\cod{scripts/feasibility/plot\_feasibility.py}]{viabilidade_amostragem}
-    {Amostragem natural (parágrafos inteiros, $f_{\max}=50$) contra o desenho híbrido, nas duas
-    contagens que decidem a P4: palavras de conteúdo repetidas em vários temas e palavras-alvo
-    com ocorrências suficientes em dois temas. Fontes:
-    \cod{scripts/feasibility/sim\_<modelo>.txt} e \cod{hyb\_<modelo>.txt}.}
-    {fig:viab-amostragem}
-
-\textbf{O desenho híbrido resolve.} Com o mesmo número de vértices, o núcleo continua com cerca
-de 11 mil vértices em 78 a 107 parágrafos inteiros (o bastante para a P3 e para as métricas
-globais), e o número de palavras de conteúdo com $f_t\ge10$ espalhadas por 3 temas sobe de
-4--9 para cerca de 170 (Tabela~\ref{tab:viab-hibrido} e Figura~\ref{fig:viab-amostragem}). O
-custo é processar mais texto no modelo: cerca de 330 mil tokens com o Qwen3, porque cada
-ocorrência esparsa exige o parágrafo até a posição dela.
-
-Na simulação, os alvos ainda ficaram fracos (3 de 12 com $\ge10$ ocorrências em 2 temas), mas
-por uma razão corrigível: as 50 ocorrências de cada alvo foram sorteadas em rodízio entre os
-\emph{oito} temas, e não concentradas nos temas em que a palavra tem sentidos diferentes. A
-Tabela~\ref{tab:viab-pool} mostra que o \emph{pool} tem ocorrências suficientes para cotas por
-\emph{tema de sentido} na maioria dos casos, e onde faltam (\emph{banco} em Geografia,
-\emph{órgão} em Biologia, \emph{nota} e \emph{carga} em Economia, \emph{planta} em Economia,
-\emph{matriz} em Computação), as categorias extras da Seção~\ref{sec:corpus} entram. A
-simulação também tinha dois defeitos de desenho, corrigidos no desenho final
-(Seção~\ref{sec:prob-simulacao}): o limite por tipo do núcleo era aplicado por ordem de
-chegada, e cada parágrafo do núcleo vinha de um artigo diferente.
-
-\begin{table}[htbp]
-\centering
-\caption{Ocorrências das palavras-alvo e de controle no \emph{pool} inteiro do estudo de
-viabilidade (tokenizer do Qwen3, sem limite por tipo), por tema. Em negrito, os temas de
-sentido usados nas cotas do desenho final (Tabela~\ref{tab:cotas}). Fonte: bloco \cod{pool
-inteiro} de \cod{scripts/feasibility/sim\_Qwen3-4B.txt}.}\label{tab:viab-pool}
-\footnotesize
-\setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{@{}l r r r r r r r r r@{}}
-\toprule
-& \textbf{Total} & \textbf{Bio} & \textbf{Comp} & \textbf{Econ} & \textbf{Esp} & \textbf{Fís}
-& \textbf{Geo} & \textbf{Mús} & \textbf{Pol} \\
-\midrule
-banco & 66 & 9 & \textbf{19} & \textbf{24} & 6 & 0 & \textbf{4} & 3 & 1 \\
-campo & 335 & 34 & 26 & 22 & \textbf{74} & \textbf{82} & \textbf{72} & 11 & 14 \\
-órgão & 57 & \textbf{6} & 1 & 6 & 9 & 0 & 0 & \textbf{25} & \textbf{10} \\
-estado & 282 & 24 & 39 & 28 & 13 & \textbf{84} & 19 & 20 & \textbf{55} \\
-carga & 53 & 9 & 4 & \textbf{6} & 0 & \textbf{22} & 0 & 3 & 9 \\
-rede & 133 & 4 & \textbf{71} & 15 & 2 & 11 & \textbf{15} & 3 & 12 \\
-nota & 41 & 2 & 5 & \textbf{7} & 0 & 2 & 0 & \textbf{24} & 1 \\
-capital & 271 & 1 & 0 & \textbf{201} & 18 & 1 & 9 & 6 & \textbf{35} \\
-família & 70 & \textbf{10} & 10 & 4 & 4 & 13 & 2 & 13 & \textbf{14} \\
-massa & 140 & 2 & 3 & 10 & 3 & \textbf{59} & \textbf{39} & 14 & 10 \\
-matriz & 27 & \textbf{10} & \textbf{3} & 2 & 0 & 5 & 0 & 6 & 1 \\
-planta & 35 & \textbf{25} & 0 & \textbf{0} & 0 & 0 & 9 & 0 & 1 \\
-\midrule
-ano & 310 & 13 & 15 & \textbf{36} & \textbf{82} & 35 & 30 & \textbf{65} & 34 \\
-século & 356 & 29 & 12 & 31 & 11 & \textbf{86} & \textbf{66} & 59 & \textbf{62} \\
-grande & 527 & \textbf{58} & 48 & 67 & 66 & \textbf{88} & 49 & 77 & 74 \\
-primeiro & 510 & 24 & \textbf{52} & 39 & \textbf{134} & 63 & 48 & 92 & 58 \\
-importante & 247 & \textbf{53} & 20 & \textbf{47} & 9 & 24 & 23 & 36 & 35 \\
-água & 249 & \textbf{102} & 0 & 24 & 2 & 47 & \textbf{65} & 1 & 8 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Os números do estudo são aproximados por construção: o corpus do estudo não removia páginas
-multitema nem biografias, a limpeza ainda deixava restos de referências e as contagens
-ignoram os limites por parágrafo e por artigo do desenho final. Eles serviram para escolher o
-desenho e o modelo; a composição real da amostra está na Seção~\ref{sec:amostra}.
+Antes do pipeline, um estudo rápido (scripts em \cod{scripts/feasibility/}) dimensionou a
+amostra e ajudou a escolher o modelo. Ele usou uma versão simplificada do corpus (958 artigos,
+7.876 parágrafos, cerca de 1,28 milhão de tokens do Qwen3) e simulou a amostragem com três
+tokenizers. O estudo completo, com tabelas e figuras, está num documento à parte e congelado:
+\href{https://github.com/annwith/gender-representation-networks/blob/main/report/estudo-de-viabilidade/estudo-de-viabilidade.pdf}{\cod{report/estudo-de-viabilidade/}}.
+As conclusões que pesaram no desenho foram três.
+\begin{itemize}
+    \item \textbf{A meta de cerca de 15 mil vértices é fácil}: de 100 a 160 parágrafos
+    inteiros bastam, com qualquer tokenizer.
+    \item \textbf{Parágrafos inteiros não servem para a P4.} Com 15 mil vértices, só de 4 a 9
+    palavras de conteúdo têm $f_t\ge10$ com pelo menos 3 ocorrências em 3 temas, e nenhuma
+    palavra-alvo chega a 10 ocorrências em 2 temas (lei de Zipf). O \textbf{desenho híbrido}
+    (núcleo de parágrafos inteiros mais estratos esparsos de alvos, controles e palavras
+    multitema; Seção~\ref{sec:amostra}) sobe esse número para cerca de 170, ao custo de
+    processar cerca de 330 mil tokens no modelo.
+    \item \textbf{O Qwen3 fragmenta muito o português}: 1,78 tokens por palavra e 28\% dos
+    vértices como palavras inteiras, contra 1,33 e 54\% do Tucano-2b4 e 1,31 e 72\% do GPT-2
+    small português. Quatro das 16 palavras-alvo candidatas não eram um token só e saíram da
+    lista (Seção~\ref{sec:mod-escolha}).
+\end{itemize}
+Os números do estudo são aproximados: o corpus dele não removia páginas multitema nem
+biografias, e a limpeza deixava restos de referências (Seção~\ref{sec:problemas}). Serviram
+para escolher o desenho e o modelo; a composição real da amostra está na
+Seção~\ref{sec:amostra}.
 
 % ------------------------------------------------------------
 \subsection{Amostra híbrida}\label{sec:amostra}

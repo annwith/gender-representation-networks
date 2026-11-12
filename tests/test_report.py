@@ -296,7 +296,6 @@ def test_item_lists_match_the_report_sections() -> None:
     tables = set(
         re.findall(r"\\tabelaopcional(?:\[[^\]]*(?:\[[^\]]*\][^\]]*)*\])?\s*\{([^}]*)\}", text)
     )
-    figures -= {"viabilidade_tokenizers", "viabilidade_amostragem"}
     assert figures == set(report.FIGURES)
     assert tables == set(report.TABLES)
     provided = set(

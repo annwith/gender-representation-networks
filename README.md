@@ -60,11 +60,12 @@ report/
   proposta-revisada.tex          proposta revisada
   plano-de-execucao.md           plano de execução
   relatorio/                     relatório técnico vivo (ver report/relatorio/README.md)
+  estudo-de-viabilidade/         estudo de viabilidade (congelado), feito antes do pipeline
   entrega-parcial/               entrega parcial: redes não direcionadas (itens 1 a 8)
   entrega-parcial-direcionada/   entrega parcial: redes direcionadas (itens 1 a 8)
   entrega-parcial-visualizacao/  entrega parcial: visualização das redes (item 9)
 scripts/
-  feasibility/         estudo de viabilidade: scripts, saídas (sim_*.txt, hyb_*.txt) e figuras
+  feasibility/         estudo de viabilidade: scripts e saídas (sim_*.txt, hyb_*.txt)
   partial_delivery/    GraphML, figuras, tabelas e dados da página interativa da entrega parcial
   crawl_network/       rede da coleta e página da coleta, do corpus e da amostra
   cluster/             scripts das etapas de CPU da execução principal no cluster
@@ -196,11 +197,12 @@ uv run gender-networks report --config configs/experiment.yaml
 cd report/relatorio && latexmk -pdf relatorio.tex
 ```
 
-As duas figuras do estudo de viabilidade são geradas à parte, a partir dos números fixos do
-estudo:
+O estudo de viabilidade é um documento à parte e congelado, com números fixos; as duas figuras
+dele vêm de um script próprio:
 
 ```bash
 uv run python scripts/feasibility/plot_feasibility.py
+cd report/estudo-de-viabilidade && latexmk -pdf estudo-de-viabilidade.tex
 ```
 
 Detalhes em `report/relatorio/README.md`.

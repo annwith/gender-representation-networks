@@ -18,8 +18,8 @@ atualizada e o documento compila sem erros.
 
 - `figuras/` e `tabelas/` são escritas pela etapa `report` do pipeline
   (`uv run gender-networks report --config configs/experiment.yaml`) a partir dos artefatos da
-  última execução. As duas figuras do estudo de viabilidade (`viabilidade_*.pdf`) são a exceção:
-  vêm de `scripts/feasibility/plot_feasibility.py`, com números fixos do estudo.
+  última execução. O estudo de viabilidade, com números fixos e figuras próprias, é um documento
+  à parte, em `report/estudo-de-viabilidade/`.
 - `tabelas/numeros.tex` define com `\newcommand` as macros dos números citados no texto. Em
   `relatorio.tex`, cada macro tem um `\providecommand` que imprime *[pendente]* enquanto o
   arquivo não existe ou não a define. Para citar um número novo: acrescentar o

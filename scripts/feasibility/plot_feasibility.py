@@ -1,4 +1,4 @@
-"""Figures of the feasibility study for the technical report (vector PDF, print friendly).
+"""Figures of the feasibility study document (``report/estudo-de-viabilidade``) (vector PDF, print friendly).
 
 The numbers are copied by hand from the outputs kept next to this script, so the figures depend
 neither on the pipeline nor on the 7 MB article dump (``wiki_articles.jsonl``, git-ignored):
@@ -14,7 +14,7 @@ one of ``Qwen/Qwen3-4B-Base`` (151,669 ids), the model used in the experiment.
 
 Usage::
 
-    .venv/bin/python scripts/feasibility/plot_feasibility.py [--out report/relatorio/figuras]
+    .venv/bin/python scripts/feasibility/plot_feasibility.py [--out report/estudo-de-viabilidade/figuras]
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from matplotlib.patches import Patch  # noqa: E402
 from matplotlib.ticker import FuncFormatter, MaxNLocator  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
-DEFAULT_OUT = REPO / "report" / "relatorio" / "figuras"
+DEFAULT_OUT = REPO / "report" / "estudo-de-viabilidade" / "figuras"
 
 
 @dataclass(frozen=True)
