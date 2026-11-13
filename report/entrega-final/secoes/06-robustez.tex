@@ -2,10 +2,59 @@
 \section{Robustez}\label{sec:robustez}
 % ============================================================
 
-\previsto{Meia página: as conclusões se mantêm com $k\in\{5,20\}$, rede mútua, outras
-variantes de empate, a normalização final e outras resoluções do Leiden? Só a tabela-resumo e
-um parágrafo. Relatório técnico, Seção 9.}
+Os resultados só valem se não dependerem de uma escolha particular de construção. Refizemos as
+redes mudando uma escolha de cada vez e repetimos as métricas estruturais e a troca de vizinhos
+(Tabela~\ref{tab:robustez}). \textbf{Em nenhuma variação a conclusão qualitativa muda}: a
+clusterização é maior no bloco 1 que nos blocos 18 e 36, as distâncias encurtam a partir do
+bloco 18 e a troca de vizinhos em relação à rede lexical cresce do bloco 1 ao 36.
 
 \tabelaopcional{robustez}
-    {Medidas-resumo em cada variação de robustez, ao lado da configuração principal.}
+    {Métricas-resumo em cada variação, ao lado da configuração principal. $\bar C$:
+    clusterização local média; $\bar\ell$: distância média; $Q$: modularidade do Leiden;
+    $J$: Jaccard médio com a rede lexical de mesmo $k$ e mesma regra de empate. Cada linha
+    muda uma escolha em relação à principal.}
     {tab:robustez}
+
+\paragraph{Número de vizinhos.} Com $k=5$ ou $k=20$, os valores mudam na direção esperada
+(mais vizinhos, distâncias menores: no bloco 18, 7,3 com $k=5$, 5,1 com $k=10$ e 4,0 com
+$k=20$), mas a ordem entre as camadas se mantém. A dominância relativa ao teto no bloco 36
+fica entre 0,37 e 0,43 nos três valores de $k$.
+
+\paragraph{Rede mútua.} Na versão em que a aresta exige escolha dos dois lados, a rede se
+fragmenta e as distâncias crescem (17,0, 9,1 e 10,4 nos blocos 1, 18 e 36), mas a ordem entre as
+camadas é a mesma.
+
+\paragraph{Empates.} O desempate pela posição dá praticamente os mesmos valores que o sorteio
+(Jaccard de 0,359 contra 0,354 entre \cod{lex} e \cod{L01}). Aceitar todos os empatados
+(variante b) aumenta um pouco o Jaccard (0,41 no bloco 1), porque a vizinhança lexical fica
+maior e contém mais cópias do próprio token, mas mantém a ordem. Com uma tolerância de empate
+cem vezes maior ($\varepsilon=10^{-4}$), as métricas não mudam na segunda casa decimal, e as
+vizinhanças de 2 a 4\% das linhas das redes contextuais mudam. A
+Figura~\ref{fig:robustez-empates} separa as variantes por faixa de frequência. Duas delas
+completam a leitura da P1: o Jaccard por composição de tipos ($J^w$), que ignora o sorteio,
+fica perto de 1 entre \cod{lex} e \cod{L01} para os tipos frequentes, o que confirma que o
+bloco 1 mantém os vizinhos do mesmo token; e a variante (c), que ignora o próprio tipo e compara
+só quais \emph{outros} tipos estão por perto, mostra que esses outros tipos já mudam no bloco 1
+(Jaccard entre 0,3 e 0,4 em todas as faixas).
+
+\figuraopcional{robustez_empates}
+    {Jaccard médio entre a rede lexical e cada camada nas regras de empate (sorteio, posição,
+    todos os empatados e tipos distintos) e Jaccard por composição de tipos ($J^w$), por faixa
+    de frequência.}
+    {fig:robustez-empates}
+
+\paragraph{Normalização final e centragem.} A saída normalizada do bloco 36 (\cod{L36n}),
+que é o que o modelo usa para prever o próximo token, dá redes quase iguais às da saída bruta
+(clusterização 0,343 contra 0,353; Jaccard com a lexical 0,094 contra 0,096). Subtrair dos
+vetores a média de todas as ocorrências, o que remove a direção comum (a anisotropia), também
+muda pouco (no bloco 36, distância média de 5,72 contra 5,28). A direção comum não é o que
+produz os resultados.
+
+\paragraph{Comunidades.} Com resoluções 0,5 e 2 do Leiden, e com o Louvain, a modularidade das
+redes \cod{L18} e \cod{L36} fica entre 0,73 e 0,76, perto da principal (0,76 e 0,77).
+
+\paragraph{O que não foi testado.} As concordâncias da P3 e a separação da P4 foram medidas só
+na configuração principal (e nos 36 blocos), e não nas variações acima. Uma rede construída só
+com os vértices do núcleo, prevista no plano, não foi feita: ela exige refazer o k-NN, porque o
+k-NN de um subconjunto não é um recorte do k-NN completo (quando os vizinhos de fora saem, cada
+vértice precisa escolher outros).

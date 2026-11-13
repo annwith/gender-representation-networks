@@ -4,10 +4,13 @@
 %
 % Compilação:  cd report/entrega-final && latexmk -pdf entrega-final.tex
 %
-% Versão condensada do relatório técnico (report/relatorio/), para quem nunca viu o
-% repositório. O texto é escrito à mão; figuras, tabelas e números NÃO são copiados: vêm do
-% material gerado pela etapa `report` em ../relatorio/figuras, ../relatorio/tabelas e
-% ../relatorio/tabelas/numeros.tex. O que ainda não foi gerado aparece como "pendente".
+% Versão para leitura do relatório técnico (report/relatorio/), escrita para quem nunca viu o
+% repositório. O texto é escrito à mão; figuras e tabelas NÃO são copiadas: vêm do material
+% gerado pela etapa `report` em ../relatorio/figuras e ../relatorio/tabelas, e os números do
+% corpus e da amostra, de ../relatorio/tabelas/numeros.tex. Duas figuras com os 36 blocos vêm
+% da execução separada com todas as camadas (configs/all-layers.yaml), que grava o seu
+% material em outputs/experiment/all-layers/relatorio (fora do git). O que faltar aparece
+% como "pendente".
 % ============================================================
 \documentclass[11pt,a4paper]{article}
 
@@ -29,29 +32,43 @@
 \usepackage{geometry}
 \usepackage{titlesec}
 \usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
 % Sem siunitx de propósito: os números gerados já vêm formatados em pt-BR (ex.: 15.104; 0,83).
 \usepackage{hyperref}
 
 % ------------------------------------------------------------
 % Layout (o do relatório técnico: as figuras geradas foram desenhadas para essa largura)
 % ------------------------------------------------------------
-\geometry{top=2.0cm, bottom=2.0cm, left=2.0cm, right=2.0cm}
+\geometry{top=2.2cm, bottom=2.2cm, left=2.0cm, right=2.0cm}
 
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{4pt}
+\setlength{\parskip}{5pt}
 \setlength{\emergencystretch}{2.5em}
+\linespread{1.04}
 
-\setlist[itemize]{leftmargin=1.35em, itemsep=1pt, topsep=2pt, parsep=0pt}
-\setlist[enumerate]{leftmargin=1.55em, itemsep=1pt, topsep=2pt, parsep=0pt}
-\setlist[description]{leftmargin=1.2em, itemsep=2pt, topsep=2pt, parsep=0pt}
+\setlist[itemize]{leftmargin=1.35em, itemsep=2pt, topsep=3pt, parsep=0pt}
+\setlist[enumerate]{leftmargin=1.55em, itemsep=2pt, topsep=3pt, parsep=0pt}
+\setlist[description]{leftmargin=1.2em, itemsep=3pt, topsep=3pt, parsep=0pt}
 
 \titleformat{\section}{\bfseries\large}{\thesection}{0.6em}{}
-\titlespacing*{\section}{0pt}{12pt}{4pt}
+\titlespacing*{\section}{0pt}{14pt}{5pt}
 \titleformat{\subsection}{\bfseries\normalsize}{\thesubsection}{0.6em}{}
-\titlespacing*{\subsection}{0pt}{8pt}{2pt}
+\titlespacing*{\subsection}{0pt}{10pt}{3pt}
 
 \captionsetup{font=small, labelfont=bf, margin=0.5cm}
 \captionsetup[table]{position=top, skip=4pt}
+
+% Figuras grandes cabem junto do texto; páginas só de figuras começam no alto.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{12pt plus 2fil}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
 
 \hypersetup{
     colorlinks=true,
@@ -68,19 +85,59 @@
 \newcommand{\coleta}{https://annwith.github.io/gender-representation-networks/coleta/}
 
 % ------------------------------------------------------------
+% Figuras e tabelas não atravessam o início de uma seção (como no relatório técnico)
+% ------------------------------------------------------------
+\makeatletter
+\newcommand{\@flutuantespendentes}{%
+    \let\@elt\relax\edef\@tempa{\@botlist\@deferlist\@dbldeferlist}}
+\newcommand{\barreiraflutuantes}{\par
+    \begingroup\@flutuantespendentes
+    \ifx\@tempa\@empty\endgroup\else
+        \endgroup\newpage
+        \begingroup\@flutuantespendentes
+        \ifx\@tempa\@empty\endgroup\else\endgroup\clearpage\fi
+    \fi}
+\makeatother
+\NewCommandCopy{\secaosembarreira}{\section}
+\RenewDocumentCommand{\section}{s o m}{%
+    \barreiraflutuantes
+    \IfBooleanTF{#1}{\secaosembarreira*{#3}}%
+        {\IfValueTF{#2}{\secaosembarreira[#2]{#3}}{\secaosembarreira{#3}}}%
+    \suppressfloats[t]}
+
+% ------------------------------------------------------------
 % Material gerado (pela etapa `report`, na pasta do relatório técnico)
 % ------------------------------------------------------------
 \newcommand{\gerado}{../relatorio}
+% Execução separada com os 36 blocos (configs/all-layers.yaml); fica fora do git.
+\newcommand{\geradotodas}{../../outputs/experiment/all-layers/relatorio}
 % Números citados no texto: tabelas/numeros.tex define as macros com \newcommand. Os
 % \providecommand abaixo só valem enquanto o arquivo não existe ou não define a macro.
 % Para citar um número novo, acrescente aqui o \providecommand (a macro já deve existir em
 % ../relatorio/relatorio.tex; os testes conferem).
 \newcommand{\pendente}{\textit{[pendente]}}
 \IfFileExists{\gerado/tabelas/numeros.tex}{\input{\gerado/tabelas/numeros.tex}}{}
+\providecommand{\nArtigosCandidatos}{\pendente}
 \providecommand{\nArtigos}{\pendente}
 \providecommand{\nParagrafos}{\pendente}
+\providecommand{\nPalavrasCorpus}{\pendente}
+\providecommand{\nTokensCorpus}{\pendente}
+\providecommand{\nTiposCorpus}{\pendente}
 \providecommand{\nVertices}{\pendente}
+\providecommand{\nTipos}{\pendente}
+\providecommand{\nSequencias}{\pendente}
+\providecommand{\nTokensProcessados}{\pendente}
+\providecommand{\nParagrafosNucleo}{\pendente}
 \providecommand{\nVerticesNucleo}{\pendente}
+\providecommand{\nVerticesAlvo}{\pendente}
+\providecommand{\nVerticesControle}{\pendente}
+\providecommand{\nVerticesMultitema}{\pendente}
+\providecommand{\nAlvosMantidos}{\pendente}
+\providecommand{\nGruposPrefixo}{\pendente}
+\providecommand{\nTiposVocab}{\pendente}
+\providecommand{\nTiposVocabCorpus}{\pendente}
+\providecommand{\difMaxPrefixo}{\pendente}
+\providecommand{\concordanciaPredicao}{\pendente}
 \providecommand{\dataExecucao}{\pendente}
 
 \newsavebox{\caixafigura}
@@ -92,6 +149,7 @@
     \else
         \usebox{\caixafigura}%
     \fi}
+% Ocupa o lugar de um material ainda não gerado (só aparece se o arquivo faltar).
 \newcommand{\caixapendente}[1]{%
     \fcolorbox{black!45}{black!4}{%
         \parbox{0.9\linewidth}{\centering\small\color{black!75}%
@@ -105,6 +163,20 @@
         }{%
             \caixapendente{\textbf{Figura pendente:}
                 \texttt{\detokenize{figuras/#1.pdf}} (etapa \texttt{report})}%
+        }
+        \caption{#2}\label{#3}
+    \end{figure}}
+% \figuratodas{arquivo sem extensão}{legenda}{rótulo}: a mesma figura, desenhada pela execução
+% com os 36 blocos (outputs/experiment/all-layers/relatorio/figuras/)
+\newcommand{\figuratodas}[3]{%
+    \begin{figure}[htbp]
+        \centering
+        \IfFileExists{\geradotodas/figuras/#1.pdf}{%
+            \incluirlimitado{\geradotodas/figuras/#1.pdf}%
+        }{%
+            \caixapendente{\textbf{Figura pendente:}
+                \texttt{\detokenize{figuras/#1.pdf}} da execução com todos os blocos
+                (\texttt{configs/all-layers.yaml}, etapa \texttt{report})}%
         }
         \caption{#2}\label{#3}
     \end{figure}}
@@ -127,26 +199,41 @@
 \newcommand{\tok}[1]{\texttt{#1}}              % um token, como aparece no texto
 \newcommand{\esp}{\textvisiblespace}           % espaço inicial de um token
 \newcommand{\cod}[1]{\texttt{#1}}              % código, arquivos, comandos
-% Quadro do que cada seção vai conter, enquanto ela não está escrita.
-\newcommand{\previsto}[1]{%
-    \par\noindent\fcolorbox{black!30}{white}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
-        \small\textbf{Conteúdo previsto.} #1}}\par}
+\newcommand{\N}{\mathcal{N}}
 
 % ============================================================
 \begin{document}
 
 \begin{center}
-    {\large\bfseries MO438 -- Redes Complexas: Relatório Final}\\[4pt]
-    {\LARGE\bfseries Da rede lexical à rede contextual}\\[3pt]
-    {\large Reorganização das representações internas de Transformers com Redes Complexas}\\[8pt]
+    {\large\bfseries MO438 -- Redes Complexas: Relatório Final}\\[6pt]
+    {\LARGE\bfseries Da rede lexical à rede contextual}\\[4pt]
+    {\large Como um Transformer reorganiza as ocorrências de tokens, visto por redes
+    complexas}\\[10pt]
     Juliana Midlej do Espirito Santo (RA 200208)\\[2pt]
-    {\small Números da execução de \dataExecucao{}; as revisões do código estão no relatório técnico.}
+    {\small Unicamp. Números da execução de \dataExecucao{}.}
 \end{center}
 
 \begin{abstract}
 \noindent
-\previsto{Resumo de um parágrafo: pergunta, construção das redes, principais resultados de
-P1--P4 e a conclusão. Escrito por último.}
+Na entrada de um Transformer, todas as ocorrências de um mesmo token são representadas pelo
+mesmo vetor; ao atravessar as camadas, cada ocorrência passa a carregar o texto em que
+aparece. Este trabalho descreve essa passagem com redes complexas. Os vértices são
+\nVertices{} ocorrências de tokens em parágrafos da Wikipédia em português, de oito temas, e
+cada vértice se liga aos 10 vértices de vetor mais parecido (k vizinhos mais próximos pelo
+cosseno). Os mesmos vértices recebem quatro vetores do modelo Qwen3-4B-Base: o
+\emph{embedding} de entrada e as saídas dos blocos 1, 18 e 36. As quatro redes têm, portanto,
+os mesmos vértices e podem ser comparadas vértice a vértice. No bloco 1, a rede ainda é
+praticamente a rede lexical: as ocorrências de um token continuam vizinhas umas das outras.
+A reorganização vem depois e é grande. No bloco 36, uma ocorrência mantém em média menos de 2
+dos seus 10 vizinhos lexicais, a fração de vizinhos do mesmo token cai de 0,70 para 0,25
+(ainda muito acima do acaso), surgem \emph{hubs} e as distâncias encurtam. As comunidades
+deixam de seguir o token e passam a seguir o contexto: nos blocos do meio (do 12 ao 19,
+aproximadamente), elas concordam mais com o artigo, o parágrafo e o tema de origem do que com
+o próprio token; nos últimos blocos, essa concordância cai e cresce a concordância com o
+próximo token. Palavras ambíguas, como \emph{banco}, \emph{órgão} e \emph{matriz}, separam as
+suas ocorrências por tema e por sentido mais do que palavras de sentido estável. O texto
+descreve também a coleta dos dados, a construção das redes, o tratamento dos empates e as
+limitações do estudo.
 \end{abstract}
 
 \input{secoes/01-introducao}
@@ -158,5 +245,73 @@ P1--P4 e a conclusão. Escrito por último.}
 \input{secoes/07-discussao}
 \input{secoes/08-limitacoes}
 \input{secoes/09-material}
+
+% ------------------------------------------------------------
+\begin{thebibliography}{99}
+\small
+
+\bibitem{blondel2008}
+V.~D. Blondel, J.-L. Guillaume, R.~Lambiotte e E.~Lefebvre.
+Fast unfolding of communities in large networks.
+\emph{Journal of Statistical Mechanics: Theory and Experiment}, P10008, 2008.
+
+\bibitem{csardi2006}
+G.~Csárdi e T.~Nepusz.
+The igraph software package for complex network research.
+\emph{InterJournal, Complex Systems}, 1695, 2006.
+
+\bibitem{ethayarajh2019}
+K.~Ethayarajh.
+How contextual are contextualized word representations? Comparing the geometry of BERT,
+ELMo, and GPT-2 embeddings.
+Em \emph{Proceedings of EMNLP-IJCNLP}, 2019.
+
+\bibitem{hubert1985}
+L.~Hubert e P.~Arabie.
+Comparing partitions.
+\emph{Journal of Classification}, 2(1):193--218, 1985.
+
+\bibitem{newman2006}
+M.~E.~J. Newman.
+Modularity and community structure in networks.
+\emph{Proceedings of the National Academy of Sciences}, 103(23):8577--8582, 2006.
+
+\bibitem{nostalgebraist2020}
+nostalgebraist.
+Interpreting GPT: the logit lens.
+\emph{LessWrong}, 2020.
+
+\bibitem{press2017}
+O.~Press e L.~Wolf.
+Using the output embedding to improve language models.
+Em \emph{Proceedings of EACL}, 2017.
+
+\bibitem{qwen3}
+Qwen Team.
+Qwen3 technical report.
+\emph{arXiv:2505.09388}, 2025.
+
+\bibitem{radovanovic2010}
+M.~Radovanović, A.~Nanopoulos e M.~Ivanović.
+Hubs in space: popular nearest neighbors in high-dimensional data.
+\emph{Journal of Machine Learning Research}, 11:2487--2531, 2010.
+
+\bibitem{sun2024}
+M.~Sun, X.~Chen, J.~Z. Kolter e Z.~Liu.
+Massive activations in large language models.
+\emph{arXiv:2402.17762}, 2024.
+
+\bibitem{traag2019}
+V.~A. Traag, L.~Waltman e N.~J. van Eck.
+From Louvain to Leiden: guaranteeing well-connected communities.
+\emph{Scientific Reports}, 9:5233, 2019.
+
+\bibitem{vinh2010}
+N.~X. Vinh, J.~Epps e J.~Bailey.
+Information theoretic measures for clusterings comparison: variants, properties,
+normalization and correction for chance.
+\emph{Journal of Machine Learning Research}, 11:2837--2854, 2010.
+
+\end{thebibliography}
 
 \end{document}

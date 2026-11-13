@@ -2,6 +2,77 @@
 \section{Discussão}\label{sec:discussao}
 % ============================================================
 
-\previsto{Cerca de 1 página: as quatro respostas juntas, o que elas dizem sobre como o modelo
-reorganiza as ocorrências, e a relação com trabalhos anteriores. Relatório técnico,
-Seção 10.}
+A Tabela~\ref{tab:respostas} junta as respostas às quatro perguntas.
+
+\begin{table}[htbp]
+\centering
+\caption{As hipóteses e o que os resultados mostram.}\label{tab:respostas}
+\small
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{5.6cm} l X@{}}
+\toprule
+\textbf{Hipótese} & \textbf{Resultado} & \textbf{Evidência principal} \\
+\midrule
+H1. A dominância lexical cai, mas fica acima do acaso; surgem \emph{hubs}; as comunidades se
+alinham menos ao token. & confirmada &
+Dominância de 0,70 para 0,25 (acaso abaixo de 0,004); assimetria do grau de entrada de 0 para
+4,9; concordância das comunidades com o token de 0,32 para 0,19. \\
+\midrule
+H2. Pedaços de palavra mudam antes das palavras inteiras. & em parte &
+Continuações e números perdem a identidade até o bloco 4; palavras inteiras, aos poucos e
+sobretudo depois do bloco 28; inícios de palavra quase não perdem. \\
+\midrule
+H3. As comunidades passam do token ao contexto e, no fim, ao próximo token. & confirmada, com
+correção & O contexto tem máximo nos blocos 12 a 19 e cai depois; o próximo token sobe a partir
+do bloco 21. \\
+\midrule
+H4. Palavras ambíguas se separam mais que as de controle. & confirmada &
+NMI comunidade $\times$ tema de 0,41 contra 0,17 no bloco 36; separação maior pelo sentido do
+que pelo tema em todas as 11 palavras. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Três regiões do modelo.} Juntas, as medidas descrevem o Qwen3-4B-Base em três
+regiões. Nos primeiros blocos (até o 5, aproximadamente), o vetor de uma ocorrência ainda é
+basicamente o seu token: a rede do bloco 1 é a rede lexical com os empates desfeitos, e a linha
+mais próxima na matriz de \emph{embeddings} é a do próprio token. Nos blocos do meio (de 6 a
+22, aproximadamente), o vetor deixa de se parecer com o próprio token e ainda não se parece com
+o próximo; é nessa região que as comunidades seguem o artigo, o parágrafo e o tema, e que os
+sentidos de uma palavra ambígua mais se afastam. No último terço, o vetor se aproxima do token
+que vem depois, as comunidades passam a segui-lo, a anisotropia cresce e surgem \emph{hubs}
+fortes. A transição entre as duas últimas regiões não é suave: nos blocos 22 a 25, a troca de
+vizinhos entre blocos, a concordância com o contexto e a distância ao próximo token mudam ao
+mesmo tempo. Essa divisão é coerente com análises do tipo ``lente de
+\emph{logits}''~\cite{nostalgebraist2020}, em que as previsões do modelo só se formam nas
+camadas finais.
+
+\paragraph{O que as redes mostram além das médias de pares.} A autossimilaridade, a medida
+clássica de quanto um token ficou contextual~\cite{ethayarajh2019}, cai até o meio do modelo e
+volta a subir no fim, igual para palavras ambíguas e estáveis. Sozinha, ela sugeriria que o
+último bloco é ``menos contextual'' que o do meio. As redes mostram outra coisa: a troca de
+vizinhos continua até o último bloco, as comunidades mudam de natureza (do texto para o próximo
+token), e a separação das palavras ambíguas pela rede cresce até o fim. A subida da
+autossimilaridade acompanha a anisotropia, uma direção comum a todos os vetores, e não um
+retorno à organização lexical.
+
+\paragraph{A identidade do token é persistente.} A linha do próprio token em $E$ deixa de ser a
+mais próxima já no bloco 5, mas as ocorrências de um mesmo token continuam vizinhas umas das
+outras muito depois: a dominância lexical das palavras inteiras ainda é 0,64 no bloco 20. O
+modelo mantém as ocorrências de um token juntas numa direção que não é mais o seu
+\emph{embedding} de entrada.
+
+\paragraph{O papel da fragmentação.} O tokenizer do Qwen3 divide muito o português, e isso
+aparece nos resultados. Uma continuação de palavra (\tok{co} em ``ban\,co'') não significa nada
+sozinha e perde a identidade logo nos primeiros blocos, quando o modelo junta os pedaços. Um
+início de palavra mantém a identidade até o fim, provavelmente porque o próximo token, a
+continuação da palavra, depende sobretudo dele. Com um tokenizer que preservasse mais palavras
+inteiras, a curva média de reorganização provavelmente seria diferente.
+
+\paragraph{Conclusão.} Redes k-NN sobre as mesmas ocorrências, uma por camada, permitem
+acompanhar a reorganização das representações de um Transformer vértice a vértice e em várias
+escalas. No Qwen3-4B-Base e em texto enciclopédico em português, essa reorganização é grande,
+não monótona e dependente do tipo de token: a identidade lexical cede espaço aos poucos, o
+contexto do texto domina o meio do modelo e o próximo token domina o fim, e as palavras
+ambíguas separam os seus sentidos. A rede do vocabulário completa o quadro do lado da entrada:
+ela é organizada por significado entre línguas, e não por escrita, e os seus \emph{hubs} são
+tokens raros, provavelmente pouco treinados.

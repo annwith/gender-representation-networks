@@ -1,16 +1,381 @@
 % ============================================================
-\section{Dados e amostra}\label{sec:dados}
+\section{Dados: da Wikipédia à amostra de ocorrências}\label{sec:dados}
 % ============================================================
 
-\previsto{Cerca de 1 página. Corpus: \nArtigos{} artigos e \nParagrafos{} parágrafos da
-Wikipédia em português em oito temas, sem páginas multitema nem biografias. Amostra híbrida
-de \nVertices{} vértices: núcleo de parágrafos inteiros (\nVerticesNucleo{} vértices, P1--P3)
-mais estratos de palavras-alvo, controles e palavras multitema (P4). O estudo de viabilidade
-entra em duas frases, com link (\href{\viabilidade}{estudo de viabilidade}): parágrafos
-inteiros não deixam repetições suficientes para a P4, daí o desenho híbrido. Link para a
-página da coleta (\url{\coleta}). Relatório técnico, Seção 4.}
+Os vértices das redes são ocorrências de tokens em parágrafos reais da Wikipédia em
+português. Esta seção descreve o caminho dos dados em duas etapas. Primeiro, montamos um
+\textbf{corpus}: \nArtigos{} artigos de oito temas, limpos e divididos em \nParagrafos{}
+parágrafos de prosa corrida. Depois, sorteamos desse corpus uma \textbf{amostra} de
+\nVertices{} ocorrências, que são os vértices de todas as redes. A página interativa
+\url{\coleta} mostra a coleta, a amostra e a construção das redes passo a passo.
+
+% ------------------------------------------------------------
+\subsection{Temas e categorias da Wikipédia}\label{sec:temas}
+
+A Wikipédia organiza os artigos em \textbf{categorias}. Uma categoria contém artigos e outras
+categorias (subcategorias), e essas ligações formam uma hierarquia: a categoria Física contém
+subcategorias como Cosmologia e Efeitos físicos, que têm as suas próprias subcategorias, e
+assim por diante. Usamos essa hierarquia
+para definir \textbf{temas} de forma reproduzível: um tema é o conjunto de artigos alcançados
+a partir de uma categoria raiz.
+
+São oito temas (Tabela~\ref{tab:temas}). Eles foram escolhidos distantes entre si, para que o
+vocabulário de cada um seja característico, e de modo que as palavras ambíguas da P4 tenham
+sentidos diferentes em pelo menos dois deles: \emph{banco} é instituição financeira em
+Economia, banco de dados em Computação e banco de areia em Geografia. O tema tem dois papéis
+na análise: é um dos rótulos de contexto da P3 e serve como indicador aproximado do sentido de
+uma palavra ambígua na P4. O modelo nunca vê o tema; ele é só um rótulo usado na análise.
+
+\begin{table}[htbp]
+\centering
+\caption{Os oito temas. ``Artigos'' conta os artigos mantidos no corpus, vindos da árvore da
+categoria raiz e das categorias extras (Seção~\ref{sec:extras}). A última coluna resume de onde
+vieram os 150 artigos da raiz, pelas subcategorias que mais contribuíram.}\label{tab:temas}
+\small
+\begin{tabularx}{\linewidth}{@{}l l r r >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Tema} & \textbf{Categoria raiz} & \multicolumn{2}{c}{\textbf{Artigos}} &
+\textbf{O que a busca trouxe da raiz} \\
+\cmidrule(lr){3-4}
+& & raiz & extras & \\
+\midrule
+Física & Física & 150 & -- & conceitos e efeitos físicos, astronomia, história e
+organizações da física; também prêmios (33 artigos) e livros de física \\
+Biologia & Biologia & 150 & 240 & membros diretos da raiz (78), biotecnologia (36),
+biomedicina, divisões da biologia \\
+Economia & Economia & 150 & 300 & membros diretos da raiz (34), terminologia e indicadores
+econômicos, economia financeira, teorias e modelos \\
+Política & Política & 150 & -- & membros diretos da raiz (45), ciência política (37),
+direitos humanos (29), constituições, corrupção \\
+Computação & Ciência da computação & 150 & 173 & membros diretos da raiz (123);
+armazenamento de dados, cibernética \\
+Música & Música & 150 & 60 & armazenamento de áudio, gêneros, subculturas e instrumentos
+musicais, história e indústria da música \\
+Esporte & Futebol & 150 & -- & terminologia, regras e história do futebol, futebol por
+continente e por país, jogos eletrônicos e hinos de futebol \\
+Geografia & Geografia & 150 & 180 & cartografia, geomática, acidentes geográficos, termos
+geográficos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ------------------------------------------------------------
+\subsection{Busca pelas categorias}\label{sec:busca}
+
+Para cada tema, uma \textbf{busca em largura} parte da categoria raiz e desce pelas
+subcategorias até a \textbf{profundidade 2}: a raiz é a profundidade 0, as suas subcategorias
+são a profundidade 1 e as subcategorias delas, a 2. A busca guarda os títulos de artigos que
+encontra, até \textbf{600 títulos por tema}, e segue três regras:
+\begin{itemize}
+    \item só entram páginas do domínio principal (artigos), e não páginas de usuário,
+    predefinições ou discussões;
+    \item não abre subcategorias de manutenção, cujo nome começa com ``!'' na Wikipédia em
+    português (esboços, avaliação de qualidade, predefinições, portais), nem subcategorias de
+    listas (``Listas de\ldots'');
+    \item descarta os títulos ``Lista de\ldots'', que não são prosa.
+\end{itemize}
+A busca registra também, para cada título, \emph{todos} os temas que chegam a ele, o que
+permite descartar as páginas que pertencem a mais de um tema (Seção~\ref{sec:descartes}).
+Depois, os títulos de cada tema são embaralhados com uma semente fixa e baixados em lotes de
+50, e os artigos que passam pelos filtros entram até completar \textbf{150 por tema}. Todas as
+respostas da API ficam guardadas em disco, e a revisão exata de cada artigo (\cod{revid}) fica
+registrada; assim o mesmo texto pode ser obtido de novo, mesmo que os artigos mudem.
+
+\paragraph{Por que limitar a busca, e o que isso custa.} A árvore de categorias da Wikipédia
+não é uma taxonomia limpa: em poucos níveis, uma categoria de ciência chega a pessoas, lugares
+e obras. Por isso a busca vai só até a profundidade 2 e para em 600 títulos. Esse corte, porém,
+\textbf{não é aleatório}. A API lista os membros de uma categoria em ordem alfabética, e a busca
+abre as subcategorias nessa ordem; quando o limite é atingido, as que ainda estão na fila nunca
+são abertas. Os oito temas atingiram o limite, e a busca abriu só uma parte das subcategorias
+que encontrou: de 7 de 79 (Computação) a 98 de 439 (Música). Em Biologia, Política e
+Computação, o corte veio antes de terminar a profundidade 1. Em Futebol, a busca parou no meio
+da lista de subcategorias por país, em ``Futebol das Bahamas'': dos 150 artigos mantidos, 29
+vêm de países de Afeganistão a Azerbaijão e nenhum do Brasil ou de Portugal. A profundidade
+também varia: em Computação, 123 dos 150 artigos são membros diretos da raiz; em Geografia,
+105 vêm da profundidade 2. A última coluna da Tabela~\ref{tab:temas} mostra o efeito: cada tema
+representa as subcategorias mais próximas da raiz e alfabeticamente primeiras, e não a área
+inteira, e inclui artigos pouco típicos (prêmios em Física; em Futebol, canções pop que
+viraram hinos de torneios, como ``Colors'', de Jason Derulo e Maluma). Como o objetivo é ter temas bem separados, e não medir o vocabulário de cada
+área, isso é aceitável, mas os nomes dos temas devem ser lidos como ``artigos próximos da
+categoria raiz''.
+
+% ------------------------------------------------------------
+\subsection{Categorias extras}\label{sec:extras}
+
+Alguns sentidos das palavras ambíguas quase não aparecem no tema que os representa. Num estudo
+preliminar (Seção~\ref{sec:amostra}), \emph{nota} no sentido de cédula tinha só 7 ocorrências
+em Economia, \emph{carga} tributária 6, \emph{órgão} do corpo 6 em Biologia e \emph{banco} de
+areia 4 em Geografia. Para esses casos, o corpus inclui \textbf{16 categorias extras}, cada uma
+ligada a um dos oito temas (Tabela~\ref{tab:extras}). A busca nelas vai só até a profundidade
+1 e fica com até 60 artigos por categoria. Um artigo de uma categoria extra pertence, para
+todos os efeitos, ao tema a que ela está ligada: um artigo de Numismática é um artigo de
+Economia. Por isso o número de artigos varia entre os temas (de 150 em Física, Política e
+Esporte a 450 em Economia).
+
+\begin{table}[htbp]
+\centering
+\caption{As 16 categorias extras e o sentido que cada uma reforça.}\label{tab:extras}
+\small
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}p{6.2cm} X@{}}
+\toprule
+\textbf{Tema} & \textbf{Categoria extra} & \textbf{Sentido reforçado} \\
+\midrule
+Economia & Numismática & \emph{nota} (cédula) \\
+ & Impostos; Direito tributário & \emph{carga} (tributária) \\
+ & Sistema bancário & \emph{banco} (instituição financeira) \\
+ & Indústria & \emph{planta} (industrial) \\
+\midrule
+Biologia & Anatomia humana; Órgãos (anatomia) & \emph{órgão} (do corpo) \\
+ & Botânica & \emph{planta} (vegetal) \\
+ & Taxonomia & \emph{família} (grupo taxonômico) \\
+\midrule
+Computação & Bancos de dados & \emph{banco} (de dados) \\
+ & Redes de computadores & \emph{rede} (de computadores) \\
+ & Matrizes & \emph{matriz} (matemática) \\
+\midrule
+Geografia & Geomorfologia; Oceanografia & \emph{banco} (de areia), \emph{massa} (de água) \\
+ & Hidrografia & \emph{rede} (hidrográfica) \\
+\midrule
+Música & Teoria musical & \emph{nota} (musical) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ------------------------------------------------------------
+\subsection{Páginas descartadas: multitema, biografias e outras}\label{sec:descartes}
+
+Um artigo encontrado pela busca é descartado em cinco casos (Tabela~\ref{tab:corpus-temas}):
+\begin{itemize}
+    \item \textbf{Página multitema}: o artigo é alcançado a partir de mais de um tema,
+    contando as categorias extras. Exemplos reais: ``Prêmio Nobel'' (Física e Economia),
+    ``Harmonices Mundi'' (Física e Música) e ``Big science'' (Física e Política). Uma página
+    assim mistura o vocabulário de dois temas e borraria justamente o rótulo de tema usado na
+    P3 e na P4. Foram 108 descartes.
+    \item \textbf{Biografia}, reconhecida pela caixa de informações do artigo (predefinições
+    \cod{Info/Biografia}, \cod{Info/Futebolista}, \cod{Info/Político}, \cod{Info/Músico},
+    \cod{Info/Cientista} e outras 9). Biografias aparecem em quase todas as árvores de
+    categorias e falam de datas, lugares e carreiras, um vocabulário que não é o do tema.
+    Foram 68.
+    \item \textbf{Sem parágrafos}: depois da limpeza (abaixo), não sobra nenhum parágrafo de
+    prosa, em geral porque o artigo é um esboço curto ou é feito de tabelas e listas. Foram
+    295.
+    \item \textbf{Desambiguação} (4) e \textbf{duplicada} (3, o mesmo artigo por dois
+    caminhos).
+\end{itemize}
+Dos \nArtigosCandidatos{} candidatos examinados, ficaram \nArtigos{}.
+
+% ------------------------------------------------------------
+\subsection{Limpeza dos parágrafos}\label{sec:limpeza}
+
+Os artigos chegam em \emph{wikitext}, a linguagem de marcação da Wikipédia, que mistura o texto
+com referências, tabelas, fórmulas, caixas de informação e predefinições. A limpeza tem
+quatro passos.
+
+\textbf{1. Cortar as seções de apoio.} As seções Referências, Ligações externas, Ver também,
+Bibliografia, Notas, Fontes, Leitura adicional (e variantes) são removidas com as suas
+subseções. Seções de conteúdo que vêm depois delas são mantidas.
+
+\textbf{2. Converter em texto, removendo o que não é prosa.} A conversão usa a biblioteca
+\cod{mwparserfromhell}, mas a conversão padrão dela mantém o conteúdo de marcas que não são
+texto corrido. Antes de converter, a árvore de marcação é reescrita em três pontos:
+\begin{itemize}
+    \item referências (\cod{<ref>}), galerias, tabelas, blocos pré-formatados e links para arquivos
+    e categorias são removidos com todo o conteúdo. Sem isso, o texto das referências entrava
+    no meio das frases, colado à palavra anterior (``A energiaSilva, Livro, 2001 é\ldots''),
+    defeito que encontramos no estudo preliminar;
+    \item linhas com fórmulas (\cod{<math>}, \cod{<chem>}) e itens de lista são descartados
+    inteiros, porque apagar só a fórmula deixaria um buraco na frase (``a energia é dada por ,
+    onde\ldots''). Fórmulas triviais, de um símbolo ou um número, são mantidas como texto;
+    \item predefinições cujo texto visível é um argumento (números formatados, conversões de
+    unidades) são trocadas por esse texto; as demais (caixas de informação, navegação,
+    pronúncia) são descartadas, e os restos que deixam, como ``( )'' e ``, ,'', são limpos.
+\end{itemize}
+
+\textbf{3. Ficar só com prosa corrida.} Um parágrafo é mantido se tem pelo menos 40 palavras,
+termina como frase (``.'', ``!'' ou ``?'', talvez seguidos de aspas ou parênteses), não começa
+com marcação de tabela ou lista e tem no máximo 8\% de dígitos (o que elimina tabelas de
+resultados e cronologias). Parágrafos repetidos, comuns porque há texto copiado entre artigos,
+são removidos comparando os 80 primeiros caracteres.
+
+\textbf{4. Dividir em sentenças.} Cada parágrafo é dividido em sentenças por expressão
+regular, com uma lista de abreviações do português (``Sr.'', ``séc.'', ``p.ex.'', iniciais de
+nomes), para dar o rótulo de sentença usado na P3.
+
+O corpus final tem \nArtigos{} artigos, \nParagrafos{} parágrafos, \nPalavrasCorpus{}
+palavras e \nTokensCorpus{} tokens do modelo, de \nTiposCorpus{} tokens distintos
+(Tabela~\ref{tab:corpus-temas}).
+
+\tabelaopcional{corpus_temas}
+    {O corpus por tema: artigos, parágrafos e palavras mantidos, e artigos descartados por
+    motivo. Os artigos incluem os das categorias extras.}
+    {tab:corpus-temas}
+
+% ------------------------------------------------------------
+\subsection{Tokens, tipos, ocorrências e categorias de token}\label{sec:tokens}
+
+O modelo não lê palavras, e sim \textbf{tokens}, as unidades produzidas pelo seu
+\emph{tokenizer}. Um token pode ser uma palavra inteira, um pedaço de palavra, um sinal de
+pontuação ou um dígito. No Qwen3, o espaço antes de uma palavra faz parte do token seguinte
+(\tok{\esp banco} é um token só; o símbolo \esp{} marca esse espaço) e cada dígito é um token
+separado. Usamos três termos:
+\begin{itemize}
+    \item \textbf{tipo de token}: um elemento do vocabulário do modelo, como \tok{\esp banco};
+    o número de vezes que um tipo $t$ aparece na amostra é a sua frequência $f_t$;
+    \item \textbf{ocorrência}: uma aparição de um tipo numa posição de um parágrafo. Cada
+    ocorrência da amostra é um \textbf{vértice};
+    \item \textbf{palavra}: uma sequência de letras ou dígitos no texto original, antes da
+    tokenização. Uma palavra pode virar vários tokens.
+\end{itemize}
+
+Cada ocorrência recebe uma \textbf{categoria de token}, conforme a sua relação com a palavra a
+que pertence (Tabela~\ref{tab:exemplos-tokens}):
+\begin{description}
+    \item[palavra inteira] o token cobre sozinho uma palavra (\tok{\esp banco},
+    \tok{\esp de});
+    \item[início de palavra] o primeiro token de uma palavra dividida em vários
+    (\tok{\esp torn} em ``tornou'');
+    \item[continuação] um token que continua uma palavra já começada (\tok{ou} em
+    ``tornou'');
+    \item[pontuação] um token sem letras nem dígitos, mas com algum caractere visível
+    (\tok{,}, \tok{\esp(});
+    \item[número] um token só de dígitos; ``1990'' vira quatro tokens de número.
+\end{description}
+Tokens formados só por espaço não viram vértices: eles não têm conteúdo próprio e
+apareceriam em quase todo parágrafo.
+
+\begin{table}[htbp]
+\centering
+\caption{Exemplos reais do \emph{tokenizer} do Qwen3-4B-Base e as categorias atribuídas.
+O símbolo \esp{} marca o espaço que faz parte do token.}\label{tab:exemplos-tokens}
+\small
+\begin{tabular}{@{}l l l l@{}}
+\toprule
+\textbf{Texto} & \textbf{Tokens} & \textbf{Categoria} & \textbf{Palavra} \\
+\midrule
+``\esp 1990'' & \tok{\esp} & só espaço (não é vértice) & -- \\
+ & \tok{1}, \tok{9}, \tok{9}, \tok{0} & número & 1990 \\
+\midrule
+``\esp tornou-se'' & \tok{\esp torn} & início de palavra & tornou \\
+ & \tok{ou} & continuação & tornou \\
+ & \tok{-se} & palavra inteira & se \\
+\midrule
+``\esp(banco)'' & \tok{\esp(} & pontuação & -- \\
+ & \tok{ban} & início de palavra & banco \\
+ & \tok{co} & continuação & banco \\
+ & \tok{)} & pontuação & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O terceiro exemplo mostra um cuidado necessário na P4: ``banco'' entre parênteses vira
+\tok{ban}${}+{}$\tok{co}, e ``Banco'' com maiúscula é outro tipo (\tok{\esp Banco}). Por
+isso as palavras ambíguas são contadas \emph{só} no tipo minúsculo precedido de espaço, para
+que todas as ocorrências comparadas comecem do mesmo vetor de entrada.
+
+O tokenizer do Qwen3 foi treinado sobretudo em inglês, chinês e código, e divide muito o
+português: no estudo preliminar, foram 1,78 tokens por palavra, e só 28\% dos tokens de um
+texto corrido eram palavras inteiras. Por isso todos os resultados são separados por
+categoria de token, e as interpretações sobre sentido se limitam a palavras inteiras.
+
+% ------------------------------------------------------------
+\subsection{A amostra híbrida}\label{sec:amostra}
+
+\paragraph{Por que não usar só parágrafos inteiros.} Antes de montar o experimento, um
+\href{\viabilidade}{estudo de viabilidade} simulou a amostragem num corpus preliminar. Ele
+mostrou que reunir cerca de 15 mil vértices é fácil (bastam de 100 a 160 parágrafos
+inteiros), mas que parágrafos inteiros não servem para a P4: pela lei de Zipf, quase nenhuma
+palavra de conteúdo se repete o bastante. Com 15 mil vértices tirados de parágrafos inteiros,
+só de 4 a 9 palavras de conteúdo apareciam pelo menos 10 vezes e em 3 temas, e nenhuma palavra
+ambígua chegava a 10 ocorrências em 2 temas. A solução foi uma \textbf{amostra híbrida}: um
+núcleo de parágrafos inteiros, para as perguntas sobre a rede como um todo, e três estratos de
+palavras escolhidas, sorteadas em outros parágrafos, para a P4.
+
+A amostra limita cada tipo a $f_{\max}=50$ ocorrências e usa uma semente fixa. Tem quatro
+estratos:
+
+\paragraph{1. Núcleo (P1 a P3).} Para cada tema, sorteamos 5 artigos e 2 parágrafos de cada
+um: 80 parágrafos. Todos os tokens desses parágrafos (menos os de só espaço) são vértices,
+inclusive pedaços de palavra, números e pontuação. Dois parágrafos por artigo fazem ``artigo''
+e ``parágrafo'' serem rótulos diferentes na P3. O limite de 50 ocorrências por tipo é
+aplicado por sorteio uniforme depois de juntar todo o núcleo: dos 11.935 tokens dos 80
+parágrafos, saíram 1.915 de 25 tipos muito frequentes (a vírgula passou de 483 para 50
+ocorrências; \tok{\esp de}, de 391 para 50). Assim as ocorrências mantidas de ``de'' se
+espalham por todos os parágrafos, em vez de serem as dos primeiros. O núcleo tem
+\nVerticesNucleo{} vértices e é o único estrato em que o parágrafo aparece inteiro; por isso a
+P3 é analisada só nele.
+
+\paragraph{2. Palavras-alvo (P4).} Doze palavras com sentidos diferentes em temas diferentes,
+cada uma com uma \textbf{cota por tema de sentido}: 2 ou 3 temas, com 16 a 25 ocorrências em
+cada (Tabela~\ref{tab:cotas}). As ocorrências são sorteadas fora do núcleo, com no máximo 1 por
+parágrafo e 3 por artigo, para que um único artigo não domine uma palavra. Uma palavra que não
+chega a 10 ocorrências em pelo menos 2 temas sai da análise: foi o caso de \emph{planta}, que
+teve só 5 ocorrências em Economia. Ficaram \nAlvosMantidos{} alvos, com \nVerticesAlvo{}
+vértices sorteados. Algumas cotas não foram cumpridas: \emph{banco} teve 7 ocorrências em
+Geografia, \emph{órgão} 7 em Política e \emph{família} 11 em Política.
+
+\paragraph{3. Controles (P4).} Seis palavras de sentido estável: \emph{ano}, \emph{século},
+\emph{grande}, \emph{primeiro}, \emph{importante} e \emph{água}. Elas têm a \textbf{mesma
+alocação} dos alvos (duas com três temas e cotas 17/17/16, quatro com dois temas e cotas
+25/25), para que uma diferença entre alvos e controles não venha do desenho da amostra. São
+\nVerticesControle{} vértices.
+
+\paragraph{4. Palavras multitema (P4).} 150 palavras de conteúdo que aparecem pelo menos 5
+vezes em pelo menos 3 temas fora do núcleo, cada uma completada até 20 ocorrências, sorteadas
+em rodízio entre os temas. Exemplos: \emph{metal}, \emph{luz}, \emph{guerra},
+\emph{material}, \emph{forte}, \emph{motor}, \emph{banda}, \emph{plano}. Elas estendem a P4
+para além das 18 palavras escolhidas à mão, com palavras comuns a vários temas que não foram
+escolhidas por serem ambíguas. São \nVerticesMultitema{} vértices. (``Multitema'' tem aqui um
+sentido diferente do da Seção~\ref{sec:descartes}: lá, é uma \emph{página} que pertence a
+mais de um tema e foi descartada; aqui, é uma \emph{palavra} que aparece em vários temas.)
+
+\begin{table}[htbp]
+\centering
+\caption{Cotas por tema de sentido das palavras-alvo e de controle, como definidas no desenho
+(ocorrências por tema).}\label{tab:cotas}
+\small
+\begin{tabular}{@{}l l@{\hspace{2.5em}}l l@{}}
+\toprule
+\textbf{Alvo} & \textbf{Cotas} & \textbf{Controle} & \textbf{Cotas} \\
+\midrule
+banco & Economia 17, Computação 17, Geografia 16 & ano & Economia 17, Esporte 17, Música 16 \\
+campo & Física 17, Esporte 17, Geografia 16 & século & Física 17, Geografia 17, Política 16 \\
+órgão & Biologia 17, Música 17, Política 16 & grande & Física 25, Biologia 25 \\
+estado & Física 25, Política 25 & primeiro & Esporte 25, Computação 25 \\
+carga & Física 25, Economia 25 & importante & Biologia 25, Economia 25 \\
+rede & Computação 25, Geografia 25 & água & Biologia 25, Geografia 25 \\
+nota & Música 25, Economia 25 & & \\
+capital & Economia 25, Política 25 & & \\
+família & Biologia 25, Política 25 & & \\
+massa & Física 25, Geografia 25 & & \\
+matriz & Biologia 25, Computação 25 & & \\
+planta & Biologia 25, Economia 25 & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Nos três estratos de palavras escolhidas, o parágrafo da ocorrência também passa pelo modelo,
+mas só como contexto: o único vértice dele é a ocorrência sorteada. Ao todo, a amostra tem
+\nVertices{} vértices de \nTipos{} tipos, em \nSequencias{} parágrafos de 1.172 artigos
+(Figura~\ref{fig:amostra-composicao}). Como o núcleo tem três quartos dos vértices, as medidas
+globais descrevem sobretudo texto corrido. Os estratos acrescentam palavras inteiras, e as
+palavras inteiras são 48\% dos vértices, contra 28\% num texto corrido.
 
 \figuraopcional{amostra_composicao}
-    {Composição da amostra: vértices por estrato, tema, faixa de frequência e categoria de
-    token.}
+    {Composição da amostra: vértices por estrato, por tema, por faixa de frequência do tipo na
+    amostra ($f_t$) e por categoria de token.}
     {fig:amostra-composicao}
+
+% ------------------------------------------------------------
+\subsection{Anotação dos sentidos}\label{sec:dados-sentidos}
+
+O tema é só um indicador aproximado do sentido: um artigo de Computação pode citar o Banco
+Central. Para medir a separação por sentido de verdade, as 508 ocorrências das 11 palavras-alvo
+(inclusive as que caíram no núcleo) foram \textbf{anotadas pelo modelo de linguagem Claude
+Opus~5.5}, sem revisão humana. Cada ocorrência foi lida com o trecho do parágrafo em volta, sem
+o tema e sem o título do artigo, para que o rótulo registrasse o sentido e não o tema. Os
+sentidos de cada palavra (de 3 a 7) foram definidos durante a leitura; por exemplo,
+\emph{órgão} tem os sentidos ``órgão biológico'', ``instrumento musical'' e ``órgão
+institucional''. Como o modelo analisado só vê o texto à esquerda da palavra, cada ocorrência
+recebeu também uma marca que diz se esse trecho à esquerda já decide o sentido (442 das 508).
+A separação por sentido é medida nos dois recortes. A anotação e o protocolo estão em
+\cod{data/annotations/} no repositório.

@@ -1,9 +1,122 @@
 % ============================================================
-\section{Métodos de análise}\label{sec:metodos}
+\section{Medidas}\label{sec:metodos}
 % ============================================================
 
-\previsto{Cerca de 1 página, só as medidas usadas nos resultados: métricas estruturais
-exigidas pela disciplina; persistência da vizinhança (Jaccard) e dominância lexical com o seu
-teto; piso de ruído; comunidades (Leiden) e concordância com rótulos (NMI menos a linha de
-base de permutação, ARI); separação intra-tipo para a P4. Cada medida com a pergunta a que
-responde. Relatório técnico, Seção 7.}
+Esta seção define as medidas usadas nos resultados e diz a que pergunta cada uma responde.
+
+% ------------------------------------------------------------
+\subsection{Métricas estruturais}\label{sec:met-estruturais}
+
+Em cada rede calculamos as métricas usuais, com o igraph~\cite{csardi2006}: número de vértices
+$n$ e de arestas $m$, grau médio $\langle k\rangle=2m/n$, densidade, reciprocidade (a fração
+dos arcos $i\to j$ para os quais $j\to i$ também existe), clusterização global (a
+transitividade, $3\times$ triângulos sobre trios conexos) e local média
+($C_i=2e_i/[k_i(k_i-1)]$, com $e_i$ o número de arestas entre os vizinhos de $i$), número de
+componentes conexos e fração de vértices no maior, distância média e diâmetro, por busca em
+largura exata a partir de todos os vértices do maior componente. As métricas não direcionadas
+usam a rede por união.
+
+Duas observações ajudam a ler essas métricas numa rede k-NN. Primeiro, o número de arestas da
+rede por união fica entre $nk/2$ (todas as escolhas recíprocas) e $nk$ (nenhuma recíproca),
+então o grau médio fica entre $k$ e $2k$ e a densidade é baixíssima por construção; o que
+interessa é como esses valores variam entre as camadas. Segundo, como todo vértice tem grau de
+saída $k$, a informação sobre \emph{hubs} está no \textbf{grau de entrada}. Reportamos a
+distribuição dele (a probabilidade $P(K\ge d)$ de um vértice ter grau de entrada pelo menos
+$d$) e a sua assimetria (\emph{skewness}), a medida usual de
+\emph{hubness}~\cite{radovanovic2010}: assimetria alta significa que poucos vértices são
+escolhidos por muitos.
+
+% ------------------------------------------------------------
+\subsection{Troca de vizinhos e piso de ruído (P1 e P2)}\label{sec:met-jaccard}
+
+A vizinhança de uma ocorrência $i$ nas redes $a$ e $b$ (por exemplo, \cod{lex} e \cod{L18})
+é comparada pelo índice de Jaccard,
+\begin{equation}
+    J_i(a,b)=\frac{|\N_i^{(a)}\cap\N_i^{(b)}|}{|\N_i^{(a)}\cup\N_i^{(b)}|}.
+\end{equation}
+Com $k=10$ vizinhos nas duas redes e $c$ vizinhos em comum, $J_i=c/(20-c)$: $J=1$ quando nada
+muda, $J=0{,}11$ quando sobram 2 vizinhos e $J=0$ quando nenhum se mantém. A
+\textbf{mudança} é $M_i=1-J_i$.
+
+Na rede lexical, parte dos vizinhos é sorteada entre empatados, e duas sementes diferentes já
+dão $J<1$ sem nenhuma mudança de representação. O \textbf{piso de ruído} $J^{\text{ruído}}_i$
+é o Jaccard médio entre redes lexicais de sementes diferentes (10 pares). Ele depende muito da
+frequência: para um tipo com 50 ocorrências, cada sorteio escolhe 10 de 49 cópias idênticas, e
+duas escolhas independentes têm em média só 2 em comum ($J^{\text{ruído}}=0{,}12$); para tipos
+de 10 a 49 ocorrências, $0{,}39$; para tipos raros, cerca de $0{,}75$. A \textbf{mudança acima
+do piso} é $M^{+}_i=J^{\text{ruído}}_i-J_i(\mathrm{lex},\ell)$: a parte da troca de vizinhos que
+o sorteio não explica. Como complemento, o Jaccard por composição $J^w$ compara quantos vizinhos
+de cada \emph{tipo} a ocorrência tem nas duas redes; ele quase não depende do sorteio,
+porque trocar uma cópia idêntica por outra não muda a composição.
+
+% ------------------------------------------------------------
+\subsection{Dominância lexical (P1 e P2)}\label{sec:met-dominancia}
+
+A \textbf{dominância lexical} de uma ocorrência é a fração dos seus vizinhos que são
+ocorrências do mesmo tipo,
+\begin{equation}
+    D_i=\frac{|\{\,j\in\N_i : t_j=t_i\,\}|}{k}.
+\end{equation}
+Na rede lexical, as outras ocorrências do tipo são as mais parecidas possíveis (cosseno 1), e
+$D_i$ atinge o seu teto $\min(f_{t_i}-1,\,k)/k$: uma ocorrência de um tipo com 4 ocorrências
+nunca passa de $0{,}3$. Para comparar tipos de frequências diferentes, usamos também a
+dominância relativa ao teto, $\tilde D_i=D_i/\text{teto}$, que vale 1 na rede lexical. O nível
+do acaso, se os vizinhos fossem sorteados, é $(f_{t_i}-1)/(n-1)$, no máximo
+$49/13.605\approx0{,}004$.
+
+% ------------------------------------------------------------
+\subsection{Comunidades e concordância com rótulos (P3)}\label{sec:met-comunidades}
+
+As comunidades são encontradas na rede por união com o algoritmo de
+Leiden~\cite{traag2019}, que maximiza a modularidade~\cite{newman2006}. Ele roda 10 vezes
+com sementes diferentes; fica a partição de maior modularidade, e a \textbf{estabilidade} é a
+concordância média entre as 10 partições. O Louvain~\cite{blondel2008} serve de checagem.
+
+Para saber o que as comunidades representam, comparamos a partição com rótulos conhecidos dos
+vértices: o tipo de token, o tema, o artigo, o parágrafo, a sentença, o próximo token do texto,
+o token que o modelo prevê e a faixa de posição no parágrafo. A posição entra como controle:
+se ela explicasse as comunidades, o resultado seria um artefato da posição, e não contexto. A
+comparação usa a \textbf{informação mútua normalizada} (NMI), que vai de 0 (partições
+independentes) a 1 (iguais). O NMI cresce com o número de classes mesmo entre partições sem
+relação nenhuma~\cite{vinh2010}, e os rótulos aqui vão de 4 classes (faixa de posição) a 2.780
+(tipo de token). Por isso cada NMI é descontado de uma \textbf{linha de base}: o NMI médio
+com o rótulo embaralhado 20 vezes, que preserva o número e o tamanho das classes. A medida
+lida é NMI menos a linha de base. Reportamos também o índice de Rand
+ajustado~\cite{hubert1985}, já corrigido pelo acaso.
+
+A P3 é analisada \textbf{só nos \nVerticesNucleo{} vértices do núcleo}, em que os parágrafos
+estão inteiros. As comunidades são as da rede inteira, restritas a esses vértices.
+
+% ------------------------------------------------------------
+\subsection{Separação das ocorrências de um mesmo tipo (P4)}\label{sec:met-p4}
+
+Para cada tipo com pelo menos 10 ocorrências, separados em alvos, controles, multitema e
+palavras funcionais (artigos, preposições, pronomes\ldots), medimos:
+\begin{itemize}
+    \item a \textbf{autossimilaridade}, o cosseno médio entre as ocorrências do tipo (vale 1 na
+    camada lexical)~\cite{ethayarajh2019};
+    \item a diferença \textbf{intra $-$ entre}: o cosseno médio entre ocorrências do mesmo tema
+    menos o cosseno médio entre ocorrências de temas diferentes. Se for positiva, as
+    ocorrências se agrupam por tema; se for zero, o tema não importa;
+    \item o \textbf{número efetivo de comunidades} ocupadas pelas ocorrências, $e^{H}$, com $H$
+    a entropia da distribuição delas pelas comunidades. Vale 1 quando todas estão na mesma
+    comunidade;
+    \item o \textbf{NMI entre comunidade e tema} dentro do tipo, com a sua linha de base: as
+    ocorrências não só se espalham, mas se espalham \emph{segundo o tema}?
+\end{itemize}
+Nas palavras-alvo, as duas últimas medidas e a diferença intra $-$ entre são repetidas com o
+\textbf{sentido anotado} no lugar do tema (Seção~\ref{sec:dados-sentidos}), em todas as
+ocorrências e só nas que o contexto à esquerda decide.
+
+% ------------------------------------------------------------
+\subsection{Vizinhos no vocabulário}\label{sec:met-lente}
+
+Como o Qwen3 usa a mesma matriz $E$ na entrada e na saída, podemos perguntar, para o vetor de
+uma ocorrência em cada bloco, quais linhas de $E$ estão mais próximas dele. Ordenamos as
+151.669 linhas pelo cosseno com o vetor e anotamos a posição do \emph{próprio} token e a do
+\emph{próximo} token do texto nessa ordem. É uma versão simples da ``lente de
+\emph{logits}''~\cite{nostalgebraist2020}. A pergunta é em que bloco a ocorrência deixa de se
+parecer com o próprio token e passa a se parecer com o seguinte. Duas checagens validam o
+cálculo: na camada lexical, o próprio token é sempre o primeiro; na saída normalizada do bloco
+36, a linha de maior produto interno coincide com a previsão do próprio modelo em
+\concordanciaPredicao{} das ocorrências.

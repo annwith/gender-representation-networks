@@ -2,8 +2,85 @@
 \section{Introdução}\label{sec:introducao}
 % ============================================================
 
-\previsto{Cerca de 1 página. Motivação (na entrada de um Transformer, todas as ocorrências de
-um token têm o mesmo vetor; ao longo das camadas elas incorporam o contexto). A ideia do
-projeto: uma sequência de redes $k$-NN sobre \emph{os mesmos vértices} (ocorrências de tokens),
-uma por representação, comparadas vértice a vértice. As perguntas P1--P4 com as hipóteses
-H1--H4, em uma frase cada (relatório técnico, Seção 2). Contribuições e organização do texto.}
+Um modelo de linguagem do tipo Transformer lê o texto como uma sequência de \emph{tokens}
+(palavras ou pedaços de palavras) e representa cada um por um vetor. Na entrada, esse vetor é
+uma linha de uma tabela fixa, a matriz de \emph{embeddings}: todas as ocorrências da palavra
+\emph{banco} começam com exatamente o mesmo vetor, seja num texto sobre finanças, sobre
+computação ou sobre geografia. Ao atravessar os blocos do modelo, cada vetor é atualizado com
+informação dos tokens anteriores, e as ocorrências de um mesmo token deixam de ser iguais. No
+último bloco, o vetor de uma ocorrência serve para prever o \emph{próximo} token do texto, e
+não mais para identificar o token atual.
+
+Este trabalho pergunta \textbf{como} essa reorganização acontece: quanto da estrutura de
+semelhança entre os vetores continua organizada pela identidade do token e quanto passa a
+refletir o contexto, e em que camadas isso muda. Estudos anteriores mediram essa passagem com
+médias sobre pares de vetores, como o cosseno médio entre as ocorrências de uma
+palavra~\cite{ethayarajh2019}. Essas médias dizem quanto os vetores se afastam, mas não dizem
+\emph{quem é vizinho de quem}, nem se a mudança é só local (troca de alguns vizinhos) ou se
+altera a organização em escala maior (\emph{hubs}, distâncias, comunidades).
+
+\subsection{A ideia: uma rede por camada, com os mesmos vértices}
+
+Representamos cada espaço de vetores por uma \textbf{rede de $k$ vizinhos mais próximos}
+(k-NN): cada vértice é uma \emph{ocorrência} de um token num parágrafo, e cada vértice se liga
+aos $k=10$ vértices cujos vetores têm o maior cosseno com o seu. Os mesmos vértices recebem
+quatro vetores: o \emph{embedding} de entrada do seu token (a rede \cod{lex}) e a saída dos
+blocos 1, 18 e 36 do modelo (as redes \cod{L01}, \cod{L18} e \cod{L36}). As quatro redes têm
+exatamente os mesmos vértices e diferem só nas arestas. Isso traz três vantagens:
+\begin{itemize}
+    \item \textbf{comparação vértice a vértice}: a vizinhança de uma ocorrência pode ser
+    comparada diretamente entre camadas, e a fração de vizinhos que são o mesmo token mede
+    quanto a identidade lexical ainda manda;
+    \item \textbf{escalas diferentes}: as medidas de redes complexas separam o que acontece
+    em volta de cada vértice (vizinhança, clusterização) do que acontece na rede inteira
+    (distribuição de graus, \emph{hubs}, distâncias, componentes, comunidades);
+    \item \textbf{rótulos externos}: as comunidades encontradas podem ser comparadas com
+    partições conhecidas dos vértices (o token, o tema, o artigo, o parágrafo, a sentença e o
+    próximo token), o que transforma ``a rede ficou contextual'' numa afirmação mensurável.
+\end{itemize}
+
+\subsection{Perguntas e hipóteses}
+
+\begin{description}
+    \item[P1. Quanto e de que forma a organização muda?] Medimos a troca de vizinhos de cada
+    ocorrência entre a rede lexical e cada camada, a fração de vizinhos do mesmo token e as
+    métricas globais. \emph{Hipótese H1:} a fração de vizinhos do mesmo token cai ao longo
+    das camadas, mas continua acima do acaso no bloco 36; surgem \emph{hubs} diferentes e as
+    comunidades se alinham menos ao token.
+    \item[P2. Em que camadas a mudança se concentra?] Comparamos as transições entre as redes
+    e acompanhamos as medidas nos 36 blocos. \emph{Hipótese H2:} pedaços de palavras precisam
+    dos tokens vizinhos para formar uma palavra e devem mudar mais cedo do que palavras
+    inteiras.
+    \item[P3. Surgem comunidades associadas a contextos semelhantes?] Comparamos as
+    comunidades de cada rede com o token, o tema, o artigo, o parágrafo, a sentença e o
+    próximo token. \emph{Hipótese H3:} a concordância com o token cai e a com o contexto sobe;
+    no último bloco, cresce a concordância com o próximo token.
+    \item[P4. As ocorrências de um mesmo token se separam conforme o contexto?] Olhamos
+    palavras com sentidos diferentes em temas diferentes (\emph{banco}, \emph{campo},
+    \emph{órgão}\ldots). \emph{Hipótese H4:} essas palavras separam as suas ocorrências, por
+    tema e por sentido, mais do que palavras de controle de sentido estável (\emph{ano},
+    \emph{grande}, \emph{água}\ldots).
+\end{description}
+
+\subsection{Resumo dos resultados}
+
+As quatro hipóteses se confirmam, com nuances. O bloco 1 quase não muda a rede; a mudança
+grande acontece entre os blocos 1 e 36 e continua até o último bloco. A identidade do token
+perde espaço mas não some: no bloco 36, um quarto dos vizinhos ainda é o mesmo token. Os
+pedaços de palavra que continuam uma palavra mudam mais cedo; os que começam uma palavra
+mantêm a identidade até o fim. A organização pelo contexto não cresce de forma monótona: ela
+tem um máximo nos blocos do meio (cerca de 12 a 19), onde as comunidades seguem o artigo e o
+parágrafo, e cede lugar, nos últimos blocos, a uma organização pelo próximo token, com
+\emph{hubs} fortes. As palavras ambíguas se separam por tema e, mais ainda, por sentido; as de
+controle se separam bem menos.
+
+\subsection{Organização do texto}
+
+A Seção~\ref{sec:dados} descreve os dados: como os artigos da Wikipédia foram escolhidos e
+limpos e como a amostra de ocorrências foi montada. A Seção~\ref{sec:redes} descreve o
+modelo, como cada ocorrência vira um vetor e como as redes são construídas, incluindo o
+tratamento dos empates. A Seção~\ref{sec:metodos} define as medidas, a
+Seção~\ref{sec:resultados} apresenta os resultados, a Seção~\ref{sec:robustez} testa se eles
+dependem das escolhas de construção, a Seção~\ref{sec:discussao} junta as respostas e a
+Seção~\ref{sec:limitacoes} discute as limitações. O código, os dados e um relatório técnico
+mais longo, com todas as decisões e os problemas encontrados, estão em \url{\repo}.

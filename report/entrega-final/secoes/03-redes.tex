@@ -2,11 +2,224 @@
 \section{Modelo e construção das redes}\label{sec:redes}
 % ============================================================
 
-\previsto{Cerca de 1,5 página, escrita para quem nunca viu o projeto (a parte que mais
-confundiu na entrega parcial). Qwen3-4B-Base e o que é cada representação: \emph{embedding} de
-entrada (\cod{lex}) e saídas dos blocos 1, 18 e 36. Categorias de token (palavra inteira,
-início, continuação, pontuação, número). Construção: cosseno, $k=10$ vizinhos, rede
-direcionada e simetrizações por união e mútua, empates exatos da rede lexical (ocorrências do
-mesmo token têm cosseno 1) e o desempate com sementes. A rede lexical de tipos sobre o
-vocabulário inteiro como referência. Um diagrama pequeno da construção e o link para a página
-interativa (\url{\coleta}, aba de construção). Relatório técnico, Seções 3, 5 e 6.}
+% ------------------------------------------------------------
+\subsection{O modelo}\label{sec:modelo}
+
+O modelo analisado é o \textbf{Qwen3-4B-Base}~\cite{qwen3}, um Transformer de cerca de 4
+bilhões de parâmetros, com 36 blocos e vetores de dimensão 2560, usado numa revisão fixa e com
+os pesos na precisão original (\emph{bfloat16}). A versão \emph{Base} é o modelo de linguagem
+puro, treinado só para prever o próximo token, sem o ajuste posterior para conversa; é ela que
+responde à pergunta de como um modelo de linguagem organiza o texto. Consideramos também o
+Tucano-2b4, treinado em português e com um tokenizer melhor para a nossa língua, e o GPT-2
+small ajustado na Wikipédia em português, usado num piloto. Escolhemos o Qwen3 pela
+arquitetura atual e pela profundidade, que permite acompanhar 36 blocos; o custo é a
+fragmentação do português (Seção~\ref{sec:tokens}).
+
+No Qwen3, a matriz de \emph{embeddings} $E$ da entrada é a mesma da saída~\cite{press2017}:
+a pontuação de cada candidato a próximo token é o produto interno entre a linha dele em $E$ e
+a saída normalizada do bloco 36. Assim, a linha $e_t$ de um token é, ao mesmo tempo, o vetor
+com que ele entra no modelo e a direção que o modelo usa para prevê-lo. Isso permite comparar
+os vetores internos com as linhas de $E$ (Seção~\ref{sec:res-lente}).
+
+% ------------------------------------------------------------
+\subsection{De um parágrafo aos vetores de cada ocorrência}\label{sec:vetores}
+
+Cada parágrafo passa \textbf{sozinho} pelo modelo, precedido do token especial
+\tok{<|endoftext|>}, que separa documentos no treinamento do Qwen3 e nunca vira vértice. Por
+exemplo, um parágrafo de Economia em que \emph{banco} foi sorteado entra como
+\begin{center}
+\small
+\begin{tabular}{@{}l c c c c c@{}}
+    posição & 0 & 1 & 2 & 3 & \ldots \\
+    token & \tok{<|endoftext|>} & \tok{O} & \tok{\esp banco} & \tok{\esp central} & \ldots
+\end{tabular}
+\end{center}
+O modelo não recebe o título do artigo, os outros parágrafos nem o tema. A atenção do Qwen3 é
+causal: o vetor de uma posição depende só do seu token e dos tokens anteriores no parágrafo.
+Por isso o processamento é cortado logo depois da última posição sorteada no parágrafo; os
+tokens seguintes não mudariam nada.
+
+Cada ocorrência $i$, de tipo $t_i$, recebe quatro vetores de dimensão 2560:
+\begin{itemize}
+    \item \cod{lex}: a linha $e_{t_i}$ da matriz de \emph{embeddings}. Ela não passa pelo
+    modelo e é \textbf{igual para todas as ocorrências do mesmo tipo};
+    \item \cod{L01}, \cod{L18} e \cod{L36}: o vetor da posição de $i$ depois dos blocos 1, 18
+    e 36, isto é, a primeira mistura com o contexto, o meio do modelo e o último bloco. É a
+    saída bruta de cada bloco, antes da normalização final que o modelo aplica antes de
+    prever o próximo token. Os vetores são lidos por \emph{hooks} do PyTorch, funções chamadas
+    quando cada bloco termina.
+\end{itemize}
+Guardamos também a saída de todos os 36 blocos, para as curvas camada a camada; a saída
+normalizada do bloco 36 (\cod{L36n}), para a robustez; e o token que o modelo prevê depois de
+cada ocorrência, usado como rótulo na P3.
+
+Dois vértices cujos parágrafos começam com os mesmos tokens até eles têm, matematicamente, os
+mesmos vetores em todas as camadas; o caso típico é ``O'' ou ``A'' no começo de vários
+parágrafos. Na prática, o arredondamento de contas feitas em sequências de comprimentos
+diferentes os deixa ligeiramente diferentes. Nesses \nGruposPrefixo{} grupos, copiamos os
+vetores do primeiro membro para os demais, de modo que eles fiquem exatamente iguais e sejam
+tratados como empates (Seção~\ref{sec:empates}).
+
+% ------------------------------------------------------------
+\subsection{As redes de vizinhos mais próximos}\label{sec:knn}
+
+A semelhança entre dois vértices é o cosseno entre os seus vetores,
+\begin{equation}
+    s_{ij}=\frac{x_i^\top x_j}{\lVert x_i\rVert\,\lVert x_j\rVert}.
+\end{equation}
+Cada vértice $i$ aponta para os $k=10$ vértices de maior cosseno com ele, escolhidos entre os
+outros \nVertices{} menos um, de qualquer parágrafo, artigo ou tema. Chamamos esse conjunto de
+vizinhança $\N_i$. O resultado é uma \textbf{rede direcionada}: $i\to j$ não implica $j\to i$.
+Todo vértice tem grau de saída 10; o grau de entrada (quantos vértices escolheram $i$) varia,
+e os vértices escolhidos por muitos são os \emph{hubs}. As arestas não têm peso. As quatro
+redes (\cod{lex}, \cod{L01}, \cod{L18}, \cod{L36}) têm os mesmos vértices e diferem só nos
+vetores usados, e portanto nas arestas (Figura~\ref{fig:ilustracao}).
+
+Usamos três versões de cada rede:
+\begin{itemize}
+    \item a \textbf{direcionada}, nas medidas de vizinhança (que dependem de $\N_i$), no grau
+    de entrada e na reciprocidade;
+    \item a \textbf{não direcionada por união}, com a aresta $\{i,j\}$ quando $i$ escolhe $j$
+    \emph{ou} $j$ escolhe $i$, na clusterização, nas distâncias, nos componentes e nas
+    comunidades. Nela todo vértice tem grau pelo menos 10;
+    \item a \textbf{mútua}, com a aresta só quando os dois se escolhem, como teste de
+    robustez.
+\end{itemize}
+
+O cosseno é calculado em precisão dupla (\emph{float64}), por causa da tolerância usada para
+decidir empates ($\varepsilon=10^{-6}$, abaixo). Em precisão simples, o erro de arredondamento
+de um produto de 2560 termos fica entre $10^{-6}$ e $10^{-5}$, da ordem da própria tolerância,
+e criaria empates falsos.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    every node/.style={font=\small},
+    v/.style={draw, thick, rounded corners=3pt, inner sep=3pt, minimum height=6mm,
+        font=\footnotesize},
+    eco/.style={v, fill=green!22},
+    com/.style={v, fill=magenta!18},
+    geo/.style={v, fill=orange!28},
+    arco/.style={-{Stealth[length=2.2mm]}, thick},
+    fora/.style={-{Stealth[length=2mm]}, thick, dashed, black!45},
+    titulo/.style={font=\small\bfseries},
+]
+% (a) rede lexical
+\begin{scope}
+    \node[titulo] at (0,3.1) {(a) rede lexical (\texttt{lex})};
+    \node[eco] (bE) at (0,1.0) {banco};
+    \node[com] (bC) at (-1.3,-0.5) {banco};
+    \node[geo] (bG) at (1.3,-0.5) {banco};
+    \node[eco] (j) at (0,2.3) {juros};
+    \node[com] (d) at (-2.7,-1.6) {dados};
+    \node[geo] (a) at (2.7,-1.6) {areia};
+    \draw[arco] (bE) to[bend right=10] (bC);
+    \draw[arco] (bC) to[bend right=10] (bE);
+    \draw[arco] (bE) to[bend left=10] (bG);
+    \draw[arco] (bG) to[bend left=10] (bE);
+    \draw[arco] (bC) to[bend right=10] (bG);
+    \draw[arco] (bG) to[bend right=10] (bC);
+    \draw[fora] (j.east) -- ++(0.9,0.2);
+    \draw[fora] (j.west) -- ++(-0.9,0.2);
+    \draw[fora] (d.south) -- ++(-0.4,-0.7);
+    \draw[fora] (d.south) -- ++(0.4,-0.7);
+    \draw[fora] (a.south) -- ++(0.4,-0.7);
+    \draw[fora] (a.south) -- ++(-0.4,-0.7);
+\end{scope}
+% (b) rede contextual
+\begin{scope}[xshift=8.2cm]
+    \node[titulo] at (0,3.1) {(b) rede de uma camada contextual};
+    \node[eco] (bE) at (0,1.0) {banco};
+    \node[com] (bC) at (-1.3,-0.5) {banco};
+    \node[geo] (bG) at (1.3,-0.5) {banco};
+    \node[eco] (j) at (0,2.3) {juros};
+    \node[com] (d) at (-2.7,-1.6) {dados};
+    \node[geo] (a) at (2.7,-1.6) {areia};
+    \draw[arco] (bE) to[bend left=12] (j);
+    \draw[arco] (j) to[bend left=12] (bE);
+    \draw[arco] (bC) to[bend left=12] (d);
+    \draw[arco] (d) to[bend left=12] (bC);
+    \draw[arco] (bG) to[bend right=12] (a);
+    \draw[arco] (a) to[bend right=12] (bG);
+    \draw[arco] (bE) -- (bC);
+    \draw[arco] (bC) -- (bG);
+    \draw[arco] (bG) -- (bE);
+    \draw[fora] (j.east) -- ++(0.9,0.2);
+    \draw[fora] (d.south) -- ++(0,-0.75);
+    \draw[fora] (a.south) -- ++(0,-0.75);
+\end{scope}
+\end{tikzpicture}
+\caption{Exemplo ilustrativo (não são dados reais), com $k=2$. Os vértices são seis
+ocorrências: \emph{banco} em três parágrafos de temas diferentes (verde: Economia; rosa:
+Computação; laranja: Geografia) e uma palavra de cada um desses parágrafos. As setas
+tracejadas são arcos para vértices fora do desenho. (a) Na rede lexical, as três ocorrências
+de \emph{banco} têm o mesmo vetor e apontam umas para as outras. (b) Numa camada contextual,
+cada \emph{banco} passa a apontar também para uma palavra do seu contexto, e a vizinhança de
+cada ocorrência muda. As duas redes têm os mesmos vértices; só os arcos mudam, e é essa
+mudança que as medidas da Seção~\ref{sec:metodos} quantificam.}\label{fig:ilustracao}
+\end{figure}
+
+% ------------------------------------------------------------
+\subsection{O tratamento dos empates}\label{sec:empates}
+
+\paragraph{De onde vêm os empates.} Na rede lexical, todas as ocorrências de um mesmo tipo têm
+o mesmo vetor, e o cosseno entre elas é exatamente 1. Considere uma ocorrência de \tok{\esp de},
+um tipo com 50 ocorrências na amostra: as outras 49 são candidatas igualmente boas para as 10
+vagas da vizinhança. Quais delas entram é uma escolha arbitrária. O mesmo acontece com tipos
+menos frequentes: se o tipo de $i$ tem 4 ocorrências, as 3 outras entram com certeza, e as 7
+vagas que sobram vão para as ocorrências do tipo mais próximo, que também são idênticas entre
+si e, portanto, também empatam. Na execução principal, \textbf{87,8\% das linhas da rede
+lexical} têm um empate na fronteira da décima vaga, com blocos empatados de até 50
+ocorrências. Nas camadas contextuais, os empates são raros (menos de 1\% das linhas) e vêm só
+dos grupos de prefixo idêntico da Seção~\ref{sec:vetores}.
+
+\paragraph{A regra.} Seja $s_{i(k)}$ a $k$-ésima maior similaridade da linha $i$. Os
+candidatos se dividem nos que estão com certeza entre os $k$ primeiros e no bloco empatado na
+fronteira,
+\begin{equation}
+    F_i=\{\,j : s_{ij}>s_{i(k)}+\varepsilon\,\},\qquad
+    B_i=\{\,j : |s_{ij}-s_{i(k)}|\le\varepsilon\,\},
+\end{equation}
+com $\varepsilon=10^{-6}$. Todos os vértices de $F_i$ entram na vizinhança, e faltam
+$r_i=k-|F_i|$ vizinhos a escolher em $B_i$. Na configuração principal, esses $r_i$ vizinhos são
+\textbf{sorteados} uniformemente em $B_i$. O sorteio é repetido com \textbf{20 sementes}, o
+que dá 20 versões de cada rede.
+
+\paragraph{Por que sortear.} A alternativa óbvia, usada num piloto do projeto, é desempatar
+pela posição: ficar com os $r_i$ candidatos de menor índice. Com 13.606 vértices, isso cria
+\emph{hubs} artificiais: as 50 ocorrências de \tok{\esp de} escolheriam as mesmas 10 (as
+primeiras da lista), que receberiam cerca de 50 arcos cada, enquanto as demais quase não
+receberiam arcos de dentro do tipo. Com o sorteio, cada ocorrência escolhe 10 das 49 ao
+acaso, e os graus de entrada se espalham em torno de 10. Outras duas regras entram como
+robustez: (b) aceitar todos os empatados, $\N_i=F_i\cup B_i$, o que dá vizinhanças de tamanho
+variável; e (c) ignorar as ocorrências do próprio tipo e tomar como vizinhança os $k$
+\emph{tipos} mais próximos.
+
+\paragraph{Como os empates entram na análise.} O sorteio torna a rede lexical em parte
+aleatória, e isso é tratado de três formas:
+\begin{enumerate}
+    \item as métricas estruturais da rede lexical são a média e o desvio entre as 20 sementes.
+    Elas variam muito pouco: o número de arestas da rede por união é $102.723\pm73$ e a
+    clusterização varia na terceira casa decimal;
+    \item a troca de vizinhos entre duas redes lexicais com sementes diferentes mede a mudança
+    produzida \emph{só} pelo sorteio. Esse é o \textbf{piso de ruído}
+    (Seção~\ref{sec:met-jaccard}): uma mudança da rede lexical para uma camada só conta como
+    reorganização se for maior que ele;
+    \item uma variante da medida de troca de vizinhos compara os vizinhos pelo tipo, e não
+    pela ocorrência; ela não depende do sorteio.
+\end{enumerate}
+Nas camadas contextuais, em que os empates são raros, as métricas estruturais e as
+comunidades usam a semente 0.
+
+% ------------------------------------------------------------
+\subsection{A rede do vocabulário}\label{sec:rede-vocab}
+
+Além das redes de ocorrências, construímos uma rede de \textbf{tipos}: um vértice para cada
+token do vocabulário do modelo, representado pela sua linha em $E$, ligado aos seus 10 vizinhos
+pelo mesmo procedimento. São \nTiposVocab{} vértices (todos os tokens, menos os 26 especiais).
+Essa rede descreve a geometria do espaço de entrada inteiro, sem depender da amostra. A maior
+parte do vocabulário nunca aparece num texto em português: metade dos tokens é de escrita
+latina, um quinto de chinês, japonês ou coreano, e muitos são pedaços de código; só
+\nTiposVocabCorpus{} aparecem no nosso corpus. Também aqui há empates: 1.903 tokens têm o vetor
+idêntico ao de outro, em 58 grupos (o maior com 524 tokens), provavelmente tokens que quase
+não foram vistos no treinamento; eles são desempatados por sorteio.

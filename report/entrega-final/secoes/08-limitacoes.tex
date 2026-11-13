@@ -1,7 +1,72 @@
 % ============================================================
-\section{Limitações e trabalhos futuros}\label{sec:limitacoes}
+\section{Limitações}\label{sec:limitacoes}
 % ============================================================
 
-\previsto{Meia página, só as limitações que afetam a leitura dos resultados (fragmentação do
-português pelo Qwen3, um único modelo, sentidos anotados por um modelo de linguagem, tamanho
-da amostra). Relatório técnico, Seção 11.}
+Cada limitação abaixo diz o que pode distorcer os resultados e o que foi feito a respeito.
+
+\paragraph{Os temas são recortes, e não áreas inteiras.} A busca por categorias para em 600
+títulos e abre as subcategorias em ordem alfabética (Seção~\ref{sec:busca}). Cada tema é,
+portanto, o conjunto de artigos próximos da sua categoria raiz e alfabeticamente primeiros, com
+artigos pouco típicos (prêmios em Física, canções em Futebol). O mesmo corte limita o descarte
+de páginas multitema: uma página só é reconhecida como multitema se estiver na lista truncada
+de dois temas. A comparação entre camadas não é afetada, porque os vértices são os mesmos em
+todas as redes; as análises que usam o tema como rótulo (P3 e P4) herdam o recorte.
+
+\paragraph{No núcleo, o tema significa coisas diferentes em temas diferentes.} Os 5 artigos
+do núcleo de cada tema foram sorteados entre todos os artigos do tema, incluindo os das
+categorias extras. Em Economia e Biologia, os 5 vieram de categorias extras, e em Computação e
+Geografia, 2 de 5; ao todo, 39\% dos vértices do núcleo vêm de artigos de categorias extras.
+Um desses artigos (``Frank Costello'', alcançado por Direito tributário) é uma biografia que
+escapou do filtro de caixas de informação. Para ver se isso muda a P3, refizemos a concordância
+com o tema só nos vértices de artigos da categoria raiz: no bloco 18, ela vai de 0,197 para
+0,205, e nas outras camadas muda menos de 0,01. O efeito sobre os números é pequeno, mas a
+leitura ``tema = área'' vale menos para Economia e Biologia. O código tem uma opção para
+sortear o núcleo só na categoria raiz, que não foi usada nesta execução.
+
+\paragraph{O tema é só um indicador do sentido, e os sentidos foram anotados por um modelo
+de linguagem.} Um artigo de Computação pode falar do Banco Central, e por isso a P4 usa também
+o sentido anotado. A anotação foi feita pelo Claude Opus~5.5, sem revisão humana e sem segundo
+anotador, então não há medida de concordância entre anotadores. O próprio anotador definiu os
+rótulos de cada palavra, e com outra granularidade (juntar ou separar sentidos próximos) a
+separação mediria outra coisa. A marca de ``contexto à esquerda decide'' foi dada já sabendo o
+sentido. A comparação com os controles, que não dependem da anotação, aponta na mesma direção.
+
+\paragraph{O Qwen3 fragmenta o português.} Boa parte dos vértices é pedaço de palavra, cuja
+vizinhança lexical reflete a grafia e não o significado. As palavras-alvo ficaram restritas às
+que são um token só, e quatro candidatas saíram por isso (\emph{corrente}, \emph{onda},
+\emph{célula} e \emph{núcleo}); \emph{planta} saiu por falta de ocorrências. Os resultados são
+sempre separados por categoria de token, e as interpretações sobre sentido usam só palavras
+inteiras. Não testamos modelos com tokenizers melhores para o português.
+
+\paragraph{A amostra é desenhada.} As frequências na amostra refletem as cotas (50 e 20
+ocorrências), e parte da estrutura da rede lexical vem disso: os componentes isolados e os
+grupos muito clusterizados são justamente os tipos com cotas. O núcleo tem três quartos dos
+vértices, e as métricas globais descrevem sobretudo texto corrido. Por isso as análises por
+tipo exigem pelo menos 3 ocorrências (10 na P4) e a P3 é feita só no núcleo.
+
+\paragraph{Os primeiros tokens formam uma ilha.} Os 80 vértices da posição 1 têm ativações
+enormes no bloco 18 e só se ligam entre si (Seção~\ref{sec:res-geral}). Eles quase não mudam
+as métricas globais, mas podem formar uma comunidade própria no núcleo; esse efeito sobre a P3
+não foi medido.
+
+\paragraph{Precisão numérica.} O modelo roda em \emph{bfloat16}, com 8 bits de mantissa, e os
+vetores são guardados nessa precisão. O cosseno em precisão dupla é exato para os vetores
+guardados, mas eles já carregam o arredondamento do modelo. Dentro de um grupo de prefixo, a
+maior diferença numa coordenada foi de \difMaxPrefixo{}, numa das coordenadas gigantes dos
+vetores da posição 1 no bloco 18; a cópia dos vetores dentro dos grupos remove esse ruído onde
+ele mais importa, e a tolerância maior de empate ($\varepsilon=10^{-4}$) não mudou os
+resultados.
+
+\paragraph{A Wikipédia provavelmente está no treinamento do modelo.} O Qwen3 foi treinado em
+cerca de 36 trilhões de tokens de fontes não detalhadas~\cite{qwen3}, e a Wikipédia em
+português quase certamente faz parte delas. O modelo pode ter visto os parágrafos analisados,
+o que pode tornar as previsões do próximo token mais acertadas do que seriam em texto novo.
+
+\paragraph{A limpeza deixa algumas frases incompletas.} A primeira frase de muitos artigos usa
+predefinições para pronúncia, etimologia ou datas (``X (em grego: \ldots) é\ldots''), que são
+descartadas. A limpeza tira os restos visíveis, mas algumas frases ficam mais curtas ou pouco
+naturais. O efeito atinge só as primeiras posições de alguns parágrafos.
+
+\paragraph{Um modelo, uma língua, um tipo de texto.} Os resultados são de um único modelo, numa
+revisão fixa, em texto enciclopédico em português. Não sabemos se as três regiões descritas na
+Seção~\ref{sec:discussao} aparecem nos mesmos blocos em outros modelos.
