@@ -17,6 +17,18 @@ from gender_networks.report.latex import Tabular, header_row, integer, num, tex_
 
 
 def _p3_core(ctx: Context) -> pd.DataFrame:
+    """Rows of ``p3_agreement.csv`` measured on the core vertices.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The rows with ``subset == "core"``.
+
+    Raises:
+        Skip: If the table is missing or has no core rows.
+    """
+
     table = ctx.analysis("p3_agreement")
     core = table[table["subset"].astype(str) == "core"]
     if core.empty:
@@ -25,6 +37,19 @@ def _p3_core(ctx: Context) -> pd.DataFrame:
 
 
 def figure_p3_nmi_camadas(ctx: Context) -> Any:
+    """Figure ``p3_nmi_camadas``: NMI minus its permutation baseline per label and layer, and the
+    Leiden stability.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the agreement table is missing or has no core rows.
+    """
+
     core = _p3_core(ctx)
     reps = [r for r in ctx.settings.networks.representations if (core["rep"] == r).any()]
     from gender_networks.analysis import CORE_LABELS
@@ -35,6 +60,19 @@ def figure_p3_nmi_camadas(ctx: Context) -> Any:
 
 
 def table_p3_concordancia(ctx: Context) -> Tabular:
+    """Table ``p3_concordancia``: NMI, baseline, their difference, ARI and purity per label and
+    shown representation, on the core.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table.
+
+    Raises:
+        Skip: If the agreement table is missing or has no core rows.
+    """
+
     core = _p3_core(ctx)
     from gender_networks.analysis import CORE_LABELS
 

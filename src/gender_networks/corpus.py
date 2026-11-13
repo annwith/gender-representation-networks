@@ -40,6 +40,16 @@ MANIFEST_FIELDS = [
 
 @dataclass
 class Candidate:
+    """A title found by a category walk, before it is fetched.
+
+    Attributes:
+        title: Article title.
+        theme: Theme of the walk that found it.
+        source_category: Category that first reached the title in that walk.
+        depth: Depth of that category (0 for a root).
+        origin: ``"root"`` or the extra category the walk started from.
+    """
+
     title: str
     theme: str
     source_category: str
@@ -49,6 +59,14 @@ class Candidate:
 
 @dataclass
 class CorpusResult:
+    """What the corpus stage produces, before it is written.
+
+    Attributes:
+        articles: One record per candidate that was handled (see ``articles.jsonl``).
+        paragraphs: One record per kept paragraph (see ``paragraphs.jsonl``).
+        fetch_batches: Number of content batches requested.
+    """
+
     articles: list[dict[str, Any]] = field(default_factory=list)
     paragraphs: list[dict[str, Any]] = field(default_factory=list)
     fetch_batches: int = 0
@@ -56,7 +74,16 @@ class CorpusResult:
 
 @dataclass(frozen=True)
 class Walk:
-    """One breadth-first category walk of the corpus stage."""
+    """One breadth-first category walk of the corpus stage.
+
+    Attributes:
+        walk_id: ``<theme>::root`` or ``<theme>::<extra category>``; the candidate group.
+        theme: Theme the found titles are assigned to.
+        origin: ``"root"`` or the extra category.
+        roots: Categories the walk starts from.
+        depth: Deepest category level opened.
+        max_titles: Title limit; ``None`` walks the whole tree down to ``depth``.
+    """
 
     walk_id: str  # "<theme>::root" or "<theme>::<extra category>": the candidate group
     theme: str
@@ -71,6 +98,13 @@ def walks(settings: CorpusSettings) -> list[Walk]:
     category (one level deep, with room for four times the articles kept from it).
 
     With ``max_titles_per_theme: null`` no walk has a title limit.
+
+    Args:
+        settings: The ``corpus`` section.
+
+    Returns:
+        One :class:`Walk` per theme, in configuration order, followed by one per extra
+        category. Extra walks use depth ``min(1, bfs_depth)``.
     """
 
     full = settings.max_titles_per_theme is None
@@ -91,7 +125,19 @@ def walks(settings: CorpusSettings) -> list[Walk]:
 def collect_candidates(
     client: WikiClient, settings: CorpusSettings
 ) -> tuple[dict[str, list[Candidate]], dict[str, set[str]]]:
-    """Crawl every theme and extra category; also return the themes that reach each title."""
+    """Crawl every theme and extra category; also return the themes that reach each title.
+
+    Args:
+        client: API client.
+        settings: The ``corpus`` section.
+
+    Returns:
+        ``(groups, reached)``: walk id to its candidates in discovery order, and title to the
+        set of themes whose walks (root or extra) found it.
+
+    Side effects:
+        Performs (or reads from the cache) the category requests and logs one line per walk.
+    """
 
     groups: dict[str, list[Candidate]] = {}
     reached: dict[str, set[str]] = {}
@@ -119,6 +165,14 @@ def group_order(candidates: list[Candidate], seed: int, group: str) -> list[Cand
     so the order, and therefore the fetch batches, depend only on the crawl and the seed, never
     on how earlier groups were cleaned. A cleaning fix then reuses the cached batches instead of
     requesting new ones (and newer revisions). ``str`` seeds are hashed deterministically.
+
+    Args:
+        candidates: Candidates of one group.
+        seed: ``corpus.seed``.
+        group: Walk id, mixed into the generator seed.
+
+    Returns:
+        New list with the candidates in their shuffled order.
     """
 
     order = sorted(candidates, key=lambda c: c.title)
@@ -127,7 +181,31 @@ def group_order(candidates: list[Candidate], seed: int, group: str) -> list[Cand
 
 
 def build_corpus(client: WikiClient, settings: CorpusSettings) -> CorpusResult:
-    """Choose, fetch and clean articles; deterministic given the seed and the API responses."""
+    """Choose, fetch and clean articles; deterministic given the seed and the API responses.
+
+    Groups are handled in walk order. In each group, titles reached from more than one theme
+    are recorded as ``multi_theme`` and left out; the rest are fetched in batches, in the
+    order of :func:`group_order`, until the group's quota of kept articles is met. A fetched
+    title is dropped when the API has no page for it (``missing``), when its page was already
+    handled under another title (``duplicate``) or when :func:`clean_page` gives a reason.
+
+    Args:
+        client: API client.
+        settings: The ``corpus`` section.
+
+    Returns:
+        The article records in handling order and the paragraph records of the kept
+        articles. Titles of the last batch that come after the quota was met are fetched but
+        get no record.
+
+    Side effects:
+        Performs (or reads from the cache) the content requests and logs one line per group,
+        as a warning when the quota was not met.
+
+    Notes:
+        A title is handled once: when two groups share it, the first group in walk order
+        takes it. The paragraph dedup runs across all articles, in handling order.
+    """
 
     groups, reached = collect_candidates(client, settings)
     result = CorpusResult()
@@ -199,6 +277,18 @@ def clean_page(
 
     ``seen_paragraphs`` holds the dedup keys of the paragraphs kept so far, across articles; the
     keys of this page's paragraphs are added to it, so pages must be cleaned in corpus order.
+
+    Args:
+        page: Fetched page.
+        settings: The ``corpus`` section (infobox patterns, sections to cut, paragraph
+            filter).
+        seen_paragraphs: Dedup keys seen so far, updated in place. A key is the first
+            ``paragraph.dedup_chars`` characters of a paragraph, lower-cased.
+
+    Returns:
+        ``("disambiguation", [])``, ``("biography", [])``, ``("no_paragraphs", [])`` or
+        ``(None, paragraphs)`` with the kept paragraphs in article order. A page whose
+        paragraphs all repeat earlier ones is ``no_paragraphs``.
     """
 
     if page.disambiguation or is_disambiguation(page.wikitext, page.title):
@@ -225,6 +315,21 @@ def clean_page(
 def paragraph_records(
     page: Page, theme: str, source_category: str, origin: str | None, paragraphs: list[str]
 ) -> list[dict[str, Any]]:
+    """Records of ``paragraphs.jsonl`` for the kept paragraphs of one article.
+
+    Args:
+        page: Fetched page (id, revision and title come from it).
+        theme: Theme of the article.
+        source_category: Category that reached the article.
+        origin: ``"root"``, an extra category, or ``None`` when unknown (old manifests).
+        paragraphs: Kept paragraphs, in article order.
+
+    Returns:
+        One record per paragraph. ``paragraph_id`` is ``<pageid>-<index>``, with the index
+        counting the kept paragraphs of the article; ``sentences`` holds the ``[start, end)``
+        character spans of :func:`~gender_networks.textclean.split_sentences`.
+    """
+
     return [
         {
             "paragraph_id": f"{page.pageid}-{index}",
@@ -245,6 +350,18 @@ def paragraph_records(
 def _record(
     candidate: Candidate, page: Any, themes: set[str], dropped_reason: str | None
 ) -> dict[str, Any]:
+    """Record of ``articles.jsonl`` for one candidate.
+
+    Args:
+        candidate: The candidate.
+        page: Fetched page, or ``None`` when it was not fetched or is missing.
+        themes: Themes whose walks reached the title.
+        dropped_reason: Why the article was dropped; ``None`` when it was kept.
+
+    Returns:
+        The record, with ``is_biography`` set to False (the caller updates it).
+    """
+
     return {
         "pageid": page.pageid if page else None,
         "revid": page.revid if page else None,
@@ -260,6 +377,16 @@ def _record(
 
 
 def summarize(result: CorpusResult) -> dict[str, Any]:
+    """Counts of a corpus, for the stage manifest.
+
+    Args:
+        result: Corpus as built or rebuilt.
+
+    Returns:
+        Articles considered and kept, kept articles by theme and by origin, dropped articles
+        by reason, paragraphs in total and by theme, and words (whitespace-separated).
+    """
+
     kept = [a for a in result.articles if a["dropped_reason"] is None]
     return {
         "articles_considered": len(result.articles),
@@ -276,6 +403,8 @@ def summarize(result: CorpusResult) -> dict[str, Any]:
 
 
 def offline_from_env() -> bool:
+    """True when ``GENDER_NETWORKS_OFFLINE`` is ``1``, ``true`` or ``yes`` (any case)."""
+
     return os.environ.get(OFFLINE_ENV, "").strip().lower() in {"1", "true", "yes"}
 
 
@@ -290,6 +419,22 @@ def run(
 
     ``offline`` (default: environment variable ``GENDER_NETWORKS_OFFLINE=1``) forbids network
     requests, so a re-clean after a cleaning fix fails loudly instead of fetching new revisions.
+
+    Args:
+        settings: Run configuration; the ``corpus`` section is used.
+        paths: Paths of the run.
+        force: Rebuild even when ``paragraphs.jsonl`` exists.
+        offline: Forbid network requests; ``None`` reads the environment variable.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Side effects:
+        Writes ``articles.jsonl``, ``paragraphs.jsonl``, ``manifest.csv`` (only articles
+        that have a page id) and ``_manifest.json`` in ``corpus_dir``, and fills the API
+        cache.
+
+    Notes:
+        Unlike the other stages, the skip test is only the presence of ``paragraphs.jsonl``:
+        a change in the ``corpus`` section does not rebuild the corpus without ``force``.
     """
 
     if paths.paragraphs.exists() and not force:

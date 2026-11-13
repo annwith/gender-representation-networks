@@ -45,7 +45,16 @@ LOGGER = logging.getLogger(__name__)
 
 
 def read_manifest(path: Path) -> list[dict[str, Any]]:
-    """Rows of ``manifest.csv`` in file order, with typed ids and ``kept``."""
+    """Rows of ``manifest.csv`` in file order, with typed ids and ``kept``.
+
+    Args:
+        path: The versioned manifest.
+
+    Returns:
+        One dictionary per row with every column, ``pageid`` and ``revid`` as integers,
+        ``kept`` as a boolean (true only for the exact text ``True``), and ``origin`` and
+        ``dropped_reason`` as ``None`` when empty.
+    """
 
     with path.open(encoding="utf-8", newline="") as stream:
         rows = list(csv.DictReader(stream))
@@ -65,7 +74,25 @@ def read_manifest(path: Path) -> list[dict[str, Any]]:
 def rebuild_corpus(
     client: WikiClient, settings: CorpusSettings, rows: list[dict[str, Any]]
 ) -> tuple[CorpusResult, list[dict[str, Any]]]:
-    """Corpus of the manifest rows, and the kept rows whose outcome changed."""
+    """Corpus of the manifest rows, and the kept rows whose outcome changed.
+
+    Kept revisions are fetched by id and cleaned in manifest order with a single dedup set,
+    as the ``corpus`` stage did; rows that were not kept are copied with their recorded
+    reason and are not fetched.
+
+    Args:
+        client: API client.
+        settings: The ``corpus`` section.
+        rows: Rows from :func:`read_manifest`.
+
+    Returns:
+        ``(result, changed)``: the rebuilt corpus, and one ``{"title", "revid", "reason"}``
+        entry per kept row that is now missing or dropped by the cleaning.
+
+    Side effects:
+        Performs (or reads from the cache) the revision requests and logs a warning for
+        every changed row.
+    """
 
     revids = list(dict.fromkeys(row["revid"] for row in rows if row["kept"]))
     pages = {page.revid: page for page in client.fetch_revisions(revids, settings.batch_titles)}
@@ -120,6 +147,18 @@ def run(
     is keyed by request, and ``corpus`` requests pages by title, so the first rebuild needs the
     network even with a full cache; ``offline`` (default: ``GENDER_NETWORKS_OFFLINE=1``) then
     fails on the first missing response.
+
+    Args:
+        settings: Run configuration; the ``corpus`` section is used.
+        paths: Paths of the run.
+        force: Rebuild even when ``paragraphs.jsonl`` exists.
+        offline: Forbid network requests; ``None`` reads the environment variable.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Side effects:
+        Writes ``articles.jsonl``, ``paragraphs.jsonl`` and ``_manifest.json`` (recorded as
+        stage ``corpus``, with ``rebuilt_from`` and ``changed``) in ``corpus_dir``.
+        ``manifest.csv`` is only read.
     """
 
     if paths.paragraphs.exists() and not force:

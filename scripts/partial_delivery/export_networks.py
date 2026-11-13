@@ -127,10 +127,31 @@ _XML_INVALID = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿\ud800-\udfff]")
 
 
 def xml_safe(text: str) -> str:
+    """Text with the characters XML 1.0 forbids replaced by U+FFFD.
+
+    Args:
+        text: Attribute value.
+
+    Returns:
+        The safe text.
+    """
+
     return _XML_INVALID.sub("�", text)
 
 
 def vertex_table(run: Path) -> pd.DataFrame:
+    """Vertex attributes of the networks, from ``occurrences.csv``.
+
+    Args:
+        run: Run folder.
+
+    Returns:
+        One row per occurrence with the columns of :data:`VERTEX_COLUMNS`, typed.
+
+    Raises:
+        ValueError: If ``occurrence_id`` is not the row index.
+    """
+
     occ = pd.read_csv(run / "sample" / "occurrences.csv", keep_default_na=False)
     if not np.array_equal(occ["occurrence_id"].to_numpy(), np.arange(len(occ))):
         raise ValueError("occurrence_id must be the row index (vertex id of the k-NN graphs)")
@@ -147,6 +168,19 @@ def vertex_table(run: Path) -> pd.DataFrame:
 
 
 def reference_row(run: Path, gid: str) -> Mapping[str, Any]:
+    """Row of a graph in ``metrics/graph_metrics.csv``.
+
+    Args:
+        run: Run folder.
+        gid: Graph id.
+
+    Returns:
+        The row as a dictionary.
+
+    Raises:
+        ValueError: If the graph is not listed exactly once.
+    """
+
     table = pd.read_csv(run / "metrics" / "graph_metrics.csv")
     rows = table[table["graph_id"] == gid]
     if len(rows) != 1:
@@ -155,7 +189,22 @@ def reference_row(run: Path, gid: str) -> Mapping[str, Any]:
 
 
 def build_graph(run: Path, rep: str, vertices: pd.DataFrame, sym: str) -> tuple[nx.Graph, str]:
-    """k-NN graph of ``rep`` with vertex attributes; returns it and its edge hash."""
+    """k-NN graph of ``rep`` with vertex attributes; returns it and its edge hash.
+
+    Args:
+        run: Run folder.
+        rep: Representation name.
+        vertices: Table from :func:`vertex_table`.
+        sym: ``union`` or ``directed``.
+
+    Returns:
+        ``(graph, edge hash)``; the NetworkX graph carries the occurrence attributes, the
+        Leiden community of the union graph and, for the union version, the in-degree of
+        the k-NN relation.
+
+    Raises:
+        ValueError: If the edges differ from those the ``metrics`` stage measured.
+    """
 
     n = len(vertices)
     directed = sym == "directed"
@@ -202,7 +251,16 @@ def build_graph(run: Path, rep: str, vertices: pd.DataFrame, sym: str) -> tuple[
 
 
 def add_vertex_measures(g: nx.Graph) -> None:
-    """Degrees, local clustering and components of every vertex (computed with igraph)."""
+    """Degrees, local clustering and components of every vertex (computed with igraph).
+
+    Args:
+        g: Graph from :func:`build_graph`, modified in place.
+
+    Side effects:
+        Adds ``degree``, ``local_clustering`` and ``component`` to every vertex of an
+        undirected graph; ``in_degree``, ``out_degree``, ``local_clustering`` (Fagiolo),
+        ``weak_component`` and ``strong_component`` to those of a digraph.
+    """
 
     directed = g.is_directed()
     ig_graph = ig.Graph(n=g.number_of_nodes(), edges=list(g.edges()), directed=directed)
@@ -228,7 +286,16 @@ def add_vertex_measures(g: nx.Graph) -> None:
 
 
 def _distance_summary(hist: ig.Histogram, prefix: str) -> dict[str, Any]:
-    """Mean, maximum and histogram of the finite distances of a ``path_length_hist``."""
+    """Mean, maximum and histogram of the finite distances of a ``path_length_hist``.
+
+    Args:
+        hist: Histogram from ``Graph.path_length_hist``.
+        prefix: Prefix of the keys of the result.
+
+    Returns:
+        ``{prefix}distance_hist``, ``{prefix}reachable_pairs``, ``{prefix}unreachable_pairs``,
+        ``{prefix}mean_distance`` and ``{prefix}diameter``.
+    """
 
     bins = distance_histogram(hist)
     reached = sum(bins.values())
@@ -242,6 +309,16 @@ def _distance_summary(hist: ig.Histogram, prefix: str) -> dict[str, Any]:
 
 
 def measure_union(g: ig.Graph) -> dict[str, Any]:
+    """Metrics of an undirected network read back from its GraphML file.
+
+    Args:
+        g: The union graph.
+
+    Returns:
+        The metrics of ``graphs.graph_metrics`` with exact distances, plus the local
+        clustering and the degree of every vertex.
+    """
+
     result = graph_metrics(g, distances="exact")
     result["local_clustering"] = np.asarray(
         g.transitivity_local_undirected(mode="nan"), dtype=float
@@ -251,6 +328,21 @@ def measure_union(g: ig.Graph) -> dict[str, Any]:
 
 
 def measure_directed(g: ig.Graph) -> dict[str, Any]:
+    """Metrics of a directed network read back from its GraphML file.
+
+    Args:
+        g: The directed graph.
+
+    Returns:
+        Sizes, density, reciprocity, in- and out-degrees, directed clustering, weak and
+        strong components, the directed distances over the reachable ordered pairs and
+        inside the largest strong component, the reachable fraction and the global
+        efficiency.
+
+    Raises:
+        ValueError: If the distance histogram does not cover every ordered pair.
+    """
+
     n, m = g.vcount(), g.ecount()
     pairs = n * (n - 1)
     local, transitivity = directed_clustering(g)
@@ -287,7 +379,14 @@ def measure_directed(g: ig.Graph) -> dict[str, Any]:
 
 
 def measure(path: Path) -> tuple[dict[str, Any], ig.Graph]:
-    """Every metric of the delivery, from the GraphML file on disk."""
+    """Every metric of the delivery, from the GraphML file on disk.
+
+    Args:
+        path: GraphML file.
+
+    Returns:
+        ``(metrics, graph)``; the graph is the igraph graph that was measured.
+    """
 
     g = ig.Graph.Read_GraphML(str(path))
     g.simplify()
@@ -299,6 +398,15 @@ def compare_networks(graphs: Mapping[str, ig.Graph]) -> dict[str, dict[str, floa
 
     The networks must list the same vertices in the same order (the previous of the first one
     does not exist, so its Jaccard index is NaN).
+
+    Args:
+        graphs: Representation name to its graph, in depth order.
+
+    Returns:
+        Representation name to ``same_token_share`` and ``jaccard_previous``.
+
+    Raises:
+        ValueError: If a network lists other vertices.
     """
 
     reps = list(graphs)
@@ -348,6 +456,18 @@ REFERENCE_KEYS = {
 def check_against_reference(
     rep: str, sym: str, result: Mapping[str, Any], ref: Mapping[str, Any]
 ) -> None:
+    """Check the metrics recomputed from the GraphML against ``graph_metrics.csv``.
+
+    Args:
+        rep: Representation name, for the message.
+        sym: ``union`` or ``directed``; selects the keys compared.
+        result: Metrics recomputed from the file.
+        ref: Row of the ``metrics`` stage.
+
+    Raises:
+        ValueError: If a metric differs beyond a relative tolerance of ``1e-9``.
+    """
+
     for key in REFERENCE_KEYS[sym]:
         if not math.isclose(float(result[key]), float(ref[key]), rel_tol=1e-9, abs_tol=1e-12):
             raise ValueError(f"{rep}: {key} = {result[key]} but graph_metrics.csv has {ref[key]}")
@@ -357,6 +477,14 @@ def check_clustering_with_networkx(rep: str, path: Path, local: np.ndarray) -> N
     """Directed local clustering against the reference implementation of NetworkX.
 
     Where ours is undefined (NaN), NetworkX gives 0.
+
+    Args:
+        rep: Representation name, for the message.
+        path: GraphML file.
+        local: Local clustering of every vertex, as computed here.
+
+    Raises:
+        ValueError: If the two disagree.
     """
 
     reference = nx.clustering(nx.read_graphml(path, node_type=int))
@@ -378,6 +506,17 @@ HALF = 3.1
 def _half_figure(
     results: Mapping[str, Mapping[str, Any]], title: str, grid: str
 ) -> tuple[Figure, Axes, dict[str, plots.Style]]:
+    """Half-width figure with one panel and the legend of the networks above it.
+
+    Args:
+        results: Representation name to its metrics; only the names are used.
+        title: Panel title.
+        grid: Grid axis (see ``plots.prepare``).
+
+    Returns:
+        ``(figure, axes, styles)``.
+    """
+
     styles = plots.rep_styles(list(results))
     fig, axes = plots.figure(1, 1, height=2.0, width=HALF)
     ax = axes[0, 0]
@@ -392,7 +531,17 @@ def figure_degrees(
     title: str = "Distribuição de graus",
     xlabel: str = "grau d",
 ) -> Figure:
-    """Complementary cumulative degree distribution, log-log (the tail stays readable)."""
+    """Complementary cumulative degree distribution, log-log (the tail stays readable).
+
+    Args:
+        results: Representation name to its metrics.
+        key: Key of the degree array in the metrics.
+        title: Panel title.
+        xlabel: Label of the x axis.
+
+    Returns:
+        The figure.
+    """
 
     fig, ax, styles = _half_figure(results, title, "both")
     for rep, result in results.items():
@@ -415,6 +564,16 @@ def figure_clustering(
     results: Mapping[str, Mapping[str, Any]],
     xlabel: str = "coeficiente de clusterização local $C_i$",
 ) -> Figure:
+    """Distribution of the local clustering of the vertices, in 40 bins.
+
+    Args:
+        results: Representation name to its metrics.
+        xlabel: Label of the x axis.
+
+    Returns:
+        The figure; vertices with undefined clustering are left out.
+    """
+
     fig, ax, styles = _half_figure(results, "Clusterização local dos vértices", "y")
     bins = np.linspace(0, 1, 41)
     centers = (bins[:-1] + bins[1:]) / 2
@@ -435,6 +594,15 @@ def figure_clustering(
 
 
 def figure_distances(results: Mapping[str, Mapping[str, Any]]) -> Figure:
+    """Distribution of the distances in the largest component, as a share of its pairs.
+
+    Args:
+        results: Representation name to its metrics.
+
+    Returns:
+        The figure.
+    """
+
     fig, ax, styles = _half_figure(results, "Distâncias na maior componente", "y")
     for rep, result in results.items():
         hist = result["distance_hist"]
@@ -454,6 +622,12 @@ def figure_directed_distances(results: Mapping[str, Mapping[str, Any]]) -> Figur
 
     The area under each curve is the share of pairs with a path; the rest have d = inf (that
     share is in the table).
+
+    Args:
+        results: Representation name to its metrics.
+
+    Returns:
+        The figure.
     """
 
     fig, ax, styles = _half_figure(results, "Distâncias dirigidas d(i, j)", "y")
@@ -481,6 +655,19 @@ def figure_components(
     noun: tuple[str, str] = ("componente", "componentes"),
     noun_in_title: bool = True,
 ) -> Figure:
+    """Component size distribution of every network, one panel each, log-log.
+
+    Args:
+        results: Representation name to its metrics.
+        sizes_key: Key of the size histogram in the metrics.
+        giant_key: Key of the size of the largest component.
+        noun: Singular and plural of the component name.
+        noun_in_title: Write the noun after the count in the panel title.
+
+    Returns:
+        The figure.
+    """
+
     styles = plots.rep_styles(list(results))
     fig, axes = plots.figure(1, len(results), height=1.6, sharex=True, sharey=True)
     ymax = 1
@@ -533,6 +720,18 @@ def figure_components(
 
 
 def write_figures(results: Mapping[str, Mapping[str, Any]], sym: str, figures: Path) -> None:
+    """Write the four figures of one version of the delivery.
+
+    Args:
+        results: Representation name to its metrics.
+        sym: ``union`` or ``directed``.
+        figures: Output directory.
+
+    Side effects:
+        Writes ``graus.pdf``, ``clusterizacao_local.pdf``, ``distancias.pdf`` and
+        ``componentes.pdf``.
+    """
+
     plots.apply_style()
     if sym == "union":
         plots.save(figure_degrees(results), figures / "graus.pdf")
@@ -568,6 +767,16 @@ def write_figures(results: Mapping[str, Mapping[str, Any]], sym: str, figures: P
 
 
 def metrics_table(results: Mapping[str, Mapping[str, Any]], sym: str) -> pd.DataFrame:
+    """Metrics of the delivery as a table with Portuguese column names.
+
+    Args:
+        results: Representation name to its metrics.
+        sym: ``union`` or ``directed``.
+
+    Returns:
+        One row per network.
+    """
+
     rows = []
     for rep, r in results.items():
         row = {
@@ -616,22 +825,70 @@ def metrics_table(results: Mapping[str, Mapping[str, Any]], sym: str) -> pd.Data
 
 
 def _count_share(count: int, share: float) -> str:
+    """A count followed by its share in parentheses, pt-BR.
+
+    Args:
+        count: Count.
+        share: Fraction.
+
+    Returns:
+        The LaTeX text.
+    """
+
     return f"{labels.fmt_int(count)} ({labels.fmt_dec(100 * share, 1)}\\%)"
 
 
 def _dec(digits: int) -> Any:
+    """Cell formatter for a decimal with a fixed number of places.
+
+    Args:
+        digits: Decimal places.
+
+    Returns:
+        Function ``(row, key) -> text``.
+    """
+
     return lambda row, key: labels.fmt_dec(row[key], digits)
 
 
 def _int(row: Mapping[str, Any], key: str) -> str:
+    """Cell formatter for an integer with a thousands dot.
+
+    Args:
+        row: Table row.
+        key: Column name.
+
+    Returns:
+        The text.
+    """
+
     return labels.fmt_int(row[key])
 
 
 def _pct(row: Mapping[str, Any], key: str) -> str:
+    """Cell formatter for a fraction shown as a percentage with one decimal.
+
+    Args:
+        row: Table row.
+        key: Column name.
+
+    Returns:
+        The LaTeX text.
+    """
+
     return f"{labels.fmt_dec(100 * row[key], 1)}\\%"
 
 
 def _dec_or_dash(digits: int) -> Any:
+    """Cell formatter for a decimal, with a dash for a missing value.
+
+    Args:
+        digits: Decimal places.
+
+    Returns:
+        Function ``(row, key) -> text``.
+    """
+
     return lambda row, key: "---" if pd.isna(row[key]) else labels.fmt_dec(row[key], digits)
 
 
@@ -701,7 +958,15 @@ LATEX_ROWS = {
 
 
 def latex_table(table: pd.DataFrame, sym: str) -> str:
-    """Rows = metrics, columns = networks (fits the half page of the delivery)."""
+    """Rows = metrics, columns = networks (fits the half page of the delivery).
+
+    Args:
+        table: Table from :func:`metrics_table`.
+        sym: ``union`` or ``directed``; selects the rows of :data:`LATEX_ROWS`.
+
+    Returns:
+        LaTeX source of a booktabs ``tabular``.
+    """
 
     reps = table["rede"].tolist()
     lines = [
@@ -722,6 +987,15 @@ def latex_table(table: pd.DataFrame, sym: str) -> str:
 
 
 def main() -> None:
+    """Export the four networks of one version and write its figures and table.
+
+    Side effects:
+        Reads the main run; writes ``{rep}_k10_{sym}.graphml`` in the GraphML folder,
+        the figures and ``tabelas/metricas.{csv,tex}`` in the delivery folder of the
+        version, and prints the table. Stops with an error when the edges or the metrics
+        differ from those of the ``metrics`` stage.
+    """
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--sym", choices=sorted(DEFAULT_OUT), default="union")
     parser.add_argument("--run", type=Path, default=DEFAULT_RUN)

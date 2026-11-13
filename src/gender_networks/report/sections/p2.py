@@ -23,6 +23,19 @@ from gender_networks.report.latex import Tabular, bold, header_row, integer, num
 
 
 def _transitions(ctx: Context) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """The two transition tables of the ``analyze`` stage, with typed columns.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        ``(overall, groups)``; the cached tables are updated in place (``value`` as text,
+        ``consecutive`` as booleans).
+
+    Raises:
+        Skip: If a table is missing or empty.
+    """
+
     overall = ctx.analysis("p2_transitions")
     groups = ctx.analysis("p2_transitions_groups")
     for frame in (overall, groups):
@@ -32,12 +45,39 @@ def _transitions(ctx: Context) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def figure_p2_transicoes(ctx: Context) -> Any:
+    """Figure ``p2_transicoes``: share of vertices whose largest change falls in each
+    consecutive transition, by token category and by frequency band.
+
+    The shares are the ``share_largest_change`` column of the ``analyze`` stage, computed
+    from the raw Jaccard of each transition.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the transition tables are missing or have no consecutive transition.
+    """
+
     overall, groups = _transitions(ctx)
     transitions = list(overall.loc[overall["consecutive"], "transition"])
     if not transitions:
         raise Skip("p2_transitions.csv não tem transições consecutivas")
 
     def block(group: str, values: Sequence[str], labels: Callable[[str], str]) -> pd.DataFrame:
+        """Shares of one grouping as a table: one row per group value, one column per transition.
+
+        Args:
+            group: Grouping name in ``p2_transitions_groups.csv``.
+            values: Group values, in display order.
+            labels: Function that turns a value into its row label.
+
+        Returns:
+            DataFrame indexed by the row labels.
+        """
+
         rows = {}
         for value in values:
             part = groups[(groups["group"] == group) & (groups["value"] == value)]
@@ -70,6 +110,19 @@ def figure_p2_transicoes(ctx: Context) -> Any:
 
 
 def table_p2_transicoes(ctx: Context) -> Tabular:
+    """Table ``p2_transicoes``: mean change above the noise floor and mean change of dominance
+    per transition, overall and by token category.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table; transitions between representations that are not shown are left out.
+
+    Raises:
+        Skip: If the transition tables are missing or empty.
+    """
+
     overall, groups = _transitions(ctx)
     transitions = [
         t
@@ -83,6 +136,15 @@ def table_p2_transicoes(ctx: Context) -> Tabular:
     )
 
     def cells(frame: pd.DataFrame) -> list[str]:
+        """The two cells of every transition for one row of the table.
+
+        Args:
+            frame: Rows of a transition table for one group.
+
+        Returns:
+            Per transition: ``excess_change_mean`` and ``delta_D_mean``.
+        """
+
         frame = frame.set_index("transition")
         out = []
         for t in transitions:
@@ -114,6 +176,18 @@ def table_p2_transicoes(ctx: Context) -> Tabular:
 
 
 def figure_p2_curvas_camadas(ctx: Context) -> Any:
+    """Figure ``p2_curvas_camadas``: ``J(l-1, l)`` and ``D(l)`` over every block.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If ``p2_layers.csv`` is missing or empty.
+    """
+
     layers = ctx.analysis("p2_layers")
     layers["token_category"] = layers["token_category"].astype(str)
     categories = ordered([c for c in layers["token_category"] if c != "all"], CATEGORY_ORDER)

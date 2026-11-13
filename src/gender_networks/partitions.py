@@ -25,7 +25,21 @@ import numpy as np
 
 @dataclass
 class Partition:
-    """A vertex partition with canonical labels (0 = largest community)."""
+    """A vertex partition with canonical labels (0 = largest community).
+
+    Attributes:
+        membership: int array ``[N]`` with the community of every vertex.
+        modularity: Standard modularity (resolution 1).
+        quality: Modularity at ``resolution``, the objective that selected this run.
+        resolution: Resolution the partition was optimized at.
+        method: ``leiden`` or ``louvain``.
+        seed: First seed of the runs.
+        stability: Mean pairwise NMI between the runs; NaN for a single run.
+        memberships: int array ``[runs, N]`` with every run, or ``None``.
+        qualities: Quality of every run.
+        converged: Per run, whether one more iteration left the membership unchanged.
+        max_iterations: Iteration cap per run; -1 means until no improvement.
+    """
 
     membership: np.ndarray
     modularity: float  # standard modularity (resolution 1)
@@ -41,10 +55,14 @@ class Partition:
 
     @property
     def sizes(self) -> list[int]:
+        """Number of vertices of each community, in label order (largest first)."""
+
         return np.bincount(self.membership).tolist() if self.membership.size else []
 
     @property
     def n_communities(self) -> int:
+        """Number of communities."""
+
         return len(self.sizes)
 
 
@@ -53,6 +71,12 @@ def canonical_labels(membership: Sequence[int] | np.ndarray) -> np.ndarray:
 
     Solvers return arbitrary label numbers; canonical labels make saved memberships comparable
     and diff-friendly across runs.
+
+    Args:
+        membership: Community label of every vertex.
+
+    Returns:
+        int32 array of the same length; label 0 is the largest community.
     """
 
     labels = np.asarray(membership)
@@ -69,14 +93,32 @@ def canonical_labels(membership: Sequence[int] | np.ndarray) -> np.ndarray:
 
 
 def _codes(labels: Sequence[Any] | np.ndarray) -> list[int]:
-    """Labels remapped to ``0..m-1`` (igraph wants small non-negative integers)."""
+    """Labels remapped to ``0..m-1`` (igraph wants small non-negative integers).
+
+    Args:
+        labels: Labels of any comparable type.
+
+    Returns:
+        List of integer codes, one per label.
+    """
 
     _, inverse = np.unique(np.asarray(labels), return_inverse=True)
     return inverse.reshape(-1).tolist()
 
 
 def nmi(a: Sequence[Any] | np.ndarray, b: Sequence[Any] | np.ndarray) -> float:
-    """Normalized mutual information between two labellings of the same vertices."""
+    """Normalized mutual information between two labellings of the same vertices.
+
+    Args:
+        a: First labelling.
+        b: Second labelling, same length.
+
+    Returns:
+        ``2 I(a; b) / [H(a) + H(b)]``, as computed by ``igraph.compare_communities``.
+
+    Raises:
+        ValueError: If the lengths differ.
+    """
 
     if len(a) != len(b):
         raise ValueError("labellings must have the same length")
@@ -84,7 +126,18 @@ def nmi(a: Sequence[Any] | np.ndarray, b: Sequence[Any] | np.ndarray) -> float:
 
 
 def ari(a: Sequence[Any] | np.ndarray, b: Sequence[Any] | np.ndarray) -> float:
-    """Adjusted Rand index (NaN when both labellings are a single class, as in igraph)."""
+    """Adjusted Rand index (NaN when both labellings are a single class, as in igraph).
+
+    Args:
+        a: First labelling.
+        b: Second labelling, same length.
+
+    Returns:
+        The index: 1 for identical partitions, about 0 for independent ones.
+
+    Raises:
+        ValueError: If the lengths differ.
+    """
 
     if len(a) != len(b):
         raise ValueError("labellings must have the same length")
@@ -95,6 +148,17 @@ def purity(pred: Sequence[Any] | np.ndarray, true: Sequence[Any] | np.ndarray) -
     """Fraction of vertices whose community's majority class equals their own class.
 
     Computed from the sparse contingency table, so thousands of classes (token ids) are fine.
+
+    Args:
+        pred: Community of every vertex.
+        true: Class label of every vertex.
+
+    Returns:
+        ``(1/n) * sum over communities of the size of their largest class``; NaN for empty
+        input.
+
+    Raises:
+        ValueError: If the lengths differ.
     """
 
     pred_codes = np.asarray(_codes(pred), dtype=np.int64)
@@ -111,7 +175,15 @@ def purity(pred: Sequence[Any] | np.ndarray, true: Sequence[Any] | np.ndarray) -
 
 
 def inverse_purity(pred: Sequence[Any] | np.ndarray, true: Sequence[Any] | np.ndarray) -> float:
-    """Purity of the classes with respect to the communities (penalizes over-splitting)."""
+    """Purity of the classes with respect to the communities (penalizes over-splitting).
+
+    Args:
+        pred: Community of every vertex.
+        true: Class label of every vertex.
+
+    Returns:
+        :func:`purity` with the roles of the two labellings exchanged.
+    """
 
     return purity(true, pred)
 
@@ -122,7 +194,21 @@ def nmi_baseline(
     permutations: int = 20,
     seed: int = 0,
 ) -> float:
-    """Mean NMI after randomly permuting ``true``: the NMI expected from class sizes alone."""
+    """Mean NMI after randomly permuting ``true``: the NMI expected from class sizes alone.
+
+    Args:
+        pred: Community of every vertex.
+        true: Class label of every vertex.
+        permutations: Number of random permutations. Defaults to 20.
+        seed: Seed of the numpy generator.
+
+    Returns:
+        The mean NMI between ``pred`` and the permuted labels. A permutation keeps the
+        number and the sizes of the classes.
+
+    Raises:
+        ValueError: If ``permutations`` is below 1.
+    """
 
     if permutations < 1:
         raise ValueError("permutations must be positive")
@@ -137,7 +223,14 @@ def nmi_baseline(
 
 
 def valid_labels(labels: Sequence[Any] | np.ndarray) -> np.ndarray:
-    """Mask of usable labels: NaN, None and empty strings mark vertices without a label."""
+    """Mask of usable labels: NaN, None and empty strings mark vertices without a label.
+
+    Args:
+        labels: Labels of any dtype.
+
+    Returns:
+        Boolean array of the same shape; all True for integer and boolean labels.
+    """
 
     array = np.asarray(labels)
     if array.dtype.kind == "f":
@@ -165,6 +258,20 @@ def agreement(
 
     Vertices without a label (see :func:`valid_labels`) are left out for that labelling only;
     ``n`` records how many were used.
+
+    Args:
+        pred: Community of every vertex.
+        labels_by_name: Labelling name to the label of every vertex.
+        permutations: Permutations of the NMI baseline.
+        seed: Seed of the baseline, the same for every labelling.
+
+    Returns:
+        One dictionary per labelling with ``label``, ``n``, ``n_classes``, ``n_communities``,
+        ``nmi``, ``nmi_baseline``, ``nmi_minus_baseline``, ``ari``, ``purity`` and
+        ``inverse_purity`` (NaN when no vertex has a label).
+
+    Raises:
+        ValueError: If a labelling does not have one entry per vertex.
     """
 
     pred = np.asarray(pred)
@@ -201,7 +308,14 @@ def agreement(
 
 
 def mean_pairwise_nmi(memberships: Sequence[Sequence[int]] | np.ndarray) -> float:
-    """Mean NMI over all pairs of runs; NaN with fewer than two runs."""
+    """Mean NMI over all pairs of runs; NaN with fewer than two runs.
+
+    Args:
+        memberships: One membership per run, ``[runs, N]``.
+
+    Returns:
+        The mean over the ``runs * (runs - 1) / 2`` pairs.
+    """
 
     runs = [np.asarray(m).tolist() for m in memberships]
     if len(runs) < 2:
@@ -225,6 +339,23 @@ def leiden(
     best run wins ties. With ``max_iterations > 0`` each run stops after that many iterations
     and one more iteration from its result tells whether it had converged (unchanged
     membership); ``-1`` iterates until no further improvement.
+
+    Args:
+        g: Undirected igraph graph.
+        runs: Number of runs. Defaults to 10.
+        resolution: Modularity resolution. Defaults to 1.0.
+        seed: Seed of the first run; run ``r`` seeds Python's ``random`` with ``seed + r``.
+        max_iterations: Iteration cap per run; -1 for no cap.
+
+    Returns:
+        The best run as a :class:`Partition`, with every run's membership and quality, the
+        convergence flags and the stability (mean pairwise NMI between the runs).
+
+    Raises:
+        ValueError: If ``runs`` is below 1 or the graph is directed.
+
+    Side effects:
+        Reseeds Python's global ``random`` during the runs and restores its state afterwards.
     """
 
     if runs < 1:
@@ -275,7 +406,22 @@ def leiden(
 
 
 def louvain(g: ig.Graph, seed: int = 0, resolution: float = 1.0) -> Partition:
-    """Louvain (multilevel) partition, a cross-check of the Leiden result."""
+    """Louvain (multilevel) partition, a cross-check of the Leiden result.
+
+    Args:
+        g: Undirected igraph graph.
+        seed: Seed of Python's ``random`` for the single run.
+        resolution: Modularity resolution. Defaults to 1.0.
+
+    Returns:
+        The partition, with canonical labels and NaN stability.
+
+    Raises:
+        ValueError: If the graph is directed.
+
+    Side effects:
+        Reseeds Python's global ``random`` and restores its state afterwards.
+    """
 
     if g.is_directed():
         raise ValueError("communities are detected on undirected graphs")

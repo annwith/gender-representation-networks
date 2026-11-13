@@ -21,6 +21,26 @@ from gender_networks.representations import sort_names
 
 
 def table_knn_empates(ctx: Context) -> Tabular:
+    """Table ``knn_empates``: tie statistics per representation and ``k``, from the knn manifest.
+
+    Per row: rows with a boundary tie (count and share), the largest tie block, the mean
+    size of the sets of variant (b) and, once per representation, the rows whose candidate
+    list was taken in full and the time. The vocabulary network follows in its own block.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table.
+
+    Raises:
+        Skip: If the knn manifest is missing or lists no representation.
+
+    Notes:
+        The count of rows taken in full is the manifest's ``fallback_rows``, measured at the
+        completeness tolerance ``max(eps, eps_sensitivity)``, not at ``eps``.
+    """
+
     manifest = ctx.need_manifest("knn", "knn")
     reps = manifest.get("representations") or {}
     if not reps:

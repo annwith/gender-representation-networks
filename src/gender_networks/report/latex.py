@@ -50,6 +50,15 @@ _LIGATURES = set("-,'!?")  # "--", ",,", "''", "!`" and "?`" would become other 
 
 
 def _typesettable(char: str) -> bool:
+    """Whether pdflatex can typeset a character with the fonts of the report.
+
+    Args:
+        char: One character.
+
+    Returns:
+        True for printable ASCII and for the code points of ``_TEX_RANGES``.
+    """
+
     code = ord(char)
     if 0x20 <= code < 0x7F:
         return True
@@ -57,12 +66,24 @@ def _typesettable(char: str) -> bool:
 
 
 def tex_text(text: Any, visible_space: bool = False) -> str:
-    """Escape arbitrary text for LaTeX; unsupported characters become ``[U+XXXX]``."""
+    """Escape arbitrary text for LaTeX; unsupported characters become ``[U+XXXX]``.
+
+    Args:
+        text: Value to escape; converted with ``str``.
+        visible_space: Write spaces as ``\\textvisiblespace{}``.
+
+    Returns:
+        LaTeX source: special characters are escaped, newlines and tabs are shown as
+        backslash escapes, characters that would form ligatures get ``{}`` after them, and a
+        run of characters the fonts lack becomes one bracket with its first two code points.
+    """
 
     out: list[str] = []
     pending: list[str] = []
 
     def flush() -> None:
+        """Write the pending run of unsupported characters as one ``[U+XXXX ...]`` bracket."""
+
         if pending:
             shown = " ".join(f"U+{ord(c):04X}" for c in pending[:2])
             more = r"\ldots{}" if len(pending) > 2 else ""
@@ -95,14 +116,28 @@ def tex_text(text: Any, visible_space: bool = False) -> str:
 
 
 def tex_token(text: Any) -> str:
-    """A token as it appears in the text: typewriter, leading/inner spaces made visible."""
+    """A token as it appears in the text: typewriter, leading/inner spaces made visible.
+
+    Args:
+        text: Token text; ``None`` and NaN count as empty.
+
+    Returns:
+        ``\\texttt{...}``, or an italic ``(vazio)`` for an empty token.
+    """
 
     value = "" if text is None or (isinstance(text, float) and math.isnan(text)) else str(text)
     return r"\texttt{" + (tex_text(value, visible_space=True) or r"\textit{(vazio)}") + "}"
 
 
 def finite_or_none(value: Any) -> float | None:
-    """``value`` as a float, or None when it is missing, not a number or infinite."""
+    """``value`` as a float, or None when it is missing, not a number or infinite.
+
+    Args:
+        value: Any value.
+
+    Returns:
+        The float, or ``None``.
+    """
 
     try:
         number = float(value)
@@ -112,6 +147,15 @@ def finite_or_none(value: Any) -> float | None:
 
 
 def _signed(text: str) -> str:
+    """Replace a leading hyphen by a math-mode minus sign.
+
+    Args:
+        text: Formatted number.
+
+    Returns:
+        The text with ``$-$`` in place of a leading ``-``.
+    """
+
     return "$-$" + text[1:] if text.startswith("-") else text
 
 
@@ -119,7 +163,15 @@ DASH = "--"
 
 
 def num(value: Any, digits: int = 2) -> str:
-    """Decimal with comma (``0,83``); ``--`` when missing."""
+    """Decimal with comma (``0,83``); ``--`` when missing.
+
+    Args:
+        value: Number, or anything :func:`finite_or_none` rejects.
+        digits: Decimal places. Defaults to 2.
+
+    Returns:
+        The pt-BR text; a value that rounds to zero loses its minus sign.
+    """
 
     number = finite_or_none(value)
     if number is None:
@@ -131,17 +183,46 @@ def num(value: Any, digits: int = 2) -> str:
 
 
 def integer(value: Any) -> str:
+    """Integer with a thousands dot (``15.104``); ``--`` when missing.
+
+    Args:
+        value: Number; rounded to the nearest integer.
+
+    Returns:
+        The pt-BR text.
+    """
+
     number = finite_or_none(value)
     return DASH if number is None else _signed(fmt_int(number))
 
 
 def pct(value: Any, digits: int = 1) -> str:
+    """A fraction as a percentage (``0.283`` -> ``28,3\\,\\%``); ``--`` when missing.
+
+    Args:
+        value: Fraction between 0 and 1.
+        digits: Decimal places of the percentage. Defaults to 1.
+
+    Returns:
+        The LaTeX text.
+    """
+
     number = finite_or_none(value)
     return DASH if number is None else num(number * 100, digits) + r"\,\%"
 
 
 def sci(value: Any, digits: int = 1) -> str:
-    """Scientific notation in math mode for small or large values (``$2{,}4\\times10^{-6}$``)."""
+    """Scientific notation in math mode for small or large values (``$2{,}4\\times10^{-6}$``).
+
+    Args:
+        value: Number.
+        digits: Decimal places of the mantissa. Defaults to 1.
+
+    Returns:
+        ``--`` when missing, ``0`` for zero, a plain decimal for magnitudes between
+        ``10^-3`` and ``10^3`` (with enough places to show the leading digits), and
+        ``mantissa x 10^exponent`` otherwise.
+    """
 
     number = finite_or_none(value)
     if number is None:
@@ -157,7 +238,17 @@ def sci(value: Any, digits: int = 1) -> str:
 
 
 def pm(mean: Any, sd: Any, digits: int = 2, kind: str = "num") -> str:
-    """``mean ± sd`` (the sd only when finite and positive)."""
+    """``mean ± sd`` (the sd only when finite and positive).
+
+    Args:
+        mean: Mean value.
+        sd: Standard deviation.
+        digits: Decimal places.
+        kind: ``num`` for decimals, ``int`` to show the mean as an integer.
+
+    Returns:
+        The LaTeX text.
+    """
 
     fmt = integer if kind == "int" else (lambda v: num(v, digits))
     text = fmt(mean)
@@ -169,6 +260,15 @@ def pm(mean: Any, sd: Any, digits: int = 2, kind: str = "num") -> str:
 
 
 def duration(seconds: Any) -> str:
+    """A time span in seconds as ``12,3 s``, ``4 min 05 s`` or ``1 h 02 min``.
+
+    Args:
+        seconds: Number of seconds.
+
+    Returns:
+        The text, or ``--`` when missing.
+    """
+
     value = finite_or_none(seconds)
     if value is None:
         return DASH
@@ -182,12 +282,32 @@ def duration(seconds: Any) -> str:
 
 
 def bold(text: str) -> str:
+    """Wrap LaTeX text in ``\\textbf``.
+
+    Args:
+        text: LaTeX source, already escaped.
+
+    Returns:
+        The bold text.
+    """
+
     return r"\textbf{" + text + "}"
 
 
 @dataclass
 class Tabular:
-    """A booktabs ``tabular`` (or ``tabularx``) fragment built row by row."""
+    """A booktabs ``tabular`` (or ``tabularx``) fragment built row by row.
+
+    Attributes:
+        spec: Column specification.
+        header: Header lines, already complete LaTeX rows or rules.
+        rows: Body rows: a list of cells, or a string written as is (a rule or a
+            ``\\multicolumn`` line).
+        size: Font size command written before the table (``\\footnotesize``).
+        notes: Sentences written under the table.
+        width: Total width; when given the environment is ``tabularx``.
+        colsep: Value for ``\\tabcolsep``.
+    """
 
     spec: str
     header: list[str]
@@ -198,6 +318,13 @@ class Tabular:
     colsep: str | None = None
 
     def render(self) -> str:
+        """The LaTeX source of the fragment, starting with the "generated, do not edit" comment.
+
+        Returns:
+            Text of the ``.tex`` file: optional size and column separation, the table between
+            ``\\toprule`` and ``\\bottomrule``, and the notes.
+        """
+
         env = "tabularx" if self.width else "tabular"
         head = [HEADER]
         if self.size:
@@ -223,4 +350,13 @@ class Tabular:
 
 
 def header_row(cells: Sequence[str]) -> str:
+    """One LaTeX table row from its cells.
+
+    Args:
+        cells: Cell sources.
+
+    Returns:
+        The cells joined with ``&`` and ended with ``\\\\``.
+    """
+
     return " & ".join(cells) + r" \\"

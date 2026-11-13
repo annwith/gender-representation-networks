@@ -148,23 +148,56 @@ SENSE_LABELS = {
 
 
 def label(mapping: Mapping[str, str], key: Any) -> str:
-    """Portuguese label of a code, falling back to the code itself."""
+    """Portuguese label of a code, falling back to the code itself.
+
+    Args:
+        mapping: One of the ``*_LABELS`` tables of this module.
+        key: Code as stored in the artifacts; converted with ``str``.
+
+    Returns:
+        The label, or ``str(key)`` when the code has none.
+    """
 
     return mapping.get(str(key), str(key))
 
 
 def theme_label(theme: str) -> str:
+    """Display name of a theme code (``fisica`` -> ``Física``).
+
+    Args:
+        theme: Theme code from the configuration.
+
+    Returns:
+        The entry of :data:`THEME_LABELS`, or the code capitalized for themes it does not list.
+    """
+
     return THEME_LABELS.get(theme, theme.capitalize())
 
 
 def band_display(band: str) -> str:
-    """``10-49`` -> ``10–49`` (en dash), ``50`` -> ``50``."""
+    """``10-49`` -> ``10–49`` (en dash), ``50`` -> ``50``.
+
+    Args:
+        band: Frequency or position band label as stored in the artifacts.
+
+    Returns:
+        The label with every hyphen replaced by an en dash.
+    """
 
     return str(band).replace("-", "–")
 
 
 def ordered(values: Sequence[Any], order: Sequence[str]) -> list[str]:
-    """Distinct values, known ones in ``order`` first, the others sorted after them."""
+    """Distinct values, known ones in ``order`` first, the others sorted after them.
+
+    Args:
+        values: Codes found in the data; duplicates allowed, converted with ``str``.
+        order: Preferred order (one of the ``*_ORDER`` lists).
+
+    Returns:
+        Each distinct value once: those listed in ``order`` in that order, then the rest in
+        alphabetical order.
+    """
 
     present = [str(v) for v in dict.fromkeys(values)]
     known = [v for v in order if v in present]
@@ -175,13 +208,29 @@ def ordered(values: Sequence[Any], order: Sequence[str]) -> list[str]:
 
 
 def fmt_int(value: float | int) -> str:
-    """``15104`` -> ``15.104``."""
+    """``15104`` -> ``15.104``.
+
+    Args:
+        value: Number; a float is rounded to the nearest integer first (ties to even, as
+            Python's ``round``).
+
+    Returns:
+        The integer with a dot as thousands separator (pt-BR).
+    """
 
     return f"{int(round(float(value))):,}".replace(",", ".")
 
 
 def fmt_dec(value: float, digits: int = 2) -> str:
-    """``1234.5`` -> ``1.234,50`` (thousands with a dot, decimal comma)."""
+    """``1234.5`` -> ``1.234,50`` (thousands with a dot, decimal comma).
+
+    Args:
+        value: Number to format.
+        digits: Decimal places. Defaults to 2.
+
+    Returns:
+        The pt-BR text of the number.
+    """
 
     text = f"{float(value):,.{digits}f}"
     return text.replace(",", "\0").replace(".", ",").replace("\0", ".")

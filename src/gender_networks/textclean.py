@@ -49,7 +49,16 @@ _SENTENCE_END = re.compile(r"[.!?…]+[" + re.escape(_CLOSERS) + r"]*(?=\s+)")
 
 
 def template_names(wikitext: str) -> list[str]:
-    """Names of the templates used in the wikitext, normalized to lowercase."""
+    """Names of the templates used in the wikitext, normalized to lowercase.
+
+    Args:
+        wikitext: Raw page text.
+
+    Returns:
+        One name per ``{{`` opening, in order, stripped, lower-cased and with underscores as
+        spaces. The scan is a regular expression over the raw text, so nested templates are
+        included and so are templates inside comments or ``nowiki``.
+    """
 
     return [
         match.group(1).strip().lower().replace("_", " ")
@@ -58,14 +67,32 @@ def template_names(wikitext: str) -> list[str]:
 
 
 def has_excluded_infobox(wikitext: str, patterns: Iterable[str]) -> bool:
-    """True when a template name starts with one of the patterns (e.g. ``Info/Biografia``)."""
+    """True when a template name starts with one of the patterns (e.g. ``Info/Biografia``).
+
+    Args:
+        wikitext: Raw page text.
+        patterns: Template name prefixes, compared case-insensitively.
+
+    Returns:
+        True when any template name of the page starts with any pattern; False when
+        ``patterns`` is empty.
+    """
 
     wanted = tuple(pattern.strip().lower().replace("_", " ") for pattern in patterns)
     return any(name.startswith(wanted) for name in template_names(wikitext)) if wanted else False
 
 
 def is_disambiguation(wikitext: str, title: str = "") -> bool:
-    """Disambiguation page: a disambiguation template or a ``(desambiguação)`` title."""
+    """Disambiguation page: a disambiguation template or a ``(desambiguação)`` title.
+
+    Args:
+        wikitext: Raw page text.
+        title: Page title. Defaults to the empty string (title not checked).
+
+    Returns:
+        True when the title ends with ``(desambiguação)`` or a template name is exactly one
+        of the disambiguation template names.
+    """
 
     if title.strip().lower().endswith("(desambiguação)"):
         return True
@@ -78,6 +105,15 @@ def cut_sections(wikitext: str, section_names: Iterable[str]) -> str:
     A removed section ends at the next heading of the same or a higher level, so content
     sections after it (e.g. a music article's ``== Notas ==`` followed by ``== História ==``)
     are kept.
+
+    Args:
+        wikitext: Raw page text.
+        section_names: Heading titles to remove, compared case-insensitively after
+            stripping.
+
+    Returns:
+        The wikitext without the removed sections; the text before the first heading is
+        always kept.
     """
 
     names = {name.strip().lower() for name in section_names}
@@ -101,11 +137,30 @@ def cut_sections(wikitext: str, section_names: Iterable[str]) -> str:
 
 
 def _positional(template: Template) -> list[str]:
+    """Positional argument values of a template, stripped.
+
+    Args:
+        template: Parsed template node.
+
+    Returns:
+        The values of the parameters given without a name, in order.
+    """
+
     return [str(param.value).strip() for param in template.params if not param.showkey]
 
 
 def _template_text(template: Template) -> str | None:
-    """Visible text of a whitelisted inline template, or None to let strip_code drop it."""
+    """Visible text of a whitelisted inline template, or None to let strip_code drop it.
+
+    Args:
+        template: Parsed template node.
+
+    Returns:
+        The number of ``{{formatnum:...}}``; the first argument of the templates in
+        ``_FIRST_ARG_TEMPLATES``; the last positional argument of the ``lang`` family; the
+        value and, when it is not a number, the unit of a conversion template; ``None`` for
+        every other template and for whitelisted ones without positional arguments.
+    """
 
     name = str(template.name).strip().lower().replace("_", " ")
     if name.startswith("formatnum:"):
@@ -124,10 +179,27 @@ def _template_text(template: Template) -> str | None:
 
 
 def _is_number(text: str) -> bool:
+    """True when the text holds only digits, dots and commas.
+
+    Args:
+        text: Template argument.
+
+    Returns:
+        Whether the whole text is a non-empty run of digits, ``.`` and ``,``.
+    """
+
     return bool(re.fullmatch(r"[\d.,]+", text))
 
 
 def _safe_replace(code: mwparserfromhell.wikicode.Wikicode, node: object, value: str) -> None:
+    """Replace a node of the parse tree, ignoring nodes that are no longer in it.
+
+    Args:
+        code: Parse tree, modified in place.
+        node: Node to replace.
+        value: Replacement text.
+    """
+
     try:
         code.replace(node, value)
     except ValueError:  # already removed together with an enclosing node
@@ -136,7 +208,16 @@ def _safe_replace(code: mwparserfromhell.wikicode.Wikicode, node: object, value:
 
 def _prepare(code: mwparserfromhell.wikicode.Wikicode) -> None:
     """Rewrite nodes that strip_code would render badly (it keeps ref and table contents,
-    glues words around ``<br>`` and drops text-bearing templates)."""
+    glues words around ``<br>`` and drops text-bearing templates).
+
+    Three passes: whitelisted templates become their visible text (innermost first); block
+    tags are removed, tags that cannot become words are replaced by the poison character
+    (or by their content, for a trivial ``<math>`` formula), ``<br>`` becomes a space and
+    wiki list markup is poisoned; links to files and categories are removed.
+
+    Args:
+        code: Parse tree of an article, modified in place.
+    """
 
     for template in reversed(code.filter_templates(recursive=True)):
         text = _template_text(template)
@@ -160,7 +241,16 @@ def _prepare(code: mwparserfromhell.wikicode.Wikicode) -> None:
 
 
 def _tidy(line: str) -> str:
-    """Remove the residue that dropped templates and references leave in a line."""
+    """Remove the residue that dropped templates and references leave in a line.
+
+    Args:
+        line: One line of stripped text.
+
+    Returns:
+        The line with whitespace collapsed, empty parentheses and brackets removed, stray
+        punctuation next to parentheses dropped, spaces before punctuation removed and
+        repeated separators merged.
+    """
 
     line = re.sub(r"\s+", " ", line).strip()
     line = re.sub(r"\(\s*[\s,;:–—-]*\)", "", line)  # "( )", "(; )"
@@ -176,6 +266,14 @@ def wikitext_to_text(wikitext: str) -> str:
     """Plain text with templates, references, tables, lists and markup removed.
 
     Lines that contained inline math or chemistry, or were list items, are dropped entirely.
+
+    Args:
+        wikitext: Raw page text (sections already cut, if wanted).
+
+    Returns:
+        One tidied line per remaining source line, joined with newlines; empty lines are
+        kept here and removed by :func:`split_paragraphs`. A line is the unit of everything
+        that follows: a paragraph of the corpus is one line of the stripped text.
     """
 
     code = mwparserfromhell.parse(wikitext)
@@ -190,11 +288,31 @@ def wikitext_to_text(wikitext: str) -> str:
 
 
 def split_paragraphs(text: str) -> list[str]:
+    """Non-empty lines of a text, stripped.
+
+    Args:
+        text: Output of :func:`wikitext_to_text`.
+
+    Returns:
+        The candidate paragraphs, in order.
+    """
+
     return [line.strip() for line in text.split("\n") if line.strip()]
 
 
 def keep_paragraph(paragraph: str, min_words: int, max_digit_ratio: float) -> bool:
-    """Running prose only: long enough, ends like a sentence, and not a table of numbers."""
+    """Running prose only: long enough, ends like a sentence, and not a table of numbers.
+
+    Args:
+        paragraph: Candidate paragraph, already stripped.
+        min_words: Minimum number of whitespace-separated words.
+        max_digit_ratio: Largest allowed ratio of digit characters to all characters.
+
+    Returns:
+        True when the paragraph has at least ``min_words`` words, ends with ``.``, ``!`` or
+        ``?`` (closing quotes and brackets ignored), does not start with table or list
+        markup and stays within the digit ratio.
+    """
 
     if len(paragraph.split()) < min_words:
         return False
@@ -207,6 +325,16 @@ def keep_paragraph(paragraph: str, min_words: int, max_digit_ratio: float) -> bo
 
 
 def _ends_with_abbreviation(text: str) -> bool:
+    """True when the text ends with an abbreviation or a single-letter initial.
+
+    Args:
+        text: Sentence candidate, ending at the punctuation under test.
+
+    Returns:
+        True when the last word, without its final punctuation and opening quotes, is one
+        uppercase letter (``J.``) or, lower-cased, one of ``_ABBREVIATIONS``.
+    """
+
     words = text.rstrip(_CLOSERS).rsplit(None, 1)
     if not words:
         return False
@@ -221,6 +349,13 @@ def split_sentences(paragraph: str) -> list[tuple[int, int]]:
 
     A sentence ends at ``.``, ``!``, ``?`` or ``…`` (plus closing quotes or brackets) followed by
     whitespace and an uppercase letter, digit, or opening quote, except after abbreviations.
+
+    Args:
+        paragraph: Paragraph text.
+
+    Returns:
+        Character spans in order, half-open and non-empty; together they cover every
+        non-space character of the paragraph.
     """
 
     spans: list[tuple[int, int]] = []
@@ -248,7 +383,17 @@ def clean_article(
     min_words: int,
     max_digit_ratio: float,
 ) -> list[str]:
-    """Kept paragraphs of one article, in order."""
+    """Kept paragraphs of one article, in order.
+
+    Args:
+        wikitext: Raw page text.
+        cut: Headings of the sections to remove (see :func:`cut_sections`).
+        min_words: Minimum number of words of a paragraph.
+        max_digit_ratio: Largest allowed digit ratio of a paragraph.
+
+    Returns:
+        The paragraphs that pass :func:`keep_paragraph`, in article order.
+    """
 
     text = wikitext_to_text(cut_sections(wikitext, cut))
     return [

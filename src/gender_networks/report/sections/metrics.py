@@ -47,6 +47,20 @@ GLOBAL_ROWS = [
 
 
 def _metric_cell(part: pd.DataFrame, column: str, kind: str, digits: int) -> str:
+    """Cell of the global metrics table: the mean over the rows, with the deviation when they
+    differ.
+
+    Args:
+        part: Rows of ``graph_metrics.csv`` for one network (one per tie seed).
+        column: Metric column.
+        kind: ``int``, ``num``, ``pct`` or ``sci``.
+        digits: Decimal places.
+
+    Returns:
+        The LaTeX text; ``--`` when the column is absent or has no value. The mean and the
+        sample standard deviation run over the rows that have a value.
+    """
+
     if column not in part:
         return DASH
     values = pd.to_numeric(part[column], errors="coerce").dropna()
@@ -68,6 +82,23 @@ def _metric_cell(part: pd.DataFrame, column: str, kind: str, digits: int) -> str
 
 
 def table_metricas_globais(ctx: Context) -> Tabular:
+    """Table ``metricas_globais``: the course metrics of the main networks and of the vocabulary
+    network.
+
+    Each shown representation is a column: the union and directed graphs at ``k_main`` with
+    random ties (every seed for ``lex``, seed 0 elsewhere). The vocabulary column uses the
+    ``k`` that has communities.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table, one row per metric of :data:`GLOBAL_ROWS`.
+
+    Raises:
+        Skip: If ``graph_metrics.csv`` is missing or lacks the main networks.
+    """
+
     metrics = ctx.metrics_table("graph_metrics")
     k = ctx.k
     columns: list[tuple[str, pd.DataFrame, pd.DataFrame, str]] = []
@@ -127,6 +158,18 @@ def table_metricas_globais(ctx: Context) -> Tabular:
 
 
 def figure_graus_camadas(ctx: Context) -> Any:
+    """Figure ``graus_camadas``: in-degree CCDF of the directed graphs (random tie seed 0).
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure, one line per shown representation.
+
+    Raises:
+        Skip: If ``degree_hist.csv`` is missing or lacks those graphs.
+    """
+
     hist = ctx.metrics_table("degree_hist")
     hist = hist[hist["kind"] == "in"]
     series = {}

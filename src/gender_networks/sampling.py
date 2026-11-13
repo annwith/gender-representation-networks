@@ -108,7 +108,15 @@ WHOLE_WORD = CATEGORY_CODES["whole_word"]
 
 @dataclass
 class CorpusParagraph:
-    """A kept corpus paragraph with its token ids and compact category codes."""
+    """A kept corpus paragraph with its token ids and compact category codes.
+
+    Attributes:
+        index: Position of the paragraph in the list it belongs to; the selector uses it as
+            the paragraph key.
+        record: The ``paragraphs.jsonl`` record.
+        ids: int64 array ``[n_tokens]`` with the token ids (no special tokens).
+        codes: int8 array ``[n_tokens]`` with the category codes of ``tokens.CATEGORIES``.
+    """
 
     index: int
     record: Mapping[str, Any]
@@ -117,13 +125,26 @@ class CorpusParagraph:
 
     @property
     def theme(self) -> str:
+        """Theme of the paragraph's article."""
+
         return str(self.record["theme"])
 
     @property
     def pageid(self) -> int:
+        """Page id of the paragraph's article."""
+
         return int(self.record["pageid"])
 
     def order_key(self, theme_rank: Mapping[str, int]) -> tuple[int, int, int]:
+        """Sort key of the paragraph in the sample: ``(theme rank, pageid, paragraph_idx)``.
+
+        Args:
+            theme_rank: Theme to its position in the configuration; an unknown theme sorts last.
+
+        Returns:
+            The key tuple.
+        """
+
         return (
             theme_rank.get(self.theme, len(theme_rank)),
             self.pageid,
@@ -131,7 +152,11 @@ class CorpusParagraph:
         )
 
     def candidates(self) -> np.ndarray:
-        """Positions of non-whitespace tokens, the only positions that can become vertices."""
+        """Positions of non-whitespace tokens, the only positions that can become vertices.
+
+        Returns:
+            Sorted int array of 0-based token positions in the paragraph.
+        """
 
         return np.flatnonzero(self.codes != WHITESPACE)
 
@@ -139,7 +164,17 @@ class CorpusParagraph:
 def tokenize_corpus(
     paragraphs: Sequence[Mapping[str, Any]], tokenizer: Any, batch_size: int = 256
 ) -> list[CorpusParagraph]:
-    """Token ids and categories of every paragraph (batched, offsets-based categories)."""
+    """Token ids and categories of every paragraph (batched, offsets-based categories).
+
+    Args:
+        paragraphs: Records of ``paragraphs.jsonl``.
+        tokenizer: Hugging Face fast tokenizer.
+        batch_size: Paragraphs per tokenizer call. Defaults to 256.
+
+    Returns:
+        One :class:`CorpusParagraph` per record, in order, with ``index`` equal to its
+        position.
+    """
 
     result: list[CorpusParagraph] = []
     for begin in range(0, len(paragraphs), batch_size):
@@ -159,7 +194,15 @@ def tokenize_corpus(
 
 
 def corpus_frequencies(corpus: Sequence[CorpusParagraph], vocab_size: int) -> np.ndarray:
-    """Count of every token id over all paragraphs of the corpus (whitespace tokens included)."""
+    """Count of every token id over all paragraphs of the corpus (whitespace tokens included).
+
+    Args:
+        corpus: Tokenized paragraphs; every theme counts, sampled or not.
+        vocab_size: ``len(tokenizer)``, the minimum length of the result.
+
+    Returns:
+        int64 array where entry ``t`` is the number of occurrences of token id ``t``.
+    """
 
     if not corpus:
         return np.zeros(vocab_size, dtype=np.int64)
@@ -174,7 +217,16 @@ def corpus_frequencies(corpus: Sequence[CorpusParagraph], vocab_size: int) -> np
 
 
 def validate_bands(bands: Sequence[Sequence[int]], f_max: int) -> None:
-    """Bands must be contiguous from 1 and cover ``f_max`` (every f_sample needs a label)."""
+    """Bands must be contiguous from 1 and cover ``f_max`` (every f_sample needs a label).
+
+    Args:
+        bands: ``[low, high]`` pairs, both ends inclusive.
+        f_max: Largest sample frequency of a type.
+
+    Raises:
+        ValueError: If a band is malformed, the bands leave a gap or do not start at 1, or
+            the last band ends below ``f_max``.
+    """
 
     expected = 1
     for band in bands:
@@ -186,7 +238,15 @@ def validate_bands(bands: Sequence[Sequence[int]], f_max: int) -> None:
 
 
 def band_names(bands: Sequence[Sequence[int]], open_top: bool = False) -> list[str]:
-    """Labels of the frequency bands in order (``'1-2'``, ``'50'``; the last ``'50+'`` if open)."""
+    """Labels of the frequency bands in order (``'1-2'``, ``'50'``; the last ``'50+'`` if open).
+
+    Args:
+        bands: ``[low, high]`` pairs.
+        open_top: Label the last band as open-ended (``'{low}+'``). Defaults to False.
+
+    Returns:
+        One label per band.
+    """
 
     last = len(bands) - 1
     return [
@@ -196,7 +256,19 @@ def band_names(bands: Sequence[Sequence[int]], open_top: bool = False) -> list[s
 
 
 def band_label(value: int, bands: Sequence[Sequence[int]], open_top: bool = False) -> str:
-    """Label of the frequency band of ``value`` (see :func:`band_names`)."""
+    """Label of the frequency band of ``value`` (see :func:`band_names`).
+
+    Args:
+        value: Frequency of a type.
+        bands: ``[low, high]`` pairs.
+        open_top: Treat the last band as open-ended, as done for corpus frequencies.
+
+    Returns:
+        The label of the band that holds ``value``.
+
+    Raises:
+        ValueError: If no band holds the value (0, or above the last band when closed).
+    """
 
     names = band_names(bands, open_top)
     for number, (low, high) in enumerate(bands):
@@ -210,7 +282,16 @@ def band_label(value: int, bands: Sequence[Sequence[int]], open_top: bool = Fals
 def single_token_ids(
     tokenizer: Any, words: Sequence[str]
 ) -> tuple[dict[str, int], dict[str, list[int]]]:
-    """Id of ``' ' + word`` for each word that is one token; the others with their pieces."""
+    """Id of ``' ' + word`` for each word that is one token; the others with their pieces.
+
+    Args:
+        tokenizer: Hugging Face tokenizer.
+        words: Target or control words, lowercase, without the leading space.
+
+    Returns:
+        ``(ids, rejected)``: word to the id of its space-prefixed form, and, for words that
+        encode to several tokens, word to those token ids.
+    """
 
     ids: dict[str, int] = {}
     rejected: dict[str, list[int]] = {}
@@ -228,6 +309,14 @@ def sentence_index(spans: Sequence[Sequence[int]], char_start: int, token_text: 
 
     Sentence spans are trimmed, so the space before a sentence belongs to no span; the last span
     starting at or before the character is used, which also covers trailing punctuation.
+
+    Args:
+        spans: ``[start, end)`` sentence spans of the paragraph, in order.
+        char_start: Start of the token's character span.
+        token_text: Text of the token, leading space included.
+
+    Returns:
+        0-based sentence index; 0 when the paragraph has no spans.
     """
 
     if not spans:
@@ -242,6 +331,14 @@ def local_context(text: str, infos: Sequence[TokenInfo], index: int) -> str:
 
     Built from character offsets rather than by decoding ids, so byte-split characters at the
     window edges never show up as U+FFFD. A leading space stays outside the marks.
+
+    Args:
+        text: Paragraph text.
+        infos: Labelled tokens of the paragraph.
+        index: Position of the token to mark.
+
+    Returns:
+        The marked excerpt of the paragraph.
     """
 
     low = max(0, index - CONTEXT_TOKENS)
@@ -259,6 +356,12 @@ def is_content_type(decoded: str) -> bool:
     Alphabetic, at least three letters, lowercase (capitalized entries are proper nouns or
     sentence starts, a different type anyway), not a Portuguese function word and not an
     English word or bibliography piece left in the text by citations.
+
+    Args:
+        decoded: Decoded token text; surrounding whitespace is ignored.
+
+    Returns:
+        True when every condition above holds.
     """
 
     text = decoded.strip()
@@ -278,6 +381,15 @@ def cap_uniform[T](
 
     Keys are visited in sorted order so the result depends only on the generator state.
     Returns the kept items, the number of capped keys and the number of removed items.
+
+    Args:
+        groups: Token id to its items (here ``(paragraph, position)`` pairs).
+        f_max: Most items kept per key.
+        rng: Generator; advanced once per capped key.
+
+    Returns:
+        ``(kept, capped, removed)``. Keys within the cap keep their items in order; capped
+        keys keep ``f_max`` items in the order of the draw.
     """
 
     kept: list[T] = []
@@ -299,7 +411,16 @@ def cap_uniform[T](
 
 @dataclass
 class SampleResult:
-    """Everything the stage writes (except ``vocab_types.csv``) and the manifest statistics."""
+    """Everything the stage writes (except ``vocab_types.csv``) and the manifest statistics.
+
+    Attributes:
+        occurrences: Rows of ``occurrences.csv``, in vertex order.
+        sequences: Records of ``sequences.jsonl``.
+        senses: Rows of the annotation template ``senses.csv``.
+        f_corpus: int64 array ``[len(tokenizer)]`` with the corpus count of every token id.
+        f_sample: Token id to its number of vertices.
+        stats: Statistics copied into the stage manifest.
+    """
 
     occurrences: list[dict[str, Any]]
     sequences: list[dict[str, Any]]
@@ -310,7 +431,31 @@ class SampleResult:
 
 
 class _Selector:
-    """Mutable selection state shared by the four strata."""
+    """Mutable selection state shared by the four strata.
+
+    Paragraphs are identified by their index in ``corpus`` and positions are 0-based token
+    positions inside the paragraph.
+
+    Attributes:
+        corpus: Usable paragraphs, indexed by ``CorpusParagraph.index``.
+        settings: The ``sample`` section.
+        limits: Diversity limits of the sparse strata.
+        f_max: Most vertices of one token type.
+        rng: The single generator of the stage.
+        sample_themes: Themes sampled, in configuration order.
+        core: Core paragraph to its kept positions.
+        strata: Non-core paragraph to its drawn positions and their stratum.
+        total: Token id to its selected occurrences, in any stratum.
+        per_paragraph: ``(token id, paragraph)`` to selected occurrences.
+        per_article: ``(token id, pageid)`` to selected occurrences, core included.
+        core_theme: ``(token id, theme)`` to whole-word core occurrences, which count toward
+            the quotas.
+        drawn: ``(token id, stratum)`` to the ``(paragraph, position)`` pairs drawn for it, so
+            a draw can be undone.
+        index: Token id to non-core paragraph to its drawable (whole-word) positions.
+        core_articles: Theme to the page ids of its core articles.
+        warnings: Messages copied into the manifest.
+    """
 
     def __init__(
         self,
@@ -319,6 +464,15 @@ class _Selector:
         sample_themes: list[str],
         rng: random.Random,
     ) -> None:
+        """Start with nothing selected.
+
+        Args:
+            corpus: Usable paragraphs, with ``index`` equal to the list position.
+            settings: The ``sample`` section.
+            sample_themes: Themes to sample.
+            rng: Generator shared by every draw of the stage.
+        """
+
         self.corpus = corpus
         self.settings = settings
         self.limits = settings.limits
@@ -338,6 +492,12 @@ class _Selector:
         self.warnings: list[str] = []
 
     def warn(self, message: str) -> None:
+        """Log a warning and keep it for the manifest.
+
+        Args:
+            message: Warning text.
+        """
+
         LOGGER.warning(message)
         self.warnings.append(message)
 
@@ -350,6 +510,22 @@ class _Selector:
         run). With ``core.root_only`` only the theme's root-category articles can: the extra
         categories exist to fill the target quotas, and keeping them out of the core makes every
         theme of P3 the tree of its root category.
+
+        Per theme, ``articles_per_theme`` articles are drawn among those with at least
+        ``paragraphs_per_article`` paragraphs, and that many paragraphs of each. Every
+        non-whitespace token of the chosen paragraphs is pooled by token id, and types above
+        ``f_max`` are cut by :func:`cap_uniform`.
+
+        Returns:
+            Statistics for the manifest: paragraphs, drawable and drawn articles per theme,
+            vertices before and after the cap, capped types and removed occurrences.
+
+        Raises:
+            ValueError: With ``core.root_only``, if a paragraph has no ``origin``.
+
+        Side effects:
+            Fills ``core``, ``core_articles`` and the counters; advances the generator; warns
+            when a theme has fewer drawable articles than requested.
         """
 
         core = self.settings.core
@@ -430,6 +606,8 @@ class _Selector:
     # -- indexes of non-core paragraphs ------------------------------------------------------
 
     def noncore_paragraphs(self) -> list[CorpusParagraph]:
+        """Paragraphs of the sample themes that are not in the core, in corpus order."""
+
         themes = set(self.sample_themes)
         return [p for p in self.corpus if p.theme in themes and p.index not in self.core]
 
@@ -437,6 +615,13 @@ class _Selector:
         """Whole-word positions of the given ids in every non-core sample paragraph.
 
         Only whole-word positions can be drawn: a word_start piece belongs to a longer word.
+
+        Args:
+            token_ids: Ids to index; those already indexed are skipped.
+
+        Side effects:
+            Adds one entry per new id to ``index`` (empty when the id never occurs as a whole
+            word outside the core). Must run after :meth:`select_core`.
         """
 
         wanted = np.asarray(sorted(token_ids - set(self.index)), dtype=np.int64)
@@ -450,7 +635,15 @@ class _Selector:
                 self.index[int(paragraph.ids[j])].setdefault(paragraph.index, []).append(j)
 
     def queue(self, token_id: int, theme: str) -> deque[int]:
-        """Shuffled non-core paragraphs of ``theme`` that contain ``token_id``."""
+        """Shuffled non-core paragraphs of ``theme`` that contain ``token_id``.
+
+        Args:
+            token_id: An indexed token id.
+            theme: Theme of the paragraphs wanted.
+
+        Returns:
+            The paragraph indices, sorted and then shuffled with the stage generator.
+        """
 
         members = sorted(p for p in self.index[token_id] if self.corpus[p].theme == theme)
         self.rng.shuffle(members)
@@ -459,10 +652,32 @@ class _Selector:
     # -- drawing under the diversity limits --------------------------------------------------
 
     def _available(self, token_id: int, p: int) -> list[int]:
+        """Drawable positions of a token in a paragraph that no stratum took yet.
+
+        Args:
+            token_id: An indexed token id.
+            p: Paragraph index.
+
+        Returns:
+            Positions in paragraph order.
+        """
+
         taken = self.strata.get(p, {})
         return [j for j in self.index[token_id].get(p, []) if j not in taken]
 
     def _room(self, token_id: int, p: int) -> int:
+        """How many more occurrences of a token the limits allow from a paragraph.
+
+        Args:
+            token_id: Token id.
+            p: Paragraph index.
+
+        Returns:
+            The smallest of the room left in the paragraph (``per_type_paragraph``), in its
+            article (``per_type_article``, core occurrences included) and under ``f_max``; zero
+            or negative when nothing can be drawn.
+        """
+
         return min(
             self.limits.per_type_paragraph - self.per_paragraph[(token_id, p)],
             self.limits.per_type_article - self.per_article[(token_id, self.corpus[p].pageid)],
@@ -470,7 +685,21 @@ class _Selector:
         )
 
     def take(self, token_id: int, p: int, k: int, stratum: str) -> int:
-        """Draw up to ``k`` occurrences of ``token_id`` from paragraph ``p``."""
+        """Draw up to ``k`` occurrences of ``token_id`` from paragraph ``p``.
+
+        Args:
+            token_id: An indexed token id.
+            p: Non-core paragraph index.
+            k: Most occurrences wanted.
+            stratum: Stratum the draw is recorded under.
+
+        Returns:
+            Number of occurrences drawn, uniformly among the available positions, within
+            :meth:`_room`.
+
+        Side effects:
+            Updates ``strata``, the counters and ``drawn``; advances the generator.
+        """
 
         allowed = min(k, self._room(token_id, p))
         if allowed <= 0:
@@ -491,6 +720,16 @@ class _Selector:
 
         A paragraph stays at the head of the queue only while it can still give more, so a
         round-robin caller asking for one occurrence at a time can come back to it.
+
+        Args:
+            token_id: An indexed token id.
+            queue: Paragraphs from :meth:`queue`; exhausted paragraphs are removed.
+            need: Occurrences wanted.
+            stratum: Stratum the draws are recorded under.
+
+        Returns:
+            Number of occurrences drawn; less than ``need`` when the queue runs out or the type
+            reaches ``f_max``.
         """
 
         got = 0
@@ -502,7 +741,15 @@ class _Selector:
         return got
 
     def undo(self, token_id: int, stratum: str) -> int:
-        """Remove every draw of ``token_id`` made for ``stratum``."""
+        """Remove every draw of ``token_id`` made for ``stratum``.
+
+        Args:
+            token_id: Token id.
+            stratum: Stratum whose draws are removed.
+
+        Returns:
+            Number of occurrences removed. Core occurrences of the token are not touched.
+        """
 
         draws = self.drawn.pop((token_id, stratum), [])
         for p, j in draws:
@@ -519,7 +766,29 @@ class _Selector:
     def select_quota_stratum(
         self, table: Mapping[str, Mapping[str, int]], word_ids: Mapping[str, int], stratum: str
     ) -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
-        """Fill the per-theme quotas of each word and apply the min_per_sense rule."""
+        """Fill the per-theme quotas of each word and apply the min_per_sense rule.
+
+        For each theme of a word, in configuration order, the whole-word core occurrences in
+        that theme count toward the quota and only the difference is drawn, never beyond
+        ``f_max`` occurrences of the type in the whole sample. A word that does not reach
+        ``min_per_sense`` occurrences in at least :data:`MIN_SENSE_THEMES` of its themes loses
+        the occurrences drawn here.
+
+        Args:
+            table: Word to its quota per theme (``sample.targets`` or ``sample.controls``).
+            word_ids: Word to its single token id; words missing from it are skipped.
+            stratum: ``"target"`` or ``"control"``.
+
+        Returns:
+            ``(report, dropped, kept)``: per word, the token id, whether it was kept and, per
+            theme, the requested, core, drawn and obtained counts; the dropped words with the
+            themes that reached the minimum and the occurrences removed; and the kept words.
+
+        Notes:
+            ``f_max`` counts every selected occurrence of the type, also core occurrences in
+            themes that have no quota, so a later theme may get less than its quota even when
+            the corpus has enough occurrences. A dropped word keeps its core occurrences.
+        """
 
         report: dict[str, Any] = {}
         dropped: list[dict[str, Any]] = []
@@ -576,6 +845,14 @@ class _Selector:
         Only whole-word positions count, since only those can be drawn. Drawable counts apply
         the per-paragraph and per-article limits, so they say how many occurrences the
         round-robin fill can actually take from a theme.
+
+        Args:
+            vocab_size: ``len(tokenizer)``, the length of each count array.
+
+        Returns:
+            ``(raw, drawable)``: theme to an int64 array ``[vocab_size]``. The drawable count of
+            an article is ``min(sum over its paragraphs of min(count, per_type_paragraph),
+            per_type_article)``; occurrences already in the core are not discounted.
         """
 
         limits = self.limits
@@ -605,6 +882,13 @@ class _Selector:
 
         Ties go to the category listed first in ``tokens.CATEGORIES``, so ``whole_word`` (last)
         wins only with more occurrences than any other category; ids never seen get -1.
+
+        Args:
+            vocab_size: ``len(tokenizer)``, the length of the result.
+
+        Returns:
+            Int array ``[vocab_size]`` of category codes, counted over core and non-core
+            paragraphs alike, whitespace tokens excluded.
         """
 
         n_categories = len(CATEGORIES)
@@ -625,11 +909,42 @@ class _Selector:
     def select_multitheme(
         self, tokenizer: Any, excluded: set[int], vocab_size: int
     ) -> dict[str, Any]:
+        """Draw the multitheme stratum: content words spread over several themes.
+
+        A type is eligible when it has at least ``min_per_theme`` drawable occurrences in at
+        least ``min_themes`` themes, is a whole word in most of its occurrences, is not a target
+        or control id and passes :func:`is_content_type`. ``n_types`` eligible types are drawn;
+        each is completed to ``min(per_type, f_max)`` occurrences, counting those already
+        selected, one occurrence at a time in rotation over its themes.
+
+        Args:
+            tokenizer: Hugging Face tokenizer, used to decode the candidate ids.
+            excluded: Token ids of the targets and controls.
+            vocab_size: ``len(tokenizer)``.
+
+        Returns:
+            Statistics for the manifest: eligible types (with the limits and by raw counts),
+            drawn and already saturated types, occurrences drawn and one entry per drawn type.
+
+        Side effects:
+            Draws through :meth:`fill`; warns when fewer than ``n_types`` types are eligible.
+        """
+
         settings = self.settings.multitheme
         raw, drawable = self.theme_counts(vocab_size)
         majority = self.majority_categories(vocab_size)
 
         def eligible_ids(counts: dict[str, np.ndarray]) -> list[int]:
+            """Token ids eligible for the multitheme stratum under the given counts.
+
+            Args:
+                counts: Theme to the per-id occurrence counts (raw or drawable).
+
+            Returns:
+                Sorted ids that reach ``min_per_theme`` in at least ``min_themes`` themes, are
+                whole words by majority, are not excluded and decode to a content word.
+            """
+
             spread = (np.stack([counts[t] for t in self.sample_themes]) >= settings.min_per_theme)
             candidates = np.flatnonzero(
                 (spread.sum(axis=0) >= settings.min_themes) & (majority == WHOLE_WORD)
@@ -711,6 +1026,14 @@ def assign_prefix_groups(
     input ids indexed by sequence id. Prefixes are interned in a trie (one node per distinct
     prefix), so the cost is linear in the tokens. Groups are numbered by their first member;
     vertices with a unique prefix get -1.
+
+    Args:
+        positions: ``(sequence_id, pos_in_sequence)`` of every vertex, in vertex order.
+        sequences: Input ids of every sequence, prefix token included.
+
+    Returns:
+        One group number per vertex. Vertices of a group have identical inputs up to their
+        position, and therefore mathematically identical states at every layer.
     """
 
     node_of: dict[tuple[int, int], int] = {}
@@ -742,11 +1065,32 @@ def order_paragraphs(
     core: set[int],
     corpus_themes: Sequence[str],
 ) -> list[int]:
-    """Core paragraphs first, then the strata paragraphs, each by (theme, pageid, index)."""
+    """Core paragraphs first, then the strata paragraphs, each by (theme, pageid, index).
+
+    Args:
+        corpus: Usable paragraphs.
+        selection: Paragraph index to its selected positions and their strata.
+        core: Indices of the core paragraphs.
+        corpus_themes: Theme order of the configuration.
+
+    Returns:
+        Indices of the paragraphs that have at least one vertex, in sequence order. This
+        order, with the position inside each paragraph, is the vertex order, which the
+        position tie-break of the ``knn`` stage uses.
+    """
 
     theme_rank = {theme: rank for rank, theme in enumerate(corpus_themes)}
 
     def key(p: int) -> tuple[int, int, int]:
+        """Sort key of paragraph ``p`` (see :meth:`CorpusParagraph.order_key`).
+
+        Args:
+            p: Paragraph index.
+
+        Returns:
+            ``(theme rank, pageid, paragraph_idx)``.
+        """
+
         return corpus[p].order_key(theme_rank)
 
     with_vertices = [p for p, chosen in selection.items() if chosen]
@@ -765,7 +1109,32 @@ def assemble_sample(
     f_corpus: np.ndarray,
     bands: Sequence[Sequence[int]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Occurrence rows and sequences, in the final order, with every column filled."""
+    """Occurrence rows and sequences, in the final order, with every column filled.
+
+    Each paragraph becomes the sequence ``[prefix_id] + ids``, truncated after its last
+    selected position, so a token at paragraph position ``j`` sits at sequence position
+    ``j + 1``. ``target_word`` and ``sense_theme`` are set on every whole-word occurrence of
+    a target or control id, in any stratum and any theme.
+
+    Args:
+        corpus: Usable paragraphs.
+        ordered: Paragraph indices in sequence order.
+        selection: Paragraph index to its selected positions and their strata.
+        tokenizer: Hugging Face fast tokenizer; the paragraphs are tokenized again to get the
+            full token records.
+        prefix_id: Id of the prefix token.
+        word_of_id: Token id to its target or control word.
+        f_corpus: Corpus count of every token id.
+        bands: Frequency bands.
+
+    Returns:
+        ``(rows, sequences)``: one dictionary per vertex with the columns of
+        ``artifacts.OCCURRENCE_COLUMNS``, ordered by ``(sequence_id, pos_in_sequence)``, and
+        one ``{"sequence_id", "paragraph_id", "input_ids"}`` record per paragraph.
+
+    Raises:
+        RuntimeError: If the second tokenization of a paragraph differs from the first.
+    """
 
     texts = [corpus[p].record["text"] for p in ordered]
     labelled = tokenize_paragraphs(tokenizer, texts)
@@ -856,6 +1225,16 @@ def build_senses(
 
     Each theme's occurrences are shuffled and the themes are visited round-robin, so a weak
     sense gets as many rows as a strong one until it runs out.
+
+    Args:
+        occurrences: Occurrence rows of the sample.
+        sense_themes: Kept target word to its sense themes.
+        per_target: Most rows per word.
+        rng: Generator (the stage generator, after the selection).
+
+    Returns:
+        Rows with the columns of :data:`SENSES_COLUMNS` and an empty ``sense``, ordered by
+        word and, inside a word, by ``occurrence_id``.
     """
 
     rows: list[dict[str, Any]] = []
@@ -891,7 +1270,24 @@ def validate_sample(
     f_max: int,
     prefix_id: int | None = None,
 ) -> None:
-    """Invariants every later stage relies on; raises ValueError on the first violation."""
+    """Invariants every later stage relies on; raises ValueError on the first violation.
+
+    Checked: no type above ``f_max``; ``sequence_id`` and ``occurrence_id`` equal to their
+    indices; every sequence starts with the prefix; categories and strata are known and no
+    vertex is whitespace; positions are at least 1; each row's token is the one at its
+    position in its sequence; rows are strictly ordered by ``(sequence_id,
+    pos_in_sequence)``; ``f_sample`` is the type's count; every sequence has a vertex and
+    ends at its last one.
+
+    Args:
+        occurrences: Occurrence rows.
+        sequences: Sequence records.
+        f_max: Most vertices of one token type.
+        prefix_id: Id of the prefix token; ``None`` skips the prefix check.
+
+    Raises:
+        ValueError: On the first violated invariant.
+    """
 
     counts = Counter(int(row["token_id"]) for row in occurrences)
     over = {token_id: count for token_id, count in counts.items() if count > f_max}
@@ -939,13 +1335,30 @@ def validate_sample(
 
 
 def _counts(values: Sequence[Any]) -> dict[str, int]:
+    """Counts of the values, as a dictionary with string keys sorted by value.
+
+    Args:
+        values: Values to count.
+
+    Returns:
+        ``{str(value): count}``.
+    """
+
     return {str(key): int(count) for key, count in sorted(Counter(values).items())}
 
 
 def _quota_report(
     report: Mapping[str, Any], final: Counter[tuple[int, str]]
 ) -> dict[str, dict[str, Any]]:
-    """Requested and obtained occurrences per (word, theme), with the count in the sample."""
+    """Requested and obtained occurrences per (word, theme), with the count in the sample.
+
+    Args:
+        report: Report of :meth:`_Selector.select_quota_stratum`.
+        final: ``(token id, theme)`` to the number of vertices in the assembled sample.
+
+    Returns:
+        The report with a ``final`` count added to every theme entry.
+    """
 
     out: dict[str, dict[str, Any]] = {}
     for word, info in report.items():
@@ -967,6 +1380,28 @@ def build_sample(
 
     ``paragraphs`` are records of ``paragraphs.jsonl``; ``corpus_themes`` is the theme order of
     ``settings.corpus.themes`` (used for the sample themes by default and for ordering).
+
+    The strata are drawn in order (core, targets, controls, multitheme) with one generator
+    seeded by ``sample.seed``; the annotation template is drawn last with the same
+    generator.
+
+    Args:
+        paragraphs: Records of ``paragraphs.jsonl``.
+        tokenizer: Hugging Face fast tokenizer.
+        sample: The ``sample`` section.
+        corpus_themes: Theme order of ``corpus.themes``.
+        prefix_id: Id of the prefix token.
+
+    Returns:
+        The occurrences, sequences, template rows, frequencies and statistics.
+
+    Raises:
+        ValueError: If the bands are invalid or the assembled sample breaks an invariant.
+
+    Notes:
+        A control word whose token id is also a target's is dropped from the controls.
+        Paragraphs that encode to a special id are counted in ``f_corpus`` but cannot be
+        sampled.
     """
 
     validate_bands(sample.bands, sample.f_max)
@@ -1091,7 +1526,16 @@ def build_sample(
 def vocab_rows(
     tokenizer: Any, f_corpus: np.ndarray, f_sample: Mapping[int, int]
 ) -> list[dict[str, Any]]:
-    """One row per tokenizer id ``0..len(tokenizer)-1`` (see ``artifacts.VOCAB_COLUMNS``)."""
+    """One row per tokenizer id ``0..len(tokenizer)-1`` (see ``artifacts.VOCAB_COLUMNS``).
+
+    Args:
+        tokenizer: Hugging Face tokenizer.
+        f_corpus: Corpus count of every token id.
+        f_sample: Token id to its number of vertices.
+
+    Returns:
+        The rows of ``vocab_types.csv``; ``token_repr`` is ``repr()`` of the decoded text.
+    """
 
     special = special_token_ids(tokenizer)
     rows = []
@@ -1113,7 +1557,18 @@ def vocab_rows(
 
 
 def resolve_prefix_id(tokenizer: Any, prefix_token: str) -> int:
-    """Id of the prefix token, refusing a silent fallback to the unknown token."""
+    """Id of the prefix token, refusing a silent fallback to the unknown token.
+
+    Args:
+        tokenizer: Hugging Face tokenizer.
+        prefix_token: Token text from ``model.prefix_token``.
+
+    Returns:
+        The token id.
+
+    Raises:
+        ValueError: If the tokenizer does not map the text to an id that maps back to it.
+    """
 
     prefix_id = tokenizer.convert_tokens_to_ids(prefix_token)
     if prefix_id is None or tokenizer.convert_ids_to_tokens(int(prefix_id)) != prefix_token:
@@ -1122,7 +1577,15 @@ def resolve_prefix_id(tokenizer: Any, prefix_token: str) -> int:
 
 
 def _backup_annotations(path: Path) -> None:
-    """Keep a copy of a senses file that already holds manual annotations before replacing it."""
+    """Keep a copy of a senses file that already holds manual annotations before replacing it.
+
+    Args:
+        path: ``sample/senses.csv``.
+
+    Side effects:
+        When any row has a non-empty ``sense``, copies the file to
+        ``senses.annotated-<unix time>.csv`` next to it and logs a warning.
+    """
 
     if not path.exists():
         return
@@ -1135,12 +1598,37 @@ def _backup_annotations(path: Path) -> None:
 
 
 def sample_inputs(paths: RunPaths) -> list[Path]:
-    """Upstream files whose change makes the sample stale."""
+    """Upstream files whose change makes the sample stale.
+
+    Args:
+        paths: Paths of the run.
+
+    Returns:
+        ``paragraphs.jsonl`` and the corpus ``_manifest.json``.
+    """
 
     return [paths.paragraphs, paths.corpus_manifest]
 
 
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
+    """Stage ``sample``: build the hybrid sample and write its artifacts.
+
+    Args:
+        settings: Run configuration; the ``model``, ``corpus`` and ``sample`` sections are
+            used.
+        paths: Paths of the run.
+        force: Redo the stage even when it is up to date.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Raises:
+        FileNotFoundError: If ``paragraphs.jsonl`` is missing.
+
+    Side effects:
+        Loads the tokenizer and writes ``occurrences.csv``, ``sequences.jsonl``,
+        ``vocab_types.csv``, ``senses.csv`` (after backing up an annotated one) and
+        ``_manifest.json`` in ``sample/``.
+    """
+
     outputs = [paths.occurrences, paths.sequences, paths.vocab_types, paths.senses]
     inputs = sample_inputs(paths)
     if up_to_date("sample", paths, settings, inputs, outputs, force):

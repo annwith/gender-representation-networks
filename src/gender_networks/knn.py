@@ -88,6 +88,14 @@ class Candidates:
 
     ``kth_gap`` (similarity of the K-th candidate minus ``s(k_max)``, ``-inf`` when the row holds
     every other item) and ``fallback`` (row taken in full) are diagnostics kept in memory only.
+
+    Attributes:
+        indptr: int64 ``[n + 1]``; row ``i`` is ``idx[indptr[i]:indptr[i + 1]]``.
+        idx: int32 candidate ids: row indices of the similarity matrix, or token ids for
+            the type candidates of variant (c).
+        sim: float64 cosine of each candidate, aligned with ``idx``.
+        kth_gap: float64 ``[n]`` or ``None``.
+        fallback: bool ``[n]`` or ``None``.
     """
 
     indptr: np.ndarray  # int64 [n + 1]
@@ -97,6 +105,13 @@ class Candidates:
     fallback: np.ndarray | None = None  # bool [n]
 
     def __post_init__(self) -> None:
+        """Convert the arrays to their dtypes and check that they describe the same entries.
+
+        Raises:
+            ValueError: If ``indptr`` is not a 1-D array starting at 0, or the lengths of
+                ``indptr``, ``idx`` and ``sim`` disagree.
+        """
+
         self.indptr = np.asarray(self.indptr, dtype=np.int64)
         self.idx = np.asarray(self.idx, dtype=np.int32)
         self.sim = np.asarray(self.sim, dtype=np.float64)
@@ -107,20 +122,38 @@ class Candidates:
 
     @property
     def n_rows(self) -> int:
+        """Number of rows."""
+
         return int(self.indptr.size - 1)
 
     @property
     def lengths(self) -> np.ndarray:
+        """Number of candidates of every row, int64 ``[n]``."""
+
         return np.diff(self.indptr)
 
     def row(self, i: int) -> tuple[np.ndarray, np.ndarray]:
-        """``(idx, sim)`` of row ``i``."""
+        """``(idx, sim)`` of row ``i``.
+
+        Args:
+            i: Row index.
+
+        Returns:
+            Views of the candidate ids and similarities of the row, sorted by ``(-sim, idx)``.
+        """
 
         lo, hi = self.indptr[i], self.indptr[i + 1]
         return self.idx[lo:hi], self.sim[lo:hi]
 
     def take_rows(self, rows: np.ndarray) -> Candidates:
-        """Candidates whose row ``i`` is row ``rows[i]`` of this one."""
+        """Candidates whose row ``i`` is row ``rows[i]`` of this one.
+
+        Args:
+            rows: Row indices to take; repeats are allowed (one row per occurrence of a type).
+
+        Returns:
+            A new :class:`Candidates` with copied arrays.
+        """
 
         rows = np.asarray(rows, dtype=np.int64)
         lengths = self.lengths[rows]
@@ -134,24 +167,51 @@ class Candidates:
         )
 
     def fallback_rows(self, eps: float) -> int:
-        """Rows that the completeness rule would take in full at tolerance ``eps``."""
+        """Rows that the completeness rule would take in full at tolerance ``eps``.
+
+        Args:
+            eps: Tie tolerance.
+
+        Returns:
+            Number of rows whose K-th candidate is within ``eps`` of ``s(k_max)``; 0 when the
+            gaps are not available (candidates loaded from disk).
+        """
 
         if self.kth_gap is None:
             return 0
         return int(np.count_nonzero(self.kth_gap >= -eps))
 
     def arrays(self) -> dict[str, np.ndarray]:
+        """The arrays written to ``cand_{rep}.npz``: ``indptr``, ``idx`` and ``sim``."""
+
         return {"indptr": self.indptr, "idx": self.idx, "sim": self.sim}
 
     @classmethod
     def load(cls, path: Path) -> Candidates:
+        """Read candidates from a ``cand_*.npz`` file (the diagnostics are not stored).
+
+        Args:
+            path: File written by the ``knn`` stage.
+
+        Returns:
+            The candidates, with ``kth_gap`` and ``fallback`` set to ``None``.
+        """
+
         with np.load(path) as data:
             return cls(indptr=data["indptr"], idx=data["idx"], sim=data["sim"])
 
 
 @dataclass(frozen=True)
 class SampleTypes:
-    """Distinct token ids of the sample and where their occurrences are."""
+    """Distinct token ids of the sample and where their occurrences are.
+
+    Attributes:
+        ids: int64 ``[U]``, the distinct token ids, sorted.
+        inverse: int64 ``[N]``, index into ``ids`` of each occurrence.
+        counts: int64 ``[U]``, occurrences of each type (``f_t``).
+        order: int64 ``[N]``, occurrence ids grouped by type, increasing within a type.
+        starts: int64 ``[U + 1]``, group boundaries in ``order``.
+    """
 
     ids: np.ndarray  # int64 [U], sorted
     inverse: np.ndarray  # int64 [N], type index of each occurrence
@@ -161,6 +221,18 @@ class SampleTypes:
 
     @classmethod
     def from_token_ids(cls, token_ids: Sequence[int] | np.ndarray) -> SampleTypes:
+        """Group the occurrences by token id.
+
+        Args:
+            token_ids: Token id of every occurrence, in vertex order.
+
+        Returns:
+            The :class:`SampleTypes` of the sample.
+
+        Raises:
+            ValueError: If ``token_ids`` is empty or not 1-D.
+        """
+
         values = np.asarray(token_ids, dtype=np.int64)
         if values.ndim != 1 or values.size == 0:
             raise ValueError("token_ids must be a non-empty 1-D array")
@@ -170,18 +242,41 @@ class SampleTypes:
 
     @property
     def n_types(self) -> int:
+        """Number of distinct types ``U``."""
+
         return int(self.ids.size)
 
     @property
     def n_occurrences(self) -> int:
+        """Number of occurrences ``N``."""
+
         return int(self.inverse.size)
 
     def members(self, t: int) -> np.ndarray:
+        """Occurrence ids of one type, in increasing order.
+
+        Args:
+            t: Type index (position in ``ids``), not a token id.
+
+        Returns:
+            int64 array with ``counts[t]`` occurrence ids.
+        """
+
         return self.order[self.starts[t] : self.starts[t + 1]]
 
 
 @dataclass
 class _Block:
+    """Candidate rows of one block of similarities, before the blocks are joined.
+
+    Attributes:
+        lengths: int64 ``[b]``, candidates per row.
+        idx: Candidate column indices of every row, concatenated.
+        sim: Similarities aligned with ``idx``.
+        kth_gap: float64 ``[b]``, K-th similarity minus ``s(k_max)``.
+        fallback: bool ``[b]``, rows taken in full.
+    """
+
     lengths: np.ndarray
     idx: np.ndarray
     sim: np.ndarray
@@ -195,13 +290,30 @@ class _Block:
 
 
 def _indptr(lengths: np.ndarray) -> np.ndarray:
+    """CSR row pointers of rows with the given lengths.
+
+    Args:
+        lengths: Number of entries of each row.
+
+    Returns:
+        int64 array ``[len(lengths) + 1]`` starting at 0.
+    """
+
     out = np.zeros(len(lengths) + 1, dtype=np.int64)
     np.cumsum(lengths, out=out[1:])
     return out
 
 
 def _ranges(starts: np.ndarray, lengths: np.ndarray) -> np.ndarray:
-    """Concatenation of ``arange(s, s + l)`` for every pair, without a Python loop."""
+    """Concatenation of ``arange(s, s + l)`` for every pair, without a Python loop.
+
+    Args:
+        starts: Start of each range.
+        lengths: Length of each range.
+
+    Returns:
+        int64 array with ``sum(lengths)`` entries.
+    """
 
     lengths = np.asarray(lengths, dtype=np.int64)
     total = int(lengths.sum())
@@ -210,13 +322,36 @@ def _ranges(starts: np.ndarray, lengths: np.ndarray) -> np.ndarray:
 
 
 def rep_rng(base_seed: int, name: str, k: int, seed: int) -> np.random.Generator:
-    """Generator of the random tie-breaking of ``name`` at ``k`` and seed index ``seed``."""
+    """Generator of the random tie-breaking of ``name`` at ``k`` and seed index ``seed``.
+
+    Args:
+        base_seed: ``networks.base_seed``.
+        name: Stream name: a representation name, the name plus ``/types`` for variant (c),
+            or ``vocab``.
+        k: Number of neighbours.
+        seed: Seed index ``0..seeds - 1``.
+
+    Returns:
+        ``numpy.random.default_rng([base_seed, crc32(name), k, seed])``: one independent,
+        reproducible stream per combination, whatever the order the networks are built in.
+    """
 
     return np.random.default_rng([base_seed, zlib.crc32(name.encode()), k, seed])
 
 
 def _normalize_inplace(x: np.ndarray, chunk_rows: int = NORM_CHUNK_ROWS) -> np.ndarray:
-    """Scale float64 rows to unit norm in chunks (``np.linalg.norm`` would copy the matrix)."""
+    """Scale float64 rows to unit norm in chunks (``np.linalg.norm`` would copy the matrix).
+
+    Args:
+        x: float64 array ``[n, d]``, modified in place.
+        chunk_rows: Rows normalized at a time.
+
+    Returns:
+        ``x`` itself.
+
+    Raises:
+        ValueError: If a row has zero or non-finite norm.
+    """
 
     for start in range(0, x.shape[0], chunk_rows):
         rows = x[start : start + chunk_rows]
@@ -234,6 +369,18 @@ def normalize_rows(x: np.ndarray | torch.Tensor, center: bool = False) -> np.nda
     """float64 copy of ``x`` with unit rows; ``center`` subtracts the column mean first.
 
     Raises on zero rows, where the cosine is undefined.
+
+    Args:
+        x: Vectors ``[n, d]`` in any float dtype; a tensor is converted on the CPU. The
+            conversion from bfloat16 to float64 is exact.
+        center: Subtract the mean vector over the ``n`` rows before normalizing (the
+            centered variants ``L01c``...).
+
+    Returns:
+        New C-contiguous float64 array ``[n, d]`` with rows of norm 1.
+
+    Raises:
+        ValueError: If ``x`` is not 2-D, has no rows, or has a zero or non-finite row.
     """
 
     if isinstance(x, torch.Tensor):
@@ -247,7 +394,15 @@ def normalize_rows(x: np.ndarray | torch.Tensor, center: bool = False) -> np.nda
 
 
 def type_similarity(unit: np.ndarray) -> np.ndarray:
-    """Cosine among unit type vectors, clipped to [-1, 1], with an exact 1.0 diagonal."""
+    """Cosine among unit type vectors, clipped to [-1, 1], with an exact 1.0 diagonal.
+
+    Args:
+        unit: float64 array ``[U, d]`` with unit rows.
+
+    Returns:
+        float64 array ``[U, U]``. The exact diagonal makes the similarity between
+        occurrences of one type exactly 1.
+    """
 
     sim = np.asarray(unit, dtype=np.float64) @ np.asarray(unit, dtype=np.float64).T
     np.clip(sim, -1.0, 1.0, out=sim)
@@ -265,6 +420,25 @@ def _block_candidates(s: np.ndarray, k_max: int, n_candidates: int, eps: float) 
 
     Every row of ``s`` must hold exactly one excluded entry set to ``-inf`` (the row itself, or
     its own type) and finite values elsewhere.
+
+    When every other item fits in ``n_candidates`` the row is the full sorted row. Otherwise
+    the top ``K = n_candidates`` entries are taken and sorted by ``(-sim, idx)``. A row whose
+    K-th similarity is within ``eps`` of ``s(k_max)`` is replaced by every ``j`` with
+    ``s_ij >= s(k_max) - eps`` (fallback). A row whose tie group at the K-th similarity
+    crosses the cut loses that group, so the stored row does not depend on which tied
+    entries ``topk`` happened to return.
+
+    Args:
+        s: float64 array ``[b, m]`` of similarities of ``b`` rows against ``m`` items.
+        k_max: Largest ``k`` the candidates must serve.
+        n_candidates: ``K``, the candidates kept per row.
+        eps: Tolerance of the completeness rule.
+
+    Returns:
+        The candidate rows of the block; ``idx`` are column indices of ``s``.
+
+    Raises:
+        ValueError: If there are fewer than ``k_max`` other items or ``K < k_max``.
     """
 
     b, m = s.shape
@@ -322,6 +496,16 @@ def _block_candidates(s: np.ndarray, k_max: int, n_candidates: int, eps: float) 
 
 
 def _assemble(blocks: Sequence[_Block], ids: np.ndarray | None = None) -> Candidates:
+    """Join block results into one :class:`Candidates`.
+
+    Args:
+        blocks: Results of :func:`_block_candidates`, in row order.
+        ids: When given, the column indices are mapped through it (type index to token id).
+
+    Returns:
+        The candidates of all rows, with the diagnostics.
+    """
+
     idx = np.concatenate([block.idx for block in blocks])
     if ids is not None:
         idx = ids[idx]
@@ -335,7 +519,16 @@ def _assemble(blocks: Sequence[_Block], ids: np.ndarray | None = None) -> Candid
 
 
 def rows_per_block(block_size: int, n_columns: int, block_bytes: int = BLOCK_BYTES) -> int:
-    """Rows of one float64 similarity block: ``block_size`` capped by the memory budget."""
+    """Rows of one float64 similarity block: ``block_size`` capped by the memory budget.
+
+    Args:
+        block_size: ``networks.block_size``.
+        n_columns: Number of columns of the block (items compared against).
+        block_bytes: Memory budget of one block. Defaults to :data:`BLOCK_BYTES`.
+
+    Returns:
+        ``min(block_size, block_bytes // (8 * n_columns))``, at least 1.
+    """
 
     return max(1, min(int(block_size), int(block_bytes) // (8 * max(1, n_columns))))
 
@@ -356,6 +549,29 @@ def knn_candidates(
 
     With ``types``, the same block loop also yields variant (c): per row, the best occurrence of
     every other type (``idx`` are token ids), with the same completeness rule over types.
+
+    Args:
+        x: float64 array ``[n, d]`` with unit rows (see :func:`normalize_rows`).
+        k_max: Largest ``k`` the candidates must serve.
+        n_candidates: Candidates kept per row.
+        eps: Tolerance of the completeness rule.
+        block_size: Most rows per similarity block.
+        types: Sample types; when given, type candidates are computed too.
+        n_type_candidates: Type candidates kept per row; ``None`` uses ``n_candidates``.
+        block_bytes: Memory budget of one block.
+        label: When given, progress is logged under this name.
+
+    Returns:
+        ``(candidates, type_candidates)``; the second is ``None`` without ``types``. A row
+        never lists itself, and a type row never lists the row's own type.
+
+    Raises:
+        ValueError: If ``x`` is not a float64 matrix, has too few rows for ``k_max``, or
+            ``types`` does not match it or has too few types.
+
+    Notes:
+        Each block computes ``x[start:stop] @ x.T`` in float64 and clips it to ``[-1, 1]``;
+        the full ``n x n`` matrix is never stored.
     """
 
     if x.dtype != np.float64 or x.ndim != 2:
@@ -408,6 +624,20 @@ def lexical_candidates(
     token id) until, excluding one self occurrence, ``k_max`` occurrences are covered and the
     next type falls below ``s(k_max) - eps``. Each occurrence of ``t`` gets that template minus
     itself, sorted by ``(-sim, occurrence_id)``.
+
+    Args:
+        types: Sample types.
+        sim_types: float64 array ``[U, U]`` from :func:`type_similarity`.
+        k_max: Largest ``k`` the candidates must serve.
+        eps: Tolerance of the completeness rule.
+
+    Returns:
+        Candidates with one row per occurrence; ``idx`` are occurrence ids and the
+        similarity of an entry is the single cosine of its type pair.
+
+    Raises:
+        ValueError: If there are too few occurrences for ``k_max`` or ``sim_types`` has the
+            wrong shape.
     """
 
     n, n_types = types.n_occurrences, types.n_types
@@ -459,6 +689,19 @@ def lexical_type_candidates(
     """Variant (c) for ``lex``: the k-NN among the sample types, one row per occurrence.
 
     ``idx`` are token ids; the rows of all occurrences of a type are identical.
+
+    Args:
+        types: Sample types.
+        sim_types: float64 array ``[U, U]`` from :func:`type_similarity`.
+        k_max: Largest ``k`` the candidates must serve.
+        n_candidates: Type candidates kept per row.
+        eps: Tolerance of the completeness rule.
+
+    Returns:
+        Candidates with one row per occurrence.
+
+    Raises:
+        ValueError: If there are not more than ``k_max`` distinct types.
     """
 
     if types.n_types - 1 < k_max:
@@ -479,9 +722,31 @@ class BoundarySelector:
 
     ``n_f`` and ``n_b`` are ``|F|`` and ``|B|`` of every row; since rows are sorted by
     ``(-sim, idx)``, F is the first ``n_f`` entries and B the next ``n_b``.
+
+    With ``s_k`` the k-th similarity of a row, ``F = {s > s_k + eps}`` and
+    ``B = {|s - s_k| <= eps}``; always ``|F| < k <= |F| + |B|``.
+
+    Attributes:
+        candidates: The candidate rows.
+        k: Number of neighbours.
+        eps: Tie tolerance.
+        n_f: Int array ``[n]``, size of F per row.
+        n_b: Int array ``[n]``, size of B per row.
     """
 
     def __init__(self, candidates: Candidates, k: int, eps: float) -> None:
+        """Measure F and B of every row.
+
+        Args:
+            candidates: Candidate rows sorted by ``(-sim, idx)`` and complete for ``k``.
+            k: Number of neighbours.
+            eps: Tie tolerance.
+
+        Raises:
+            ValueError: If ``k`` is below 1, ``eps`` is negative or a row has fewer than ``k``
+                candidates.
+        """
+
         if k < 1:
             raise ValueError("k must be positive")
         if eps < 0:
@@ -499,15 +764,28 @@ class BoundarySelector:
 
     @property
     def r(self) -> np.ndarray:
+        """Neighbours still to be chosen in B: ``k - |F|`` for every row."""
+
         return self.k - self.n_f
 
     @property
     def tied(self) -> np.ndarray:
-        """Rows with a boundary tie (``|B| > r``)."""
+        """Rows with a boundary tie (``|B| > r``).
+
+        Returns:
+            Boolean array ``[n]``.
+        """
 
         return self.n_b > self.r
 
     def stats(self) -> dict[str, Any]:
+        """Tie statistics of this ``k`` and ``eps``, for the stage manifest.
+
+        Returns:
+            Number of tied rows, the largest tie block among them, and the mean and maximum
+            out-degree of variant (b) (``|F| + |B|``).
+        """
+
         tied = self.tied
         degree = self.n_f + self.n_b
         return {
@@ -524,6 +802,19 @@ class BoundarySelector:
 
         Rows are ordered by decreasing similarity, then by id. ``random`` draws one uniform key
         per entry of B in the tied rows only (row order), so it is reproducible from ``rng``.
+
+        Args:
+            tie: ``position`` keeps F and the ``r`` smallest ids of B; ``random`` keeps F and
+                ``r`` entries of B drawn uniformly without replacement; ``all`` keeps F and all
+                of B (variable size).
+            rng: Generator of the ``random`` rule.
+
+        Returns:
+            The neighbour sets. Rows without a boundary tie are the first ``k`` candidates under
+            every rule.
+
+        Raises:
+            ValueError: If the rule is unknown, or ``random`` is asked without a generator.
         """
 
         cand, k = self.candidates, self.k
@@ -559,7 +850,18 @@ def select_neighbors(
     tie: Tie = "position",
     rng: np.random.Generator | None = None,
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-    """Neighbour sets of every row (see :meth:`BoundarySelector.pick`)."""
+    """Neighbour sets of every row (see :meth:`BoundarySelector.pick`).
+
+    Args:
+        candidates: Candidate rows sorted by ``(-sim, idx)``.
+        k: Number of neighbours.
+        eps: Tie tolerance.
+        tie: Tie rule: ``position``, ``random`` or ``all``.
+        rng: Generator of the ``random`` rule.
+
+    Returns:
+        ``[n, k]`` int32 array, or the CSR pair for ``all``.
+    """
 
     return BoundarySelector(candidates, k, eps).pick(tie, rng)
 
@@ -572,7 +874,19 @@ def select_row(
     tie: Tie = "position",
     rng: np.random.Generator | None = None,
 ) -> np.ndarray:
-    """The selector on one candidate row sorted by ``(-sim, idx)``."""
+    """The selector on one candidate row sorted by ``(-sim, idx)``.
+
+    Args:
+        sim: Similarities of the row, decreasing.
+        idx: Candidate ids aligned with ``sim``.
+        k: Number of neighbours.
+        eps: Tie tolerance.
+        tie: Tie rule.
+        rng: Generator of the ``random`` rule.
+
+    Returns:
+        1-D array with the chosen ids (``k`` of them, or ``|F| + |B|`` for ``all``).
+    """
 
     single = Candidates(np.array([0, len(idx)]), idx, sim)
     result = select_neighbors(single, k, eps, tie, rng)
@@ -585,7 +899,17 @@ def select_row(
 
 
 def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
-    """Every file of a complete ``knn`` stage (the manifest is written last)."""
+    """Every file of a complete ``knn`` stage (the manifest is written last).
+
+    Args:
+        settings: Run configuration.
+        paths: Paths of the run.
+
+    Returns:
+        Per occurrence representation, the candidates, one neighbour file per ``k`` and the
+        eps-sensitivity file at ``k_main``; then the vocabulary candidates and neighbour
+        files and the stage manifest.
+    """
 
     net = settings.networks
     files: list[Path] = []
@@ -600,7 +924,18 @@ def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
 
 
 def load_layer(path: Path, layer: int) -> np.ndarray:
-    """Block output ``layer`` (1-based) of ``all_layers.npy`` as float64 ``[N, d]``."""
+    """Block output ``layer`` (1-based) of ``all_layers.npy`` as float64 ``[N, d]``.
+
+    Args:
+        path: ``reps/all_layers.npy``.
+        layer: 1-based block.
+
+    Returns:
+        float64 array ``[N, d]`` with the exact values of the stored bfloat16 bits.
+
+    Raises:
+        ValueError: If the layer is outside the stored blocks.
+    """
 
     stack = np.load(path, mmap_mode="r")
     if not 1 <= layer <= stack.shape[0]:
@@ -612,6 +947,17 @@ def load_representation(paths: RunPaths, settings: Settings, name: str) -> np.nd
     """float64 ``[N, d]`` vectors of a contextual representation.
 
     Reads ``reps/{name}.safetensors``; a configured block layer falls back to ``all_layers.npy``.
+
+    Args:
+        paths: Paths of the run.
+        settings: Run configuration (``model.layers`` maps names to blocks).
+        name: Name of a stored representation (not a centered one).
+
+    Returns:
+        float64 array ``[N, d]`` in ``occurrence_id`` order.
+
+    Raises:
+        FileNotFoundError: If neither source has the representation.
     """
 
     path = paths.rep(name)
@@ -624,7 +970,14 @@ def load_representation(paths: RunPaths, settings: Settings, name: str) -> np.nd
 
 
 def load_embeddings(path: Path) -> torch.Tensor:
-    """Input embedding rows of every tokenizer id (bfloat16 ``[V, d]``)."""
+    """Input embedding rows of every tokenizer id (bfloat16 ``[V, d]``).
+
+    Args:
+        path: ``reps/embeddings.safetensors``.
+
+    Returns:
+        The ``weight`` tensor.
+    """
 
     return load_file(str(path))["weight"]
 
@@ -633,6 +986,17 @@ def special_mask(paths: RunPaths, settings: Settings, vocab_size: int) -> np.nda
     """Boolean ``[vocab_size]``: True for special tokenizer ids (excluded from ``vocab``).
 
     Uses ``sample/vocab_types.csv``; without it, the tokenizer's special and added ids.
+
+    Args:
+        paths: Paths of the run.
+        settings: Run configuration, used to load the tokenizer in the fallback.
+        vocab_size: Number of stored embedding rows.
+
+    Returns:
+        Boolean array ``[vocab_size]``.
+
+    Raises:
+        ValueError: If the table or the tokenizer does not have exactly ``vocab_size`` ids.
     """
 
     mask = np.zeros(vocab_size, dtype=bool)
@@ -656,7 +1020,18 @@ def special_mask(paths: RunPaths, settings: Settings, vocab_size: int) -> np.nda
 
 
 def vocab_unit_rows(weight: torch.Tensor, vocab_ids: np.ndarray) -> np.ndarray:
-    """Unit float64 rows ``weight[vocab_ids]``, filled chunk by chunk to bound peak memory."""
+    """Unit float64 rows ``weight[vocab_ids]``, filled chunk by chunk to bound peak memory.
+
+    Args:
+        weight: Embedding matrix ``[V, d]``.
+        vocab_ids: Token ids to keep, the rows of the vocabulary network.
+
+    Returns:
+        float64 array ``[len(vocab_ids), d]`` with unit rows.
+
+    Raises:
+        ValueError: If a kept row has zero or non-finite norm.
+    """
 
     ids = np.asarray(vocab_ids, dtype=np.int64)
     out = np.empty((ids.size, int(weight.shape[1])), dtype=np.float64)
@@ -667,7 +1042,16 @@ def vocab_unit_rows(weight: torch.Tensor, vocab_ids: np.ndarray) -> np.ndarray:
 
 
 def _save_npz(path: Path, compressed: bool = True, **arrays: np.ndarray) -> None:
-    """Write an ``.npz`` atomically, so an interrupted run never leaves a half file behind."""
+    """Write an ``.npz`` atomically, so an interrupted run never leaves a half file behind.
+
+    Args:
+        path: Final file; its directory is created.
+        compressed: Use ``savez_compressed``. Defaults to True.
+        **arrays: Arrays to store, by name.
+
+    Side effects:
+        Writes ``<path>.tmp`` and renames it over ``path``.
+    """
 
     ensure_dir(path.parent)
     tmp = path.with_name(path.name + ".tmp")
@@ -682,7 +1066,16 @@ def _save_npz(path: Path, compressed: bool = True, **arrays: np.ndarray) -> None
 
 
 def candidate_stats(candidates: Candidates, tolerances: dict[str, float]) -> dict[str, Any]:
-    """Size of the candidate lists and rows taken in full at each tolerance."""
+    """Size of the candidate lists and rows taken in full at each tolerance.
+
+    Args:
+        candidates: Candidates with their diagnostics.
+        tolerances: Label to tolerance; one ``fallback_rows_<label>`` count is added for
+            each.
+
+    Returns:
+        Rows, entries, mean and maximum row length and the fallback counts.
+    """
 
     lengths = candidates.lengths
     stats: dict[str, Any] = {
@@ -700,6 +1093,17 @@ def candidate_stats(candidates: Candidates, tolerances: dict[str, float]) -> dic
 def _draws(
     selector: BoundarySelector, seeds: int, rng_for: Callable[[int], np.random.Generator]
 ) -> np.ndarray:
+    """Random tie-break neighbour sets of every seed.
+
+    Args:
+        selector: Selector of one representation and ``k``.
+        seeds: Number of seeds.
+        rng_for: Seed index to its generator.
+
+    Returns:
+        int32 array ``[seeds, n, k]``.
+    """
+
     return np.stack([selector.pick("random", rng_for(seed)) for seed in range(seeds)])
 
 
@@ -710,7 +1114,25 @@ def write_neighbor_sets(
     settings: Settings,
     paths: RunPaths,
 ) -> dict[str, Any]:
-    """Write ``nbr_{rep}_k{k}.npz`` for every k and the eps-sensitivity file; return tie stats."""
+    """Write ``nbr_{rep}_k{k}.npz`` for every k and the eps-sensitivity file; return tie stats.
+
+    Each file holds ``pos`` (``[N, k]``, position rule), ``rand`` (``[seeds, N, k]``),
+    ``all_indptr`` and ``all_idx`` (variant (b), CSR), ``types_pos`` (``[N, k]`` token ids)
+    and ``types_rand`` (``[seeds, N, k]``). The sensitivity file, written for ``k_main``
+    only, holds ``pos`` and ``rand`` selected with ``eps_sensitivity`` and the same
+    generators.
+
+    Args:
+        rep: Representation name.
+        candidates: Occurrence candidates of the representation.
+        type_candidates: Type candidates of the representation (variant (c)).
+        settings: Run configuration (``networks`` section).
+        paths: Paths of the run.
+
+    Returns:
+        ``{str(k): stats}`` with the tie statistics at ``eps``, at ``eps_sensitivity`` and
+        of the type sets.
+    """
 
     net = settings.networks
     per_k: dict[str, Any] = {}
@@ -749,7 +1171,22 @@ def write_neighbor_sets(
 def build_vocab_network(
     x: np.ndarray, vocab_ids: np.ndarray, settings: Settings, paths: RunPaths
 ) -> dict[str, Any]:
-    """Candidates and neighbour sets of the vocabulary type network (rows = ``vocab_ids``)."""
+    """Candidates and neighbour sets of the vocabulary type network (rows = ``vocab_ids``).
+
+    Args:
+        x: Unit float64 rows of the kept vocabulary ids, ``[len(vocab_ids), d]``.
+        vocab_ids: Token id of each row, increasing.
+        settings: Run configuration (``networks`` section).
+        paths: Paths of the run.
+
+    Returns:
+        Statistics for the manifest.
+
+    Side effects:
+        Writes ``vocab_cand.npz`` and one ``vocab_k{k}.npz`` per ``k`` with ``vocab_ids``,
+        ``pos`` and ``rand`` (a single seed, ``[1, n, k]``). The neighbour entries are row
+        indices of the network; ``vocab_ids`` maps them to token ids.
+    """
 
     net = settings.networks
     k_values = list(net.vocab.k_values)
@@ -790,6 +1227,28 @@ def _occurrence_candidates(
     settings: Settings,
     paths: RunPaths,
 ) -> tuple[Candidates, Candidates]:
+    """Occurrence and type candidates of one representation.
+
+    ``lex`` is derived exactly from the similarity among the sample types; every other
+    representation goes through :func:`knn_candidates` on its stored vectors, centered when
+    asked. The completeness tolerance is ``max(eps, eps_sensitivity)``.
+
+    Args:
+        rep: Representation name.
+        source: Name of the stored vectors it is computed from.
+        centered: Subtract the mean vector before normalizing.
+        types: Sample types.
+        weight: Embedding matrix ``[V, d]``.
+        settings: Run configuration.
+        paths: Paths of the run.
+
+    Returns:
+        ``(candidates, type_candidates)``.
+
+    Raises:
+        ValueError: If the stored vectors do not have one row per occurrence.
+    """
+
     net = settings.networks
     k_max = max(net.k_values)
     eps = max(net.eps, net.eps_sensitivity)
@@ -819,7 +1278,16 @@ def _occurrence_candidates(
 
 
 def check_settings(settings: Settings) -> None:
-    """Fail before any computation when the candidate sizes cannot cover the largest k."""
+    """Fail before any computation when the candidate sizes cannot cover the largest k.
+
+    Args:
+        settings: Run configuration.
+
+    Raises:
+        ValueError: If ``k_values`` is empty or has a non-positive value, ``k_main`` is not
+            in it, a tolerance is negative, or ``candidates`` or ``type_candidates`` is
+            smaller than the largest ``k`` it must serve.
+    """
 
     net = settings.networks
     if not net.k_values or min(net.k_values) < 1:
@@ -839,6 +1307,27 @@ def check_settings(settings: Settings) -> None:
 
 
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
+    """Stage ``knn``: candidates and neighbour sets of every network.
+
+    For each occurrence representation the candidates are computed and written, then the
+    neighbour sets of every ``k`` and tie rule; the vocabulary network over the non-special
+    tokenizer ids comes last.
+
+    Args:
+        settings: Run configuration; the ``networks`` and ``model`` sections are used.
+        paths: Paths of the run.
+        force: Redo the stage even when it is up to date.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Raises:
+        FileNotFoundError: If the sample or the representations are missing.
+        ValueError: If the settings or the inputs are inconsistent.
+
+    Side effects:
+        Writes the ``cand_*``, ``nbr_*`` and ``vocab_*`` files of ``knn/`` and, last, the
+        manifest with the tie statistics and timings.
+    """
+
     net = settings.networks
     targets = output_paths(settings, paths)
     inputs = [paths.manifest("sample"), paths.manifest("reps")]

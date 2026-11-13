@@ -35,6 +35,20 @@ Transport = Callable[[str, dict[str, str], float], tuple[int, dict[str, str], by
 
 
 def urllib_transport(url: str, headers: dict[str, str], timeout: float) -> tuple[int, dict, bytes]:
+    """Default transport: one HTTP GET with ``urllib``.
+
+    HTTP error statuses are returned, not raised, so :meth:`WikiClient.request` can decide
+    whether to retry; connection failures still raise ``OSError``.
+
+    Args:
+        url: Full request URL, query string included.
+        headers: Request headers.
+        timeout: Socket timeout in seconds.
+
+    Returns:
+        ``(status, response headers, body bytes)``.
+    """
+
     request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -62,7 +76,18 @@ _RETRYABLE = (OSError, http.client.HTTPException, ValueError)  # ValueError: bad
 
 @dataclass
 class CrawlTrace:
-    """What one :meth:`WikiClient.crawl` went through (filled when passed to it)."""
+    """What one :meth:`WikiClient.crawl` went through (filled when passed to it).
+
+    Attributes:
+        found: The crawl result: title to ``(category that first reached it, depth)``.
+        opened: ``(category, depth)`` of every category whose members were listed, in order.
+        tree_parent: Subcategory to the category that queued it.
+        subcats: Category to its subcategories after the skip patterns.
+        read: Category to the titles gone through, in order, up to the title limit.
+        n_pages: Category to its number of article members (before the ``Lista de`` filter).
+        cut: Category in which the title limit was reached; ``None`` when it never was.
+        unopened: Categories still queued when the walk ended.
+    """
 
     found: dict[str, tuple[str, int]] = field(default_factory=dict)  # what crawl returns
     opened: list[tuple[str, int]] = field(default_factory=list)  # categories, in opening order
@@ -76,7 +101,17 @@ class CrawlTrace:
 
 @dataclass(frozen=True)
 class Page:
-    """Latest revision of an article."""
+    """Latest revision of an article.
+
+    Also used for an exact revision fetched by id (:meth:`WikiClient.fetch_revisions`).
+
+    Attributes:
+        title: Page title as the API returns it (after normalization and redirects).
+        pageid: Page id.
+        revid: Id of the revision whose text is in ``wikitext``.
+        wikitext: Content of the main slot; empty when the API returns none.
+        disambiguation: True when the page has the ``disambiguation`` page property.
+    """
 
     title: str
     pageid: int
@@ -90,6 +125,19 @@ class WikiClient:
 
     With ``offline=True`` a cache miss raises :class:`CacheMiss`, so a rebuild from the cache
     either reproduces the cached selection or fails loudly instead of fetching newer revisions.
+
+    Attributes:
+        cache_dir: Root of the response cache.
+        user_agent: ``User-Agent`` header of every request.
+        delay_s: Seconds slept before every network request.
+        api_url: API endpoint.
+        transport: Function that performs the HTTP request (replaced in the tests).
+        sleep: Function used to wait (replaced in the tests).
+        max_attempts: Network attempts per request before giving up.
+        offline: Forbid network requests.
+        network_requests: Number of network attempts made so far.
+        cache_hits: Number of requests answered from the cache so far.
+        skipped_categories: Categories :meth:`crawl` skipped after a permanent API error.
     """
 
     def __init__(
@@ -103,6 +151,20 @@ class WikiClient:
         max_attempts: int = 12,
         offline: bool = False,
     ) -> None:
+        """Create a client; nothing is read or requested yet.
+
+        Args:
+            cache_dir: Root of the response cache; created on the first write.
+            user_agent: ``User-Agent`` header (Wikimedia asks for a contact in it).
+            delay_s: Seconds slept before every network request. Defaults to 2.5.
+            api_url: API endpoint. Defaults to the Portuguese Wikipedia.
+            transport: ``transport(url, headers, timeout) -> (status, headers, body)``; ``None``
+                uses :func:`urllib_transport`.
+            sleep: Function called to wait, with the seconds as argument.
+            max_attempts: Network attempts per request. Defaults to 12.
+            offline: Raise :class:`CacheMiss` instead of requesting. Defaults to False.
+        """
+
         self.cache_dir = Path(cache_dir)
         self.user_agent = user_agent
         self.delay_s = delay_s
@@ -116,12 +178,33 @@ class WikiClient:
         self.skipped_categories: list[str] = []
 
     def _cache_path(self, params: dict[str, str]) -> Path:
+        """Cache file of a request.
+
+        Args:
+            params: Complete request parameters (``format`` and ``formatversion`` included,
+                ``maxlag`` not).
+
+        Returns:
+            ``cache_dir/<first two hex digits>/<sha256>.json.gz``, where the hash is taken over
+            the parameters sorted by name, so the key does not depend on argument order.
+        """
+
         key = json.dumps(sorted(params.items()), ensure_ascii=False)
         digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
         return self.cache_dir / digest[:2] / f"{digest}.json.gz"
 
     def _read_cache(self, path: Path) -> dict[str, Any] | None:
-        """Cached response, or None (a corrupt file from an interrupted write is deleted)."""
+        """Cached response, or None (a corrupt file from an interrupted write is deleted).
+
+        Args:
+            path: Cache file from :meth:`_cache_path`.
+
+        Returns:
+            The decoded response, or ``None`` when the file is absent or unreadable.
+
+        Side effects:
+            Deletes an unreadable cache file and logs a warning.
+        """
 
         if not path.exists():
             return None
@@ -133,7 +216,16 @@ class WikiClient:
             return None
 
     def _write_cache(self, path: Path, data: dict[str, Any]) -> None:
-        """Atomic write: a killed process never leaves a truncated cache file behind."""
+        """Atomic write: a killed process never leaves a truncated cache file behind.
+
+        Args:
+            path: Final cache file.
+            data: Decoded API response to store.
+
+        Side effects:
+            Writes a temporary file named after the process id next to ``path`` and renames it
+            over ``path``.
+        """
 
         temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         write_json_gz(temporary, data)
@@ -141,6 +233,19 @@ class WikiClient:
 
     @staticmethod
     def _checked(data: dict[str, Any]) -> dict[str, Any]:
+        """Return a response, or raise when it carries an API error.
+
+        Args:
+            data: Decoded API response.
+
+        Returns:
+            ``data`` unchanged.
+
+        Raises:
+            ApiError: If the response has an ``error`` object. Only permanent errors reach this
+                point, because transient ones are retried and never cached.
+        """
+
         error = data.get("error")
         if error:
             raise ApiError(f"API error {error.get('code')}: {error.get('info')}")
@@ -150,6 +255,30 @@ class WikiClient:
         """GET the API with JSON output; cached responses never reach the network.
 
         Permanent API errors are cached too, so a rerun walks the category tree identically.
+
+        On a cache miss the request is attempted up to ``max_attempts`` times. Every attempt
+        first sleeps ``delay_s``. Network and decoding errors wait ``min(120, 5 * attempt)``
+        seconds; HTTP 429 and 5xx wait the larger of ``Retry-After`` and an exponential backoff
+        (30 s doubling up to 600 s); a ``maxlag`` error waits at least 10 s; any other API error
+        code outside :data:`PERMANENT_ERRORS` waits the backoff.
+
+        Args:
+            **params: API parameters; values are converted with ``str``. ``format=json`` and
+                ``formatversion=2`` are added, and ``maxlag=5`` is sent but is not part of the
+                cache key.
+
+        Returns:
+            The decoded response.
+
+        Raises:
+            CacheMiss: In offline mode, when the response is not cached.
+            ApiError: If the API answers with a permanent error (also when read from the cache).
+            RuntimeError: On another HTTP status (403, 404...), or after ``max_attempts``
+                attempts.
+
+        Side effects:
+            Sleeps, performs network requests, writes the cache and updates ``cache_hits`` and
+            ``network_requests``.
         """
 
         full = {"format": "json", "formatversion": "2", **{k: str(v) for k, v in params.items()}}
@@ -198,7 +327,20 @@ class WikiClient:
     def category_members(
         self, category: str, skip_patterns: Iterable[str] = ()
     ) -> tuple[list[str], list[str]]:
-        """Articles (namespace 0) and content subcategories (namespace 14) of a category."""
+        """Articles (namespace 0) and content subcategories (namespace 14) of a category.
+
+        Args:
+            category: Category title with its prefix (``Categoria:Física``).
+            skip_patterns: Substrings; a subcategory whose title contains one is left out. The
+                filter is applied after the request, so it does not change the cache key.
+
+        Returns:
+            ``(article titles, subcategory titles)`` in API order (the category sort key, in
+            general alphabetical), following continuation until the list is complete.
+
+        Raises:
+            ApiError: If the category title is invalid.
+        """
 
         skip = tuple(skip_patterns)
         pages: list[str] = []
@@ -235,6 +377,23 @@ class WikiClient:
         The API lists members alphabetically, so stopping at ``max_titles`` keeps the first
         subcategories and titles of the alphabet; ``None`` walks the whole tree to ``depth``.
         ``trace``, when given, records the walk (for the crawl page of ``scripts/``).
+
+        Args:
+            roots: Categories the walk starts from, all at depth 0.
+            depth: Deepest category level opened; members of a category at this level are read,
+                its subcategories are not queued.
+            max_titles: Stop as soon as this many distinct titles were found; ``None`` for no
+                limit.
+            skip_patterns: Substrings of subcategory titles that are not queued.
+            trace: Object filled with the details of the walk.
+
+        Returns:
+            Title to ``(category, depth of that category)``, in discovery order. Titles starting
+            with ``Lista de`` or ``Listas de`` are left out.
+
+        Side effects:
+            A category that answers with a permanent API error is logged, appended to
+            ``skipped_categories`` and skipped. Progress is logged every 200 categories.
         """
 
         skip = tuple(skip_patterns)
@@ -290,6 +449,19 @@ class WikiClient:
 
         MediaWiki stops adding revisions once a response reaches its size limit and returns a
         ``continue`` marker; without following it, long articles would look missing.
+
+        Args:
+            key: ``titles`` or ``revids``.
+            values: Titles or revision ids (as strings) of one batch, joined with ``|``.
+
+        Returns:
+            ``{"aliases": [...], "pages": [...]}``: the ``normalized`` and ``redirects`` entries
+            of the first response (``{"from", "to"}`` pairs), and one merged page object per
+            title, keeping the first revision list seen for it.
+
+        Side effects:
+            Logs a warning for a page that is neither missing nor invalid and still has no
+            revision after the continuation.
         """
 
         params = {
@@ -325,6 +497,16 @@ class WikiClient:
 
     @staticmethod
     def _page(page: dict[str, Any]) -> Page | None:
+        """:class:`Page` of an API page object, or ``None`` when it has no usable revision.
+
+        Args:
+            page: Page object of a ``prop=revisions`` response.
+
+        Returns:
+            The page built from the first revision in the object; ``None`` for missing or
+            invalid pages and for pages without revisions.
+        """
+
         revisions = page.get("revisions")
         if page.get("missing") or page.get("invalid") or not revisions:
             return None
@@ -342,6 +524,15 @@ class WikiClient:
 
         Normalized or redirected titles map back to every title that was requested for the same
         page (a batch may hold both an article and a redirect to it).
+
+        Args:
+            titles: Titles to fetch. The batches are consecutive slices of this list, and each
+                batch is one cache key, so the same list in the same order hits the cache.
+            batch: Titles per request. Defaults to 50, the API maximum.
+
+        Returns:
+            Requested title to its :class:`Page`; titles that are missing or invalid are absent.
+            Redirect chains are followed for at most 10 hops.
         """
 
         out: dict[str, Page] = {}
@@ -364,7 +555,16 @@ class WikiClient:
         return out
 
     def fetch_revisions(self, revids: list[int], batch: int = 50) -> list[Page]:
-        """Exact revisions by id, used to rebuild the corpus from ``manifest.csv``."""
+        """Exact revisions by id, used to rebuild the corpus from ``manifest.csv``.
+
+        Args:
+            revids: Revision ids to fetch.
+            batch: Ids per request. Defaults to 50.
+
+        Returns:
+            One :class:`Page` per revision the API still serves, in response order (not in the
+            order of ``revids``); callers index the result by ``revid``.
+        """
 
         pages: list[Page] = []
         for start in range(0, len(revids), batch):
@@ -377,7 +577,15 @@ class WikiClient:
 
 
 def _retry_after(headers: dict[str, str]) -> float:
-    """Seconds requested by a numeric ``Retry-After`` header (0 when absent or a date)."""
+    """Seconds requested by a numeric ``Retry-After`` header (0 when absent or a date).
+
+    Args:
+        headers: Response headers; the name is looked up as ``Retry-After`` and
+            ``retry-after`` only.
+
+    Returns:
+        Non-negative number of seconds.
+    """
 
     value = headers.get("Retry-After") or headers.get("retry-after") or ""
     try:

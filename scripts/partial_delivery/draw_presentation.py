@@ -54,7 +54,19 @@ WORD_LEGEND = ["continua no token seguinte", "termina no token (ou pontuação)"
 
 
 def cached_layout(rep: str, g: ig.Graph) -> np.ndarray:
-    """The UMAP positions of ``draw_networks.py``, only when they belong to these edges."""
+    """The UMAP positions of ``draw_networks.py``, only when they belong to these edges.
+
+    Args:
+        rep: Representation name.
+        g: The union graph, with its ``edge_hash`` graph attribute.
+
+    Returns:
+        float array ``[n, 2]``.
+
+    Raises:
+        FileNotFoundError: If the layout was not computed yet.
+        ValueError: If the cached layout was computed for other edges.
+    """
 
     path = dn.LAYOUTS / f"umap_{rep}.npz"
     if not path.exists():
@@ -66,7 +78,16 @@ def cached_layout(rep: str, g: ig.Graph) -> np.ndarray:
 
 
 def view(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
-    """Center and half side of the square view, and how many vertices fall outside it."""
+    """Center and half side of the square view, and how many vertices fall outside it.
+
+    Args:
+        xy: Vertex positions ``[n, 2]``.
+
+    Returns:
+        ``(center, half, outside)``: the midpoint of the central quantile range of each
+        axis, half the larger range plus a 10% margin, and the number of vertices outside
+        the square.
+    """
 
     low, high = np.quantile(xy, [VIEW_TAIL, 1 - VIEW_TAIL], axis=0)
     center, half = (low + high) / 2, np.max(high - low) / 2 * 1.1
@@ -77,7 +98,18 @@ def view(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray, int]:
 def figure_network(
     g: ig.Graph, xy: np.ndarray, colors: np.ndarray, legend: Sequence[tuple[str, str]]
 ) -> Figure:
-    """One network, in the square ``view``, with the legend on the right."""
+    """One network, in the square ``view``, with the legend on the right.
+
+    Args:
+        g: The union graph.
+        xy: Vertex positions ``[n, 2]``.
+        colors: Color of every vertex.
+        legend: ``(label, color)`` entries.
+
+    Returns:
+        The figure; edges and vertices are rasterized at 300 dpi, vertices drawn in a fixed
+        random order.
+    """
 
     fig, axes = plots.figure(1, 1, height=3.2, width=4.6)
     fig.set_dpi(300)  # the edges and vertices are rasterized at this resolution
@@ -102,7 +134,14 @@ def figure_network(
 
 
 def figure_in_degrees(in_degrees: dict[str, np.ndarray]) -> Figure:
-    """``P(K = d)`` of the in-degree, log-log, in the size and style of ``graus.pdf``."""
+    """``P(K = d)`` of the in-degree, log-log, in the size and style of ``graus.pdf``.
+
+    Args:
+        in_degrees: Representation name to the in-degree of every vertex.
+
+    Returns:
+        The figure; vertices of in-degree 0 are not drawn but count in the denominator.
+    """
 
     fig, ax, styles = en._half_figure(in_degrees, "Distribuição dos graus de entrada", "both")
     for rep, degrees in in_degrees.items():
@@ -129,7 +168,17 @@ def figure_in_degrees(in_degrees: dict[str, np.ndarray]) -> Figure:
 
 
 def arc_composition(g: ig.Graph, continues: np.ndarray) -> dict[str, float]:
-    """``draw_networks.edge_composition`` over the arcs of a directed network."""
+    """``draw_networks.edge_composition`` over the arcs of a directed network.
+
+    Args:
+        g: The directed graph, with ``token_id`` and ``theme`` vertex attributes.
+        continues: Whether the word goes on after each vertex's token.
+
+    Returns:
+        The number of arcs, the shares of arcs joining the same token and the same theme,
+        the share joining the two word positions, and the nominal assortativity of theme
+        and of word position (directed).
+    """
 
     e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
     token = np.asarray(g.vs["token_id"], dtype=np.int64)
@@ -146,6 +195,14 @@ def arc_composition(g: ig.Graph, continues: np.ndarray) -> dict[str, float]:
 
 
 def main() -> None:
+    """Draw the networks of the talk and write the arc table.
+
+    Side effects:
+        Writes ``figuras/rede_<rep>_{tema,palavra}.pdf``, ``figuras/graus_pk.pdf`` and
+        ``tabelas/arcos.csv`` under ``report/apresentacao-parcial`` and prints the table. It
+        reads ``data/graphml`` and the cached layouts.
+    """
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args()
 

@@ -53,7 +53,16 @@ RASTER_DPI = 50
 
 
 def files_of(root: Path, include_reps: bool) -> Iterator[Path]:
-    """Relative paths of the files to compare under ``root``, sorted."""
+    """Relative paths of the files to compare under ``root``, sorted.
+
+    Args:
+        root: Run folder.
+        include_reps: Also list the files of ``reps/``.
+
+    Yields:
+        Paths relative to ``root``, without stage manifests, the volatile tables, LaTeX
+        auxiliary files and, by default, the representations.
+    """
 
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root)
@@ -67,6 +76,16 @@ def files_of(root: Path, include_reps: bool) -> Iterator[Path]:
 
 
 def same_arrays(a: np.ndarray, b: np.ndarray) -> bool:
+    """Whether two arrays have the same shape, dtype and values (NaN equal to NaN).
+
+    Args:
+        a: First array.
+        b: Second array.
+
+    Returns:
+        True when they are identical.
+    """
+
     if a.shape != b.shape or a.dtype != b.dtype:
         return False
     if a.dtype.kind in "fc":
@@ -75,6 +94,16 @@ def same_arrays(a: np.ndarray, b: np.ndarray) -> bool:
 
 
 def compare_npz(a: Path, b: Path) -> str | None:
+    """Compare two ``.npz`` files array by array.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when equal, otherwise a message naming the first difference.
+    """
+
     with np.load(a, allow_pickle=False) as left, np.load(b, allow_pickle=False) as right:
         if sorted(left.files) != sorted(right.files):
             return f"keys {sorted(left.files)} != {sorted(right.files)}"
@@ -85,12 +114,36 @@ def compare_npz(a: Path, b: Path) -> str | None:
 
 
 def compare_npy(a: Path, b: Path) -> str | None:
+    """Compare two ``.npy`` files.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when equal, otherwise ``"array differs"``. Both arrays are read whole.
+    """
+
     left = np.load(a, mmap_mode="r", allow_pickle=False)
     right = np.load(b, mmap_mode="r", allow_pickle=False)
     return None if same_arrays(np.asarray(left), np.asarray(right)) else "array differs"
 
 
 def rasterize(pdf: Path, out_dir: Path) -> list[np.ndarray]:
+    """Pages of a PDF as RGB arrays, rendered with ``pdftoppm``.
+
+    Args:
+        pdf: PDF file.
+        out_dir: Directory for the page images; created when missing.
+
+    Returns:
+        One uint8 array ``[height, width, 3]`` per page, at :data:`RASTER_DPI`.
+
+    Raises:
+        subprocess.CalledProcessError: If ``pdftoppm`` fails.
+        FileNotFoundError: If ``pdftoppm`` is not installed.
+    """
+
     out_dir.mkdir(parents=True, exist_ok=True)
     prefix = out_dir / hashlib.sha1(str(pdf).encode()).hexdigest()
     subprocess.run(
@@ -103,6 +156,17 @@ def rasterize(pdf: Path, out_dir: Path) -> list[np.ndarray]:
 
 
 def compare_pdf(a: Path, b: Path) -> str | None:
+    """Compare two PDFs by their bytes and, when those differ, by their rendered pixels.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when the pages render to the same pixels, otherwise a message with the page
+        and the number of differing pixels.
+    """
+
     if a.read_bytes() == b.read_bytes():
         return None
     with tempfile.TemporaryDirectory() as tmp:
@@ -120,12 +184,32 @@ def compare_pdf(a: Path, b: Path) -> str | None:
 
 
 def stable_lines(path: Path) -> list[str]:
+    """Lines of a ``.tex`` file without the parts that change from run to run.
+
+    Args:
+        path: File to read.
+
+    Returns:
+        The lines without those of the :data:`VOLATILE_MACROS`, and with every duration
+        replaced by ``<duration>``.
+    """
+
     lines = path.read_text(encoding="utf-8").splitlines()
     kept = [line for line in lines if not any(macro in line for macro in VOLATILE_MACROS)]
     return [DURATION.sub("<duration>", line) for line in kept]
 
 
 def compare_tex(a: Path, b: Path) -> str | None:
+    """Compare two ``.tex`` files, ignoring run dates, revisions and durations.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when equal, otherwise a message with the first differing line.
+    """
+
     left, right = stable_lines(a), stable_lines(b)
     if left == right:
         return None
@@ -136,6 +220,16 @@ def compare_tex(a: Path, b: Path) -> str | None:
 
 
 def stable_rows(path: Path) -> list[list[str]]:
+    """Rows of a CSV file without the timing columns.
+
+    Args:
+        path: File to read.
+
+    Returns:
+        The header and the data rows, as lists of cell texts, without the columns whose
+        name starts with ``elapsed``.
+    """
+
     with path.open(newline="", encoding="utf-8") as stream:
         rows = list(csv.reader(stream))
     if not rows:
@@ -145,6 +239,17 @@ def stable_rows(path: Path) -> list[list[str]]:
 
 
 def compare_csv(a: Path, b: Path) -> str | None:
+    """Compare two CSV files cell by cell, as text, ignoring the timing columns.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when equal, otherwise a message with the first differing row or the
+        differing headers.
+    """
+
     left, right = stable_rows(a), stable_rows(b)
     if left == right:
         return None
@@ -159,6 +264,17 @@ def compare_csv(a: Path, b: Path) -> str | None:
 
 
 def without_timings(value: object) -> object:
+    """Copy of a decoded JSON value without the keys that time the computation.
+
+    Args:
+        value: Decoded JSON value.
+
+    Returns:
+        The same structure without the dictionary keys matched by :data:`TIMING_KEYS` (names
+        ending in ``_s``, ``seconds`` or ``per_second``, or starting with ``elapsed`` or
+        ``timings``).
+    """
+
     if isinstance(value, dict):
         return {k: without_timings(v) for k, v in value.items() if not TIMING_KEYS.search(k)}
     if isinstance(value, list):
@@ -167,12 +283,32 @@ def without_timings(value: object) -> object:
 
 
 def compare_json(a: Path, b: Path) -> str | None:
+    """Compare two JSON files, ignoring the timing keys.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when equal, otherwise a fixed message.
+    """
+
     left = without_timings(json.loads(a.read_text(encoding="utf-8")))
     right = without_timings(json.loads(b.read_text(encoding="utf-8")))
     return None if left == right else "content differs (timings ignored)"
 
 
 def compare_safetensors(a: Path, b: Path) -> str | None:
+    """Compare two ``.safetensors`` files: metadata, tensor names, dtypes, shapes and values.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when equal, otherwise a message naming the first difference.
+    """
+
     import torch
     from safetensors import safe_open
 
@@ -189,6 +325,16 @@ def compare_safetensors(a: Path, b: Path) -> str | None:
 
 
 def compare_bytes(a: Path, b: Path) -> str | None:
+    """Compare two files byte by byte.
+
+    Args:
+        a: Reference file.
+        b: Other file.
+
+    Returns:
+        ``None`` when equal, otherwise a message with the first differing line.
+    """
+
     if a.read_bytes() == b.read_bytes():
         return None
     left = a.read_bytes().splitlines()
@@ -211,7 +357,16 @@ COMPARERS = {
 
 
 def compare(reference: Path, other: Path, include_reps: bool) -> list[str]:
-    """Differences between the two folders, one message per file."""
+    """Differences between the two folders, one message per file.
+
+    Args:
+        reference: Folder with the expected files.
+        other: Folder to check.
+        include_reps: Also compare the representations.
+
+    Returns:
+        Messages for missing, extra and differing files; empty when the folders agree.
+    """
 
     expected = set(files_of(reference, include_reps))
     found = set(files_of(other, include_reps))
@@ -226,6 +381,18 @@ def compare(reference: Path, other: Path, include_reps: bool) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Command-line entry point.
+
+    Args:
+        argv: Arguments without the program name; ``None`` reads ``sys.argv``.
+
+    Returns:
+        1 when any file differs, 0 otherwise.
+
+    Side effects:
+        Prints one line per problem and a summary. Nothing is written to the run folders.
+    """
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("reference", type=Path)
     parser.add_argument("other", type=Path)

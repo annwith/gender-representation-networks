@@ -100,12 +100,33 @@ PAGE_ATTRIBUTES = [
 
 
 def read(rep: str, sym: str) -> ig.Graph:
+    """One delivered network, read from its GraphML file and simplified.
+
+    Args:
+        rep: Representation name.
+        sym: ``union`` or ``directed``.
+
+    Returns:
+        The igraph graph of ``data/graphml/{rep}_k10_{sym}.graphml``.
+    """
+
     g = ig.Graph.Read_GraphML(str(GRAPHML / f"{rep}_k{K}_{sym}.graphml"))
     g.simplify()
     return g
 
 
 def check_directed_matches_union(rep: str, union: ig.Graph) -> None:
+    """Check that the directed file, with directions dropped, has exactly the union edges.
+
+    Args:
+        rep: Representation name.
+        union: The union graph already read.
+
+    Raises:
+        ValueError: If the two files list the vertices in different orders or their edge
+            sets differ.
+    """
+
     directed = read(rep, "directed")
     if directed.vs["occurrence_id"] != union.vs["occurrence_id"]:
         raise ValueError(f"{rep}: directed and union files list the vertices in different orders")
@@ -114,7 +135,20 @@ def check_directed_matches_union(rep: str, union: ig.Graph) -> None:
 
 
 def layout(rep: str, g: ig.Graph, recompute: bool) -> np.ndarray:
-    """UMAP positions, from the cache when it was computed for the same edges."""
+    """UMAP positions, from the cache when it was computed for the same edges.
+
+    Args:
+        rep: Representation name, the cache key.
+        g: The union graph, with its ``edge_hash`` graph attribute.
+        recompute: Ignore the cache.
+
+    Returns:
+        float64 array ``[n, 2]``.
+
+    Side effects:
+        When computing: seeds Python's ``random`` with :data:`LAYOUT_SEED`, prints the time
+        and writes ``layout/umap_<rep>.npz`` in the main run folder.
+    """
 
     path = LAYOUTS / f"umap_{rep}.npz"
     if path.exists() and not recompute:
@@ -134,6 +168,13 @@ def normalize(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Positions centered on the median and scaled so the view disc has radius 1.
 
     Returns the positions and the boolean mask of the vertices outside that disc.
+
+    Args:
+        xy: Vertex positions ``[n, 2]``.
+
+    Returns:
+        ``(scaled, outside)``; the disc holds the :data:`VIEW_QUANTILE` share of the
+        vertices.
     """
 
     centered = xy - np.median(xy, axis=0)
@@ -147,6 +188,15 @@ def word_continues(g: ig.Graph) -> np.ndarray:
 
     Punctuation belongs to no word (``word_n_tokens = 0``, ``pos_in_word = -1``), so it never
     goes on.
+
+    Args:
+        g: A delivered graph with ``pos_in_word`` and ``word_n_tokens`` vertex attributes.
+
+    Returns:
+        Boolean array ``[n]``.
+
+    Raises:
+        ValueError: If the GraphML has no ``pos_in_word``.
     """
 
     if "pos_in_word" not in g.vs.attributes():
@@ -157,7 +207,14 @@ def word_continues(g: ig.Graph) -> np.ndarray:
 
 
 def theme_colors(g: ig.Graph) -> tuple[np.ndarray, list[tuple[str, str]]]:
-    """Color of every vertex by theme, and the legend entries (label, color)."""
+    """Color of every vertex by theme, and the legend entries (label, color).
+
+    Args:
+        g: A delivered graph with the ``theme`` vertex attribute.
+
+    Returns:
+        ``(colors, legend)``.
+    """
 
     styles = plots.categorical_styles(THEMES, labels.THEME_LABELS)
     colors = np.array([styles[t].color for t in g.vs["theme"]])
@@ -165,7 +222,14 @@ def theme_colors(g: ig.Graph) -> tuple[np.ndarray, list[tuple[str, str]]]:
 
 
 def word_colors(continues: np.ndarray) -> tuple[np.ndarray, list[tuple[str, str]]]:
-    """Color of every vertex by word position, and the legend entries (label, color)."""
+    """Color of every vertex by word position, and the legend entries (label, color).
+
+    Args:
+        continues: Output of :func:`word_continues`.
+
+    Returns:
+        ``(colors, legend)``.
+    """
 
     (on_label, on_color), (off_label, off_color) = WORD_POSITIONS.values()
     return np.where(continues, on_color, off_color), [(on_label, on_color), (off_label, off_color)]
@@ -177,6 +241,19 @@ def figure_networks(
     colors: np.ndarray,
     legend: Sequence[tuple[str, str]],
 ) -> Figure:
+    """The four networks in a 2 x 2 grid, each with its own layout and the same vertex colors.
+
+    Args:
+        graphs: Representation name to its union graph.
+        positions: Representation name to its vertex positions.
+        colors: Color of every vertex (the same vertices in every network).
+        legend: ``(label, color)`` entries.
+
+    Returns:
+        The figure, showing the disc of :func:`normalize`; edges and vertices are
+        rasterized at 300 dpi.
+    """
+
     fig, axes = plots.figure(2, 2, height=6.75)
     fig.set_dpi(300)  # the edges and vertices are rasterized at this resolution
     order = np.random.default_rng(ORDER_SEED).permutation(colors.size)
@@ -214,7 +291,16 @@ def figure_networks(
 
 
 def edge_composition(g: ig.Graph, continues: np.ndarray) -> dict[str, float]:
-    """What the edges join, and the nominal assortativity of theme and word position."""
+    """What the edges join, and the nominal assortativity of theme and word position.
+
+    Args:
+        g: The union graph, with ``token_id`` and ``theme`` vertex attributes.
+        continues: Output of :func:`word_continues`.
+
+    Returns:
+        The shares of edges joining the same token, the same theme and the two word
+        positions, and the two assortativity coefficients.
+    """
 
     e = np.asarray(g.get_edgelist(), dtype=np.int64).reshape(-1, 2)
     a, b = e[:, 0], e[:, 1]
@@ -235,6 +321,23 @@ def coarse_blocks(g: ig.Graph, continues: np.ndarray) -> dict[str, Any]:
 
     Communities come labelled by decreasing size; the blocks are the communities with at least
     ``BLOCK_MIN_SHARE`` of the vertices.
+
+    Args:
+        g: The union graph, with the ``community`` vertex attribute (resolution 1).
+        continues: Output of :func:`word_continues`.
+
+    Returns:
+        Community and block counts, the sizes of the two largest communities, the size of
+        block B, its share of word-continuing vertices, the share of those vertices it
+        holds, the share of edges that leave it, and the modularity and stability of the
+        partition.
+
+    Raises:
+        ValueError: If no community is large enough to be a block.
+
+    Notes:
+        The Leiden runs here have no iteration cap and use seed :data:`BLOCK_SEED`, unlike
+        the ``metrics`` stage (capped runs, seed ``networks.base_seed``).
     """
 
     partition = leiden(g, runs=BLOCK_RUNS, resolution=BLOCK_RESOLUTION, seed=BLOCK_SEED)
@@ -263,10 +366,28 @@ def coarse_blocks(g: ig.Graph, continues: np.ndarray) -> dict[str, Any]:
 
 
 def _pct(value: float) -> str:
+    """A fraction as a pt-BR percentage with one decimal, for LaTeX.
+
+    Args:
+        value: Fraction.
+
+    Returns:
+        The text.
+    """
+
     return f"{labels.fmt_dec(100 * value, 1)}\\%"
 
 
 def _dec(value: float) -> str:
+    """A number with three decimals and the decimal comma.
+
+    Args:
+        value: Number.
+
+    Returns:
+        The text.
+    """
+
     return labels.fmt_dec(value, 3)
 
 
@@ -301,7 +422,15 @@ BLOCK_ROWS: list[Row] = [
 
 
 def latex_table(table: pd.DataFrame, rows: Sequence[Row]) -> str:
-    """Rows = measures, columns = networks."""
+    """Rows = measures, columns = networks.
+
+    Args:
+        table: One row per network, one column per measure.
+        rows: ``(label, formatter)`` of each table row.
+
+    Returns:
+        LaTeX source of a booktabs ``tabular``.
+    """
 
     reps = table.index.tolist()
     lines = [
@@ -317,6 +446,17 @@ def latex_table(table: pd.DataFrame, rows: Sequence[Row]) -> str:
 
 
 def write_tables(graphs: dict[str, ig.Graph], continues: np.ndarray) -> None:
+    """Compute the edge and block measures and write them as CSV and LaTeX.
+
+    Args:
+        graphs: Representation name to its union graph.
+        continues: Output of :func:`word_continues`.
+
+    Side effects:
+        Writes ``tabelas/{arestas,blocos}.{csv,tex}`` under
+        ``report/entrega-parcial-visualizacao`` and prints the tables.
+    """
+
     tables = REPORT / "tabelas"
     tables.mkdir(parents=True, exist_ok=True)
     measures = {"arestas": (edge_composition, EDGE_ROWS), "blocos": (coarse_blocks, BLOCK_ROWS)}
@@ -335,7 +475,14 @@ def write_tables(graphs: dict[str, ig.Graph], continues: np.ndarray) -> None:
 
 
 def compact(values: list[str]) -> tuple[list[str], list[int]]:
-    """Distinct values (in first-seen order) and the index of each value among them."""
+    """Distinct values (in first-seen order) and the index of each value among them.
+
+    Args:
+        values: Values to encode.
+
+    Returns:
+        ``(distinct, codes)``.
+    """
 
     table: dict[str, int] = {}
     codes = [table.setdefault(v, len(table)) for v in values]
@@ -345,6 +492,19 @@ def compact(values: list[str]) -> tuple[list[str], list[int]]:
 def write_page(
     graphs: dict[str, ig.Graph], positions: dict[str, np.ndarray], continues: np.ndarray
 ) -> None:
+    """Write the data files of the interactive page.
+
+    Args:
+        graphs: Representation name to its union graph.
+        positions: Representation name to its vertex positions.
+        continues: Output of :func:`word_continues`.
+
+    Side effects:
+        Writes ``docs/redes/dados/vertices.json`` (vertex attributes) and one
+        ``docs/redes/dados/<rep>.json`` per network (positions in thousandths of the view
+        radius, edges, communities and degrees).
+    """
+
     data = PAGE / "dados"
     data.mkdir(parents=True, exist_ok=True)
     first = graphs[REPS[0]]
@@ -382,6 +542,14 @@ def write_page(
 
 
 def main() -> None:
+    """Draw the four networks and write the tables and the page data.
+
+    Side effects:
+        Reads ``data/graphml``; computes or reads the layouts; writes ``figuras/redes.pdf``
+        and ``figuras/redes_palavra.pdf``, the tables of :func:`write_tables` and the files
+        of :func:`write_page`.
+    """
+
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--recompute", action="store_true", help="ignore the cached layouts")
     args = parser.parse_args()

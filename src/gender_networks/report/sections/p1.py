@@ -38,6 +38,19 @@ CATEGORY_ABBR = {
 
 
 def figure_p1_jaccard_faixas(ctx: Context) -> Any:
+    """Figure ``p1_jaccard_faixas``: ``J(lex, l)`` per sample frequency band, with the noise
+    floor of each band.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the vertex measures are missing or have no ``J_lex_*`` column.
+    """
+
     frame = ctx.vertex_measures()
     reps = [r for r in ctx.contextual_reps if f"J_lex_{r}" in frame]
     if not reps:
@@ -59,6 +72,21 @@ def figure_p1_jaccard_faixas(ctx: Context) -> Any:
 
 
 def figure_p1_dominancia(ctx: Context) -> Any:
+    """Figure ``p1_dominancia``: mean dominance and normalized dominance per representation, by
+    frequency band and by token category.
+
+    Only vertices of types with at least three occurrences in the sample enter the means.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the vertex measures are missing or no vertex qualifies.
+    """
+
     frame = ctx.vertex_measures()
     frame = frame[pd.to_numeric(frame["f_sample"], errors="coerce") >= 3]
     reps = [r for r in ctx.settings.networks.representations if f"D_{r}" in frame]
@@ -91,6 +119,19 @@ def figure_p1_dominancia(ctx: Context) -> Any:
 
 
 def table_p1_resumo(ctx: Context) -> Tabular:
+    """Table ``p1_resumo``: per shown contextual layer, mean ``J(lex, l)``, change above the
+    noise floor, dominance and normalized dominance, overall and by stratum and category.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table.
+
+    Raises:
+        Skip: If the vertex measures are missing or lack the per-layer columns.
+    """
+
     frame = ctx.vertex_measures()
     reps = [r for r in ctx.shown_contextual_reps if f"J_lex_{r}" in frame and f"D_{r}" in frame]
     if not reps:
@@ -108,6 +149,16 @@ def table_p1_resumo(ctx: Context) -> Tabular:
     rows: list[Any] = []
 
     def cells(mask: pd.Series) -> list[str]:
+        """The four cells of every layer for one group of vertices.
+
+        Args:
+            mask: Boolean series selecting the vertices of the group.
+
+        Returns:
+            Per layer: mean ``J``, mean of the noise floor minus ``J``, mean ``D`` and mean
+            normalized ``D``.
+        """
+
         out = []
         part = frame[mask]
         for rep in reps:
@@ -158,6 +209,19 @@ def table_p1_resumo(ctx: Context) -> Tabular:
 
 
 def table_p1_hubs(ctx: Context) -> Tabular:
+    """Table ``p1_hubs``: the top in-degree hubs of the directed graphs, two representations
+    side by side.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table, with the token, its category, its position bucket and its in-degree.
+
+    Raises:
+        Skip: If ``p1_hubs.csv`` is missing or empty.
+    """
+
     hubs = ctx.analysis("p1_hubs")
     occ = ctx.occurrences
     reps = [r for r in ctx.shown_reps if (hubs["rep"] == r).any()]

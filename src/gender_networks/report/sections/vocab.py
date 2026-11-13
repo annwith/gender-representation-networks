@@ -31,7 +31,16 @@ from gender_networks.report.latex import (
 
 
 def _fold_classes(classes: np.ndarray, keep: int = 5) -> tuple[np.ndarray, list[str]]:
-    """Script classes with the ``keep`` largest kept and the rest folded into ``other``."""
+    """Script classes with the ``keep`` largest kept and the rest folded into ``other``.
+
+    Args:
+        classes: Script class of every vertex.
+        keep: Number of classes kept.
+
+    Returns:
+        ``(folded, order)``: the class of every vertex after folding, and the kept classes
+        in display order, with ``other`` last when something was folded.
+    """
 
     counts = pd.Series(classes).value_counts()
     top = [c for c in counts.index[:keep]]
@@ -43,6 +52,18 @@ def _fold_classes(classes: np.ndarray, keep: int = 5) -> tuple[np.ndarray, list[
 
 
 def figure_vocab_graus(ctx: Context) -> Any:
+    """Figure ``vocab_graus``: in-degree CCDF of the vocabulary network by script class.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure, from the random tie-break sets of the vocabulary graph.
+
+    Raises:
+        Skip: If the vocabulary neighbour file or ``vocab_types.csv`` is missing.
+    """
+
     data = ctx.npz(ctx.paths.vocab_nbr(ctx.vocab_k))
     vocab_ids = data["vocab_ids"].astype(np.int64)
     sets = data["rand"][0] if "rand" in data else data["pos"]
@@ -71,6 +92,18 @@ def figure_vocab_graus(ctx: Context) -> Any:
 
 
 def _vocab_partition(ctx: Context) -> tuple[np.ndarray, np.ndarray]:
+    """Leiden partition of the vocabulary graph and the token id of every vertex.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        ``(membership, token ids)``, both int64 ``[V']``.
+
+    Raises:
+        Skip: If the community index or the partition is missing.
+    """
+
     index = ctx.nonempty(ctx.paths.communities_index)
     gid = graph_id("vocab", ctx.vocab_k, "union", "rand", 0)
     hit = index[
@@ -90,6 +123,18 @@ def _vocab_partition(ctx: Context) -> tuple[np.ndarray, np.ndarray]:
 
 
 def figure_vocab_comunidades(ctx: Context) -> Any:
+    """Figure ``vocab_comunidades``: script-class composition of the 15 largest communities.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the partition or ``vocab_types.csv`` is missing.
+    """
+
     membership, ids = _vocab_partition(ctx)
     classes = ctx.vocab_types["script_class"].astype(str).to_numpy()[ids]
     folded, order = _fold_classes(classes)
@@ -103,6 +148,20 @@ def figure_vocab_comunidades(ctx: Context) -> Any:
 
 
 def table_vocab_comunidades(ctx: Context) -> Tabular:
+    """Table ``vocab_comunidades``: the ten largest vocabulary communities, with their main
+    script class, share of tokens in the corpus and example tokens.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table; the notes give the agreement with the script class and with presence in
+        the corpus, and the Leiden stability.
+
+    Raises:
+        Skip: If ``vocab_communities.csv`` is missing or empty.
+    """
+
     communities = ctx.analysis("vocab_communities")
     communities = communities.sort_values("size", ascending=False, kind="stable").head(10)
     total = None
@@ -170,6 +229,19 @@ def table_vocab_comunidades(ctx: Context) -> Tabular:
 
 
 def table_vocab_vizinhos_alvos(ctx: Context) -> Tabular:
+    """Table ``vocab_vizinhos_alvos``: vocabulary neighbours of each target and control word.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table, with up to ten neighbours per word and how many of them occur in the
+        corpus.
+
+    Raises:
+        Skip: If ``vocab_target_neighbors.csv`` is missing or has no word.
+    """
+
     table = ctx.analysis("vocab_target_neighbors")
     rows: list[Any] = []
     for role, name in (("target", "alvo"), ("control", "controle")):

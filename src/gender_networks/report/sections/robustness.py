@@ -23,11 +23,43 @@ from gender_networks.representations import LEX, parse
 
 
 def _graph_row(metrics: pd.DataFrame, rep: str, k: int, sym: str, tie: str) -> pd.Series | None:
+    """Row of ``graph_metrics.csv`` for one graph with tie seed 0.
+
+    Args:
+        metrics: The metrics table.
+        rep: Representation name.
+        k: Number of neighbours.
+        sym: Symmetrization.
+        tie: Tie treatment.
+
+    Returns:
+        The row, or ``None`` when the graph was not measured.
+    """
+
     hit = metrics[metrics["graph_id"] == graph_id(rep, k, sym, tie, 0)]
     return None if hit.empty else hit.iloc[0]
 
 
 def table_robustez(ctx: Context) -> Tabular:
+    """Table ``robustez``: summary measures of each robustness variation next to the main
+    configuration.
+
+    Per shown contextual layer: mean local clustering, mean distance, Leiden modularity and
+    the mean Jaccard with the lexical network of the same ``k`` and tie treatment. Rows: the
+    main configuration, the other ``k`` values, the mutual graph, the position rule,
+    variant (b), the larger tolerance, the final-norm and centered variants, the other
+    Leiden resolutions and Louvain.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table; a variation without any value is left out.
+
+    Raises:
+        Skip: If ``graph_metrics.csv`` is missing or lacks the contextual networks.
+    """
+
     metrics = ctx.metrics_table("graph_metrics")
     net = ctx.settings.networks
     k = ctx.k
@@ -48,6 +80,17 @@ def table_robustez(ctx: Context) -> Tabular:
         raise Skip(f"graph_metrics.csv não tem as redes contextuais com k = {k}")
 
     def j_vs_lex(rep: str, kk: int, tie: str) -> Any:
+        """Mean Jaccard with the lexical sets, from ``robustness_neighbors.csv``.
+
+        Args:
+            rep: Representation name.
+            kk: Number of neighbours.
+            tie: Tie rule (``pos``, ``rand`` or ``all``).
+
+        Returns:
+            The value at ``networks.eps``, or NaN when the table has no such row.
+        """
+
         if neighbors.empty:
             return np.nan
         hit = neighbors[
@@ -59,9 +102,31 @@ def table_robustez(ctx: Context) -> Tabular:
         return hit["J_vs_lex_mean"].iat[0] if len(hit) else np.nan
 
     def centered_name(rep: str) -> str:
+        """Name of the centered variant of a representation.
+
+        Args:
+            rep: Representation name.
+
+        Returns:
+            The name with the trailing ``c``.
+        """
+
         return parse(rep).with_centering().name
 
     def graph_cells(rep: str | None, kk: int, sym: str, tie: str, j: Any) -> list[str]:
+        """The four cells of one layer in one variation.
+
+        Args:
+            rep: Representation whose graph is read; ``None`` gives four dashes.
+            kk: Number of neighbours.
+            sym: Symmetrization.
+            tie: Tie treatment.
+            j: Mean Jaccard with the lexical network, already looked up.
+
+        Returns:
+            Clustering, mean distance, modularity and Jaccard, formatted.
+        """
+
         if rep is None:
             return [DASH] * 4
         row = _graph_row(metrics, rep, kk, sym, tie)
@@ -174,6 +239,22 @@ def table_robustez(ctx: Context) -> Tabular:
 
 
 def figure_robustez_empates(ctx: Context) -> Any:
+    """Figure ``robustez_empates``: mean ``J(lex, l)`` per frequency band under each tie
+    treatment, and the type-composition Jaccard.
+
+    The position rule and variant (b) are computed here from the neighbour files; the random
+    rule, variant (c) and ``J^w`` come from the vertex measures.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure, one panel per shown contextual layer.
+
+    Raises:
+        Skip: If the neighbour files are missing.
+    """
+
     occ = ctx.occurrences
     lex = ctx.nbr(LEX)
     reps = [r for r in ctx.shown_contextual_reps if ctx.paths.nbr(r, ctx.k).exists()]

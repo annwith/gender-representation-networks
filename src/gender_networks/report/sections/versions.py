@@ -20,6 +20,15 @@ from gender_networks.report.numbers import stage_manifests
 
 
 def _when(manifest: Mapping[str, Any]) -> str:
+    """Date and time a stage finished, from its manifest.
+
+    Args:
+        manifest: Stage manifest.
+
+    Returns:
+        ``dd/mm/yyyy hh:mm`` in local time, or ``--`` without a start time.
+    """
+
     stamp = finite_or_none(manifest.get("started_unix"))
     if stamp is None:
         return DASH
@@ -28,6 +37,19 @@ def _when(manifest: Mapping[str, Any]) -> str:
 
 
 def table_versoes(ctx: Context) -> Tabular:
+    """Table ``versoes``: when each stage finished, how long it took, its git revision and
+    configuration, and the library and model versions.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table.
+
+    Raises:
+        Skip: If no stage has a manifest.
+    """
+
     manifests = stage_manifests(ctx)
     if not manifests:
         raise Skip("nenhum _manifest.json de etapa")

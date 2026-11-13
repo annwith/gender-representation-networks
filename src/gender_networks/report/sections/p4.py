@@ -44,13 +44,33 @@ LEX_NOTE_MEASURES = [
 
 
 def _span(values: Any, digits: int) -> str:
-    """``0,00`` when every value rounds the same, ``de 0,00 a 0,05`` otherwise."""
+    """``0,00`` when every value rounds the same, ``de 0,00 a 0,05`` otherwise.
+
+    Args:
+        values: Numeric series.
+        digits: Decimal places.
+
+    Returns:
+        The pt-BR text of the range.
+    """
 
     low, high = num(values.min(), digits), num(values.max(), digits)
     return low if low == high else f"de {low} a {high}"
 
 
 def figure_p4_separacao(ctx: Context) -> Any:
+    """Figure ``p4_separacao``: mean same-type separation measures per layer and group.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure, one panel per measure of :data:`P4_MEASURES`.
+
+    Raises:
+        Skip: If ``p4_groups.csv`` is missing or has none of the four groups.
+    """
+
     groups = ctx.analysis("p4_groups")
     reps = [r for r in ctx.settings.networks.representations if (groups["rep"] == r).any()]
     keys = ordered([g for g in groups["group"].astype(str) if g in GROUP_ORDER], GROUP_ORDER)
@@ -61,6 +81,24 @@ def figure_p4_separacao(ctx: Context) -> Any:
 
 
 def table_p4_alvos(ctx: Context) -> Tabular:
+    """Table ``p4_alvos``: one row per target and control word with its separation measures at
+    the deepest contextual layer.
+
+    Columns: sample frequency, number of themes (and of annotated senses), self-similarity,
+    effective communities, the within-minus-between cosine and the community NMI by theme
+    and, when ``p4_senses.csv`` exists, by annotated sense in each subset. The notes give
+    the mean NMI baselines and the lexical values.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table.
+
+    Raises:
+        Skip: If ``p4_types.csv`` is missing or has no target, control or contextual row.
+    """
+
     types = ctx.analysis("p4_types")
     types["group"] = types["group"].astype(str)
     types["word"] = types["word"].fillna("").astype(str)
@@ -99,9 +137,30 @@ def table_p4_alvos(ctx: Context) -> Tabular:
         cur = current.loc[word] if word in current.index else None
 
         def value(column: str, cur=cur) -> Any:
+            """A measure of the current word at the deepest layer.
+
+            Args:
+                column: Column of ``p4_types.csv``.
+                cur: Row of the word, or ``None``; bound when the function is defined.
+
+            Returns:
+                The value, or NaN when the word or the column is absent.
+            """
+
             return cur[column] if cur is not None and column in cur.index else np.nan
 
         def sense(subset: str, column: str, word=word) -> Any:
+            """A sense measure of the current word in one subset.
+
+            Args:
+                subset: ``all`` or ``left``.
+                column: Column of ``p4_senses.csv``.
+                word: The word; bound when the function is defined.
+
+            Returns:
+                The value, or NaN when the word has no row in that subset.
+            """
+
             table = senses[subset]
             return table.at[word, column] if word in table.index else np.nan
 
@@ -163,7 +222,17 @@ def table_p4_alvos(ctx: Context) -> Tabular:
 def _baseline_note(
     current: pd.DataFrame, senses: dict[str, pd.DataFrame], words: list[str], chosen: pd.DataFrame
 ) -> str:
-    """Mean NMI baselines over the target words, or ``""`` when the tables lack them."""
+    """Mean NMI baselines over the target words, or ``""`` when the tables lack them.
+
+    Args:
+        current: Rows of ``p4_types.csv`` at the deepest layer, indexed by word.
+        senses: Subset to its rows of ``p4_senses.csv``, indexed by word.
+        words: Words of the table.
+        chosen: Target and control rows of ``p4_types.csv``.
+
+    Returns:
+        A sentence for the table notes.
+    """
 
     targets = [w for w in words if (chosen.loc[chosen["word"] == w, "group"] == "target").any()]
     parts: list[str] = []
@@ -184,13 +253,29 @@ def _baseline_note(
 
 
 def _by_count(values: pd.Series) -> list[Any]:
-    """Distinct values, the most frequent first (ties in sorted order)."""
+    """Distinct values, the most frequent first (ties in sorted order).
+
+    Args:
+        values: Series of labels.
+
+    Returns:
+        The distinct values.
+    """
 
     counts = values.value_counts().sort_index()
     return list(counts.sort_values(ascending=False, kind="stable").index)
 
 
 def _listing(names: list[str]) -> str:
+    """Join names as a Portuguese list (``a, b e c``).
+
+    Args:
+        names: At least one name.
+
+    Returns:
+        The joined text.
+    """
+
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " e " + names[-1]
 
 
@@ -199,6 +284,16 @@ def figure_p4_comunidades_sentidos(ctx: Context) -> Any:
 
     Representations where every word sits in a single community (``lex``, whose occurrences of a
     type are one vector, and ``L01`` in the main run) are left out and named in the legend.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure; each panel title carries the NMI between community and sense
+        and its baseline, when ``p4_senses.csv`` has them.
+
+    Raises:
+        Skip: If ``p4_sense_communities.csv`` is missing or lacks the shown representations.
     """
 
     table = ctx.analysis("p4_sense_communities")

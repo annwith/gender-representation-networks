@@ -19,6 +19,20 @@ from gender_networks.report.latex import Tabular, bold, header_row, integer
 
 
 def table_corpus_temas(ctx: Context) -> Tabular:
+    """Table ``corpus_temas``: kept articles, paragraphs and words per theme, and the dropped
+    articles by reason.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table, with one row per theme and a total row; the reason columns exist only
+        for the reasons found in ``articles.jsonl``.
+
+    Raises:
+        Skip: If the corpus files are missing.
+    """
+
     articles = ctx.articles
     stats = ctx.paragraph_stats
     reason = articles["dropped_reason"].where(articles["dropped_reason"].notna(), None)
@@ -75,12 +89,36 @@ def table_corpus_temas(ctx: Context) -> Tabular:
 
 
 def figure_corpus_paragrafos(ctx: Context) -> Any:
+    """Figure ``corpus_paragrafos``: paragraphs per theme and the paragraph length histogram.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If ``paragraphs.jsonl`` is missing or empty.
+    """
+
     stats = ctx.paragraph_stats
     counts = stats["theme"].value_counts()
     return plots.corpus_paragraphs_figure(counts, stats["words"].to_numpy())
 
 
 def figure_corpus_descartes(ctx: Context) -> Any:
+    """Figure ``corpus_descartes``: dropped candidate pages per theme and reason.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If ``articles.jsonl`` is missing or no page was dropped.
+    """
+
     articles = ctx.articles
     dropped = articles[articles["dropped_reason"].notna()]
     if dropped.empty:

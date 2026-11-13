@@ -32,10 +32,32 @@ THEME_ABBR = {
 
 
 def _themes_of_sample(ctx: Context) -> list[str]:
+    """Themes that have vertices, in configuration order.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        Theme codes.
+    """
+
     return ctx.theme_order(ctx.occurrences["theme"])
 
 
 def table_amostra_composicao(ctx: Context) -> Tabular:
+    """Table ``amostra_composicao``: vertices per stratum and theme, with paragraphs and types.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table; with more than four themes the column headings are abbreviated and a
+        note spells them out.
+
+    Raises:
+        Skip: If ``occurrences.csv`` is missing or empty.
+    """
+
     occ = ctx.occurrences
     themes = _themes_of_sample(ctx)
     abbreviate = len(themes) > 4
@@ -43,6 +65,16 @@ def table_amostra_composicao(ctx: Context) -> Tabular:
     rows: list[Any] = []
 
     def row(name: str, part: pd.DataFrame) -> list[str]:
+        """Cells of one row: the vertices per theme, then vertices, paragraphs and types.
+
+        Args:
+            name: Row heading.
+            part: Occurrences of the row.
+
+        Returns:
+            The cells.
+        """
+
         cells = [name]
         cells += [integer((part["theme"] == t).sum()) for t in themes]
         cells += [
@@ -84,6 +116,18 @@ def table_amostra_composicao(ctx: Context) -> Tabular:
 
 
 def figure_amostra_composicao(ctx: Context) -> Any:
+    """Figure ``amostra_composicao``: vertices by stratum, theme, frequency band and category.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If ``occurrences.csv`` is missing or empty.
+    """
+
     occ = ctx.occurrences
     panels = []
     strata = ordered(list(occ["stratum"]), STRATUM_ORDER)
@@ -122,6 +166,18 @@ def figure_amostra_composicao(ctx: Context) -> Any:
 
 
 def table_amostra_faixas(ctx: Context) -> Tabular:
+    """Table ``amostra_faixas``: vertices per frequency band (sample and corpus) and category.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table, one block per kind of band and a total row.
+
+    Raises:
+        Skip: If ``occurrences.csv`` is missing or empty.
+    """
+
     occ = ctx.occurrences
     categories = ordered(list(occ["token_category"]), CATEGORY_ORDER)
     rows: list[Any] = []
@@ -151,6 +207,22 @@ def table_amostra_faixas(ctx: Context) -> Tabular:
 
 
 def table_amostra_cotas(ctx: Context) -> Tabular:
+    """Table ``amostra_cotas``: quota, core, drawn and obtained occurrences per word and theme.
+
+    The figures come from the sample manifest (``targets`` and ``controls``), with the themes
+    of each word in configuration order; the notes list the dropped words, the words that are
+    not a single token and the minimum per sense theme.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table.
+
+    Raises:
+        Skip: If the sample manifest is missing or has no quotas.
+    """
+
     sample = ctx.need_manifest("sample", "sample")
     rows: list[Any] = []
     for role, key in (("alvo", "targets"), ("controle", "controls")):

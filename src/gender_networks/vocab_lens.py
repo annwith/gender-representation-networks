@@ -86,6 +86,11 @@ class VocabIndex:
     ``weight`` keeps the matrix in its stored dtype (bf16 in a real run, half the size of the
     float32 copy) only for the raw-logit check, which must use ``weight`` itself, not
     ``unit * norms`` (that product rounds differently and could flip near ties).
+
+    Attributes:
+        unit: float32 tensor ``[V, d]`` with rows of norm 1 (a zero row stays zero).
+        norms: float32 tensor ``[V]`` with the norm of every stored row.
+        weight: Tensor ``[V, d]`` in the stored dtype, never modified.
     """
 
     unit: torch.Tensor  # [V, d] float32
@@ -94,10 +99,14 @@ class VocabIndex:
 
     @property
     def size(self) -> int:
+        """Number of vocabulary rows ``V``."""
+
         return int(self.unit.shape[0])
 
     @property
     def dim(self) -> int:
+        """Embedding dimension ``d``."""
+
         return int(self.unit.shape[1])
 
     @classmethod
@@ -106,6 +115,16 @@ class VocabIndex:
 
         The matrix is moved in its stored dtype first, so the float32 copy (about 1.55 GB for
         the full vocabulary) only exists on the target device.
+
+        Args:
+            weight: Embedding matrix ``[V, d]`` in any float dtype.
+            device: Device the index lives on. Defaults to the CPU.
+
+        Returns:
+            The index. Norms below :data:`NORM_EPS` are clamped before the division.
+
+        Raises:
+            ValueError: If ``weight`` is not 2-D.
         """
 
         if weight.ndim != 2:
@@ -119,7 +138,19 @@ class VocabIndex:
 
 @dataclass(frozen=True)
 class LensResult:
-    """Vocabulary ranking of one representation for every occurrence."""
+    """Vocabulary ranking of one representation for every occurrence.
+
+    Attributes:
+        topk: int32 array ``[N, k]`` with the nearest vocabulary rows, nearest first.
+        topk_cos: float32 array ``[N, k]`` with their cosines.
+        own_rank: int64 array ``[N]``: rows with a strictly larger cosine than the
+            occurrence's own token (0 means the own token is the nearest, ties included).
+        next_rank: int64 array ``[N]``, the same for the next token; -1 without one.
+        own_cos: float32 array ``[N]``, cosine with the own token's row.
+        next_cos: float32 array ``[N]``, cosine with the next token's row; NaN without one.
+        logit_argmax: int64 array ``[N]`` with the argmax of the raw dot product, or
+            ``None`` when it was not asked for.
+    """
 
     topk: np.ndarray  # int32 [N, k], nearest rows first
     topk_cos: np.ndarray  # float32 [N, k]
@@ -131,17 +162,38 @@ class LensResult:
 
     @property
     def k(self) -> int:
+        """Number of vocabulary neighbours kept per occurrence."""
+
         return int(self.topk.shape[1])
 
     def own_in_topk(self) -> np.ndarray:
+        """Whether the own token ranks among the ``k`` nearest rows (``own_rank < k``).
+
+        Returns:
+            Boolean array ``[N]``.
+        """
+
         return self.own_rank < self.k
 
     def next_in_topk(self) -> np.ndarray:
+        """Whether the next token ranks among the ``k`` nearest rows; False without a next token.
+
+        Returns:
+            Boolean array ``[N]``.
+        """
+
         return (self.next_rank >= 0) & (self.next_rank < self.k)
 
 
 def resolve_device(device: str | torch.device | None = None) -> torch.device:
-    """The GPU when available (the similarity blocks are the bulk of the work), else CPU."""
+    """The GPU when available (the similarity blocks are the bulk of the work), else CPU.
+
+    Args:
+        device: Explicit device; ``None`` chooses automatically.
+
+    Returns:
+        The torch device.
+    """
 
     if device is not None:
         return torch.device(device)
@@ -157,6 +209,17 @@ def raw_logit_argmax(
     This is how the extraction computes ``pred_next`` (tied embeddings: the model's own
     next-token choice). The vocabulary is processed in chunks so that only a slice of the weight
     exists in float32 at a time; the result lives on the device of ``weight``.
+
+    Args:
+        weight: Embedding matrix ``[V, d]`` in its stored dtype.
+        rows: Query vectors ``[m, d]``, not normalized.
+        chunk_rows: Vocabulary rows per chunk.
+
+    Returns:
+        int64 tensor ``[m]`` on the device of ``weight``.
+
+    Raises:
+        ValueError: If ``chunk_rows`` is below 1.
     """
 
     if chunk_rows < 1:
@@ -175,6 +238,17 @@ def raw_logit_argmax(
 
 
 def _check_ids(own: np.ndarray, nxt: np.ndarray, size: int) -> None:
+    """Validate the own and next token ids of the queries.
+
+    Args:
+        own: Own token id of every query.
+        nxt: Next token id of every query, or -1.
+        size: Number of vocabulary rows.
+
+    Raises:
+        ValueError: If the arrays are not 1-D with equal length, or an id is out of range.
+    """
+
     if own.ndim != 1 or nxt.shape != own.shape:
         raise ValueError("own_ids and next_ids must be 1-D arrays of the same length")
     if own.size and (own.min() < 0 or own.max() >= size):
@@ -201,6 +275,22 @@ def lens_ranks(
 
     With ``logit_argmax`` the argmax of the raw float32 dot product ``q @ weight.T`` (unnormalized
     query, stored weight) is returned too, see :func:`raw_logit_argmax`.
+
+    Args:
+        index: Vocabulary index; the computation runs on its device, in float32.
+        queries: Occurrence vectors, or ``None`` for ``lex``.
+        own_ids: Own token id of every occurrence.
+        next_ids: Next token id of every occurrence, -1 for none.
+        k: Vocabulary neighbours kept.
+        batch_size: Occurrences per similarity block.
+        logit_argmax: Also compute the raw-logit argmax.
+
+    Returns:
+        The :class:`LensResult`. A rank counts the rows with a strictly larger cosine, so
+        tied rows share the best rank.
+
+    Raises:
+        ValueError: If the ids, the query shape, ``k`` or ``batch_size`` are invalid.
     """
 
     # private writable copies: torch.from_numpy refuses read-only (copy-on-write pandas) views
@@ -264,7 +354,18 @@ def lens_ranks(
 
 
 def topk_jaccard(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Row-wise Jaccard of two top-k id lists (each row holds distinct ids, as topk returns)."""
+    """Row-wise Jaccard of two top-k id lists (each row holds distinct ids, as topk returns).
+
+    Args:
+        a: int array ``[N, k_a]``.
+        b: int array ``[N, k_b]``.
+
+    Returns:
+        float64 array ``[N]`` with ``|a_i & b_i| / (k_a + k_b - |a_i & b_i|)``.
+
+    Raises:
+        ValueError: If the arrays are not 2-D with the same number of rows.
+    """
 
     if a.ndim != 2 or b.ndim != 2 or a.shape[0] != b.shape[0]:
         raise ValueError("top-k arrays must be 2-D with the same number of rows")
@@ -277,14 +378,30 @@ def topk_jaccard(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 
 def representations(settings: Settings) -> list[str]:
-    """Representations of the stage in depth order: lexical, the chosen blocks, then ``L36n``."""
+    """Representations of the stage in depth order: lexical, the chosen blocks, then ``L36n``.
+
+    Args:
+        settings: Run configuration; the names come from ``model.layers``, not from
+            ``networks.representations``.
+
+    Returns:
+        ``lex``, the configured layer names sorted by block, and the final-norm name.
+    """
 
     layers = sorted(settings.model.layers.items(), key=lambda item: item[1])
     return [LEX, *(name for name, _ in layers), FINAL_NORM.name]
 
 
 def transitions(reps: Sequence[str]) -> list[tuple[str, str]]:
-    """Consecutive pairs along the depth chain, plus the final RMSNorm step (``L36 -> L36n``)."""
+    """Consecutive pairs along the depth chain, plus the final RMSNorm step (``L36 -> L36n``).
+
+    Args:
+        reps: Names from :func:`representations`.
+
+    Returns:
+        ``(source, target)`` pairs; the final-norm pair is added only when the raw last
+        block is among the names.
+    """
 
     chain = [rep for rep in reps if rep != FINAL_NORM.name]
     pairs = list(zip(chain, chain[1:], strict=False))
@@ -302,6 +419,16 @@ def lexical_sanity(
     At ``lex`` the query is the own embedding row, so its cosine is 1 up to rounding. A strictly
     larger cosine is legitimate only for an identical (duplicated) row or a float32 rounding
     excess below :data:`LEX_GAP_TOL`; anything else is counted as ``unexplained`` (a bug).
+
+    Args:
+        result: Lexical ranking.
+        own_ids: Own token id of every occurrence.
+        index: Vocabulary index.
+
+    Returns:
+        Counts of occurrences and types with a nonzero own rank, of occurrences whose top-1
+        is another row, the largest cosine excess, the cases explained by identical rows,
+        the unexplained ones and example token ids.
     """
 
     own = np.array(own_ids, dtype=np.int64)
@@ -343,6 +470,18 @@ def pred_next_agreement(
     so float32 rounding can flip near ties; the rate should still be close to 1. With
     ``cosine_top1`` (the nearest row by cosine) the rate at which the cosine lens picks the
     model's prediction is reported too: it differs because the row norms are ignored.
+
+    Args:
+        argmax: Raw-logit argmax of every occurrence.
+        pred_next: Prediction stored by the ``extract`` stage.
+        cosine_top1: Nearest vocabulary row by cosine, or ``None``.
+
+    Returns:
+        ``n``, ``agree``, ``rate``, up to 20 disagreeing occurrence ids and, with
+        ``cosine_top1``, ``cosine_top1_rate``.
+
+    Raises:
+        ValueError: If the shapes differ.
     """
 
     argmax = np.asarray(argmax, dtype=np.int64)
@@ -365,7 +504,14 @@ def pred_next_agreement(
 
 
 def _num(value: Any) -> float | None:
-    """JSON-safe rounded float (NaN and missing values become None)."""
+    """JSON-safe rounded float (NaN and missing values become None).
+
+    Args:
+        value: Number, NaN or ``None``.
+
+    Returns:
+        The value rounded to 6 decimals, or ``None``.
+    """
 
     if value is None:
         return None
@@ -374,7 +520,17 @@ def _num(value: Any) -> float | None:
 
 
 def rank_stats(frame: pd.DataFrame) -> dict[str, Any]:
-    """Rank summary of a group of occurrences; next-token figures skip rows without one."""
+    """Rank summary of a group of occurrences; next-token figures skip rows without one.
+
+    Args:
+        frame: Rows of ``ranks.csv`` for one group.
+
+    Returns:
+        Count, median and mean own rank, share with own rank 0, share with the own token in
+        the top k, mean own cosine, the same figures for the next token, and
+        ``next_closer_than_own``, the share of occurrences whose next token ranks strictly
+        better than their own.
+    """
 
     valid = frame[frame["next_rank"] >= 0]
     own_rank = frame["own_rank"]
@@ -398,6 +554,17 @@ def rank_stats(frame: pd.DataFrame) -> dict[str, Any]:
 
 
 def _grouped(frame: pd.DataFrame, stats, groupings: Sequence[str]) -> dict[str, Any]:
+    """Statistics of a table overall and by each grouping column.
+
+    Args:
+        frame: Table with the grouping columns attached.
+        stats: Function that summarizes a group of rows.
+        groupings: Grouping columns.
+
+    Returns:
+        ``{"all": ..., "by_<column>": {value: ...}}``.
+    """
+
     entry: dict[str, Any] = {"all": stats(frame)}
     for column in groupings:
         entry[f"by_{column}"] = {
@@ -409,7 +576,15 @@ def _grouped(frame: pd.DataFrame, stats, groupings: Sequence[str]) -> dict[str, 
 def summarize_ranks(
     frame: pd.DataFrame, groupings: Sequence[str] = GROUPINGS
 ) -> dict[str, dict[str, Any]]:
-    """Per representation: rank statistics overall and broken down by each grouping column."""
+    """Per representation: rank statistics overall and broken down by each grouping column.
+
+    Args:
+        frame: Rows of ``ranks.csv`` with the grouping columns attached.
+        groupings: Grouping columns. Defaults to token category and stratum.
+
+    Returns:
+        Representation name to its statistics.
+    """
 
     return {
         str(rep): _grouped(part, rank_stats, groupings)
@@ -418,6 +593,15 @@ def summarize_ranks(
 
 
 def jaccard_stats(frame: pd.DataFrame) -> dict[str, Any]:
+    """Jaccard summary of a group of rows: count, mean, median and share of zeros.
+
+    Args:
+        frame: Rows of ``topk_jaccard.csv`` for one group.
+
+    Returns:
+        The four statistics.
+    """
+
     values = frame["jaccard"]
     return {
         "n": int(len(values)),
@@ -430,7 +614,15 @@ def jaccard_stats(frame: pd.DataFrame) -> dict[str, Any]:
 def summarize_jaccard(
     frame: pd.DataFrame, groupings: Sequence[str] = GROUPINGS
 ) -> dict[str, dict[str, Any]]:
-    """Per transition ``source->target``: Jaccard statistics overall and by grouping column."""
+    """Per transition ``source->target``: Jaccard statistics overall and by grouping column.
+
+    Args:
+        frame: Rows of ``topk_jaccard.csv`` with the grouping columns attached.
+        groupings: Grouping columns. Defaults to token category and stratum.
+
+    Returns:
+        ``"source->target"`` to its statistics.
+    """
 
     return {
         f"{source}->{target}": _grouped(part, jaccard_stats, groupings)
@@ -439,7 +631,15 @@ def summarize_jaccard(
 
 
 def rank_frame(result: LensResult, rep: str) -> pd.DataFrame:
-    """Long-format rows of ``ranks.csv`` for one representation (occurrence_id = row index)."""
+    """Long-format rows of ``ranks.csv`` for one representation (occurrence_id = row index).
+
+    Args:
+        result: Ranking of the representation.
+        rep: Representation name.
+
+    Returns:
+        DataFrame with the columns of :data:`RANK_COLUMNS`, one row per occurrence.
+    """
 
     return pd.DataFrame(
         {
@@ -457,7 +657,15 @@ def rank_frame(result: LensResult, rep: str) -> pd.DataFrame:
 
 
 def jaccard_frame(results: dict[str, LensResult], pairs: Sequence[tuple[str, str]]) -> pd.DataFrame:
-    """Long-format rows of ``topk_jaccard.csv``: one row per occurrence and transition."""
+    """Long-format rows of ``topk_jaccard.csv``: one row per occurrence and transition.
+
+    Args:
+        results: Representation name to its ranking.
+        pairs: ``(source, target)`` transitions.
+
+    Returns:
+        DataFrame with the columns of :data:`JACCARD_COLUMNS`; empty without transitions.
+    """
 
     parts = []
     for source, target in pairs:
@@ -479,7 +687,15 @@ def jaccard_frame(results: dict[str, LensResult], pairs: Sequence[tuple[str, str
 
 
 def with_groups(frame: pd.DataFrame, occurrences: pd.DataFrame) -> pd.DataFrame:
-    """Attach the grouping columns of each row's occurrence (occurrence_id = row index)."""
+    """Attach the grouping columns of each row's occurrence (occurrence_id = row index).
+
+    Args:
+        frame: Table with an ``occurrence_id`` column.
+        occurrences: Occurrence rows.
+
+    Returns:
+        A copy of ``frame`` with ``token_category`` and ``stratum``.
+    """
 
     rows = frame["occurrence_id"].to_numpy()
     out = frame.copy()
@@ -489,7 +705,17 @@ def with_groups(frame: pd.DataFrame, occurrences: pd.DataFrame) -> pd.DataFrame:
 
 
 def curve_rows(rep: str, layer: int, frame: pd.DataFrame) -> list[dict[str, Any]]:
-    """Rows of ``layer_curve.csv`` for one layer: overall and per grouping value."""
+    """Rows of ``layer_curve.csv`` for one layer: overall and per grouping value.
+
+    Args:
+        rep: Layer name (``lex`` for layer 0).
+        layer: Block number, 0 for the lexical ranking.
+        frame: Ranks of the layer with the grouping columns attached.
+
+    Returns:
+        One dictionary per group with the keys of :data:`CURVE_KEYS` and of
+        :func:`rank_stats`.
+    """
 
     rows = [{"rep": rep, "layer": layer, "group_by": "all", "group": "all", **rank_stats(frame)}]
     for column in GROUPINGS:
@@ -502,7 +728,14 @@ def curve_rows(rep: str, layer: int, frame: pd.DataFrame) -> list[dict[str, Any]
 
 
 def crossover_layer(curve: pd.DataFrame) -> int | None:
-    """First layer where most occurrences are closer to the next token than to their own."""
+    """First layer where most occurrences are closer to the next token than to their own.
+
+    Args:
+        curve: Rows of ``layer_curve.csv``.
+
+    Returns:
+        The smallest layer whose overall ``next_closer_than_own`` exceeds 0.5, or ``None``.
+    """
 
     overall = curve[curve["group_by"] == "all"].sort_values("layer")
     above = overall[overall["next_closer_than_own"].astype(float) > 0.5]
@@ -515,13 +748,32 @@ def crossover_layer(curve: pd.DataFrame) -> int | None:
 
 
 def load_occurrences(path: Path) -> pd.DataFrame:
-    """The columns of ``occurrences.csv`` this stage needs, checked for row alignment."""
+    """The columns of ``occurrences.csv`` this stage needs, checked for row alignment.
+
+    Args:
+        path: The occurrences file.
+
+    Returns:
+        DataFrame with the columns of :data:`OCCURRENCE_FIELDS`.
+    """
 
     return read_occurrences(path, OCCURRENCE_FIELDS, dtype={"token_category": str, "stratum": str})
 
 
 def load_representation(path: Path, n: int, dim: int) -> torch.Tensor:
-    """Tensor ``x`` of a representation file (kept in bf16 until a batch is moved)."""
+    """Tensor ``x`` of a representation file (kept in bf16 until a batch is moved).
+
+    Args:
+        path: ``reps/{name}.safetensors``.
+        n: Expected number of occurrences.
+        dim: Expected dimension.
+
+    Returns:
+        The tensor ``[n, dim]``.
+
+    Raises:
+        ValueError: If the shape is not ``(n, dim)``.
+    """
 
     tensor = load_file(str(path))["x"]
     if tuple(tensor.shape) != (n, dim):
@@ -530,12 +782,31 @@ def load_representation(path: Path, n: int, dim: int) -> torch.Tensor:
 
 
 def layer_from_memmap(layers: np.ndarray, layer: int) -> torch.Tensor:
-    """Block output ``layer`` (1-based) of ``all_layers.npy`` as a bf16 tensor."""
+    """Block output ``layer`` (1-based) of ``all_layers.npy`` as a bf16 tensor.
+
+    Args:
+        layers: The memmap ``[L, N, d]`` of bfloat16 bits.
+        layer: 1-based block.
+
+    Returns:
+        bfloat16 tensor ``[N, d]`` (a copy).
+    """
 
     return bf16_tensor(layers[layer - 1])
 
 
 def _expected_outputs(paths: RunPaths, reps: Sequence[str], with_curve: bool) -> list[Path]:
+    """Files a complete ``lens`` stage leaves behind.
+
+    Args:
+        paths: Paths of the run.
+        reps: Representations of the stage.
+        with_curve: Whether ``layer_curve.csv`` is written.
+
+    Returns:
+        The tables, one ``topk_{rep}.npy`` per representation and the stage manifest.
+    """
+
     names = ["ranks.csv", "topk_jaccard.csv", "summary.json"]
     names += ["layer_curve.csv"] if with_curve else []
     files = [paths.lens_file(name) for name in names] + [paths.lens_topk(rep) for rep in reps]
@@ -554,6 +825,21 @@ def _layer_curve(
     Only aggregates are kept (no per-occurrence files for 36 layers). Layer 0 is the lexical
     ranking: ``hidden_states[0]`` equals the input embedding (checked by ``extract --verify``).
     Layers whose representation file is bitwise equal to the memmap reuse its ranking.
+
+    Args:
+        paths: Paths of the run.
+        settings: Run configuration.
+        occurrences: Occurrence rows.
+        index: Vocabulary index.
+        results: Rankings already computed for the stored representations.
+
+    Returns:
+        ``(curve, info)``: the rows of ``layer_curve.csv`` and, for the summary, the number
+        of layers, which representation files match the memmap, the reused layers and the
+        crossover layer.
+
+    Raises:
+        ValueError: If ``all_layers.npy`` does not have shape ``(L, N, d)``.
     """
 
     n = len(occurrences)
@@ -614,6 +900,22 @@ def run(
 
     ``device`` overrides the automatic choice (GPU when available); ``layer_curve`` adds the
     per-layer aggregate curve from ``all_layers.npy`` when that file exists.
+
+    Args:
+        settings: Run configuration; the ``model`` and ``lens`` sections are used.
+        paths: Paths of the run.
+        force: Redo the stage even when it is up to date.
+        device: ``cpu`` or ``cuda``; ``None`` uses the GPU when there is one.
+        layer_curve: Write the layer-by-layer curve when ``all_layers.npy`` exists.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Raises:
+        FileNotFoundError: If the sample or the representations are missing.
+
+    Side effects:
+        Writes ``topk_{rep}.npy``, ``ranks.csv``, ``topk_jaccard.csv``, ``summary.json``,
+        ``layer_curve.csv`` and, last, the manifest. Similarities are float32 on the chosen
+        device, so ranks at near ties may differ between CPU and GPU.
     """
 
     out_dir = paths.lens_dir

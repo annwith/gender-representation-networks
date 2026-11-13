@@ -23,10 +23,35 @@ from gender_networks.representations import LEX, sort_names
 
 
 def _diagnostics(ctx: Context) -> dict[str, Any]:
+    """The content of ``reps/diagnostics.json``.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The decoded JSON.
+
+    Raises:
+        Skip: If the file is missing.
+    """
+
     return ctx.json(ctx.paths.diagnostics)
 
 
 def table_extracao_diagnosticos(ctx: Context) -> Tabular:
+    """Table ``extracao_diagnosticos``: norm quantiles, mean pair cosine and dominant dimensions
+    of each shown representation.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table, one row per representation in depth order.
+
+    Raises:
+        Skip: If the diagnostics are missing or empty.
+    """
+
     reps = _diagnostics(ctx).get("representations") or {}
     if not reps:
         raise Skip("diagnostics.json não tem representações")
@@ -90,6 +115,18 @@ def table_extracao_diagnosticos(ctx: Context) -> Tabular:
 
 
 def figure_extracao_camadas(ctx: Context) -> Any:
+    """Figure ``extracao_camadas``: mean norm and mean pair cosine over the blocks.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure, with the configured layers marked.
+
+    Raises:
+        Skip: If the diagnostics have no layer curve.
+    """
+
     diagnostics = _diagnostics(ctx)
     curve = pd.DataFrame(diagnostics.get("layer_curve") or [])
     if curve.empty:
@@ -100,6 +137,18 @@ def figure_extracao_camadas(ctx: Context) -> Any:
 
 
 def figure_extracao_dimensoes(ctx: Context) -> Any:
+    """Figure ``extracao_dimensoes``: dominant dimensions and norm by position bucket.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the diagnostics are missing or empty.
+    """
+
     reps = _diagnostics(ctx).get("representations") or {}
     if not reps:
         raise Skip("diagnostics.json não tem representações")
@@ -108,10 +157,32 @@ def figure_extracao_dimensoes(ctx: Context) -> Any:
 
 
 def _yes(flag: Any) -> str:
+    """Cell text of a check result: ``ok``, or ``falhou`` in bold.
+
+    Args:
+        flag: Whether the check passed.
+
+    Returns:
+        The LaTeX text.
+    """
+
     return "ok" if flag else bold("falhou")
 
 
 def table_extracao_verificacao(ctx: Context) -> Tabular:
+    """Table ``extracao_verificacao``: result, largest difference and criterion of each check of
+    ``extract --verify``.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table, one row per check found in ``verify.json``.
+
+    Raises:
+        Skip: If ``verify.json`` is missing or has no checks.
+    """
+
     report = ctx.json(ctx.paths.verify_report)
     checks = report.get("checks") or {}
     tol = report.get("tolerance") or {}

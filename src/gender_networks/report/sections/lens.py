@@ -15,6 +15,21 @@ from gender_networks.report.context import Context, Skip
 
 
 def figure_lente_ranking(ctx: Context) -> Any:
+    """Figure ``lente_ranking``: median rank of the own and of the next token per layer.
+
+    Uses ``lens/layer_curve.csv`` when it exists (every block on a layer axis) and the
+    representations of ``lens/summary.json`` otherwise.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the lens outputs are missing.
+    """
+
     curve_path = ctx.paths.lens_file("layer_curve.csv")
     if curve_path.exists() and not ctx.table(curve_path).empty:
         curve = ctx.table(curve_path).copy()

@@ -29,7 +29,15 @@ LAYOUT_SEED = 438
 
 
 def _layout(n: int, edges: np.ndarray) -> np.ndarray:
-    """Spring layout of the union of every panel's edges (deterministic seed)."""
+    """Spring layout of the union of every panel's edges (deterministic seed).
+
+    Args:
+        n: Number of vertices.
+        edges: int array ``[m, 2]`` of local vertex indices.
+
+    Returns:
+        float array ``[n, 2]`` with the positions.
+    """
 
     import networkx as nx
 
@@ -43,7 +51,18 @@ def _layout(n: int, edges: np.ndarray) -> np.ndarray:
 def _ego_panels(
     ctx: Context, focal: np.ndarray, reps: Sequence[str]
 ) -> tuple[np.ndarray, np.ndarray, list[plots.GraphPanel]]:
-    """Vertex set (focal + out-neighbours in every rep), shared positions and one panel per rep."""
+    """Vertex set (focal + out-neighbours in every rep), shared positions and one panel per rep.
+
+    Args:
+        ctx: Context of the run.
+        focal: Occurrence ids of the focal vertices.
+        reps: Representations to draw.
+
+    Returns:
+        ``(vertices, positions, panels)``: the sorted occurrence ids of the drawing, their
+        positions and one :class:`~gender_networks.plots.GraphPanel` per representation,
+        with the edges from the random tie-break sets of seed 0.
+    """
 
     sets = {rep: ctx.nbr(rep)["rand"][0][focal] for rep in reps}
     vertices = np.unique(np.concatenate([focal, *[s.ravel() for s in sets.values()]]))
@@ -65,6 +84,16 @@ def _ego_panels(
 
 
 def _drawing_reps(ctx: Context) -> list[str]:
+    """Representations drawn in the fixed-layout figures: at most four.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The shown main representations that are ``lex`` or raw blocks, falling back to the
+        shown ones and then to every main representation.
+    """
+
     shown = [r for r in ctx.main_reps if ctx.shows(r)]
     drawable = [r for r in shown if parse(r).is_lexical or parse(r).is_block]
     reps = drawable or shown or ctx.main_reps
@@ -72,6 +101,22 @@ def _drawing_reps(ctx: Context) -> list[str]:
 
 
 def figure_subgrafo_camadas(ctx: Context) -> Any:
+    """Figure ``subgrafo_camadas``: the first vertices of a core paragraph and their neighbours,
+    with fixed positions in every representation.
+
+    The paragraph is the first core paragraph with at least :data:`SUBGRAPH_WINDOW`
+    vertices; vertices are colored by token type for the most repeated types.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the sample has no core or the neighbour files are missing.
+    """
+
     occ = ctx.occurrences
     reps = _drawing_reps(ctx)
     core = occ[occ["stratum"] == "core"]
@@ -109,10 +154,35 @@ def figure_subgrafo_camadas(ctx: Context) -> Any:
 
 
 def _visible(text: Any) -> str:
+    """Token text with spaces shown as ``␣`` (``∅`` for an empty text).
+
+    Args:
+        text: Token text.
+
+    Returns:
+        The display text.
+    """
+
     return str(text).replace(" ", "␣") or "∅"
 
 
 def figure_p4_ego_banco(ctx: Context) -> Any:
+    """Figure ``p4_ego_banco``: the occurrences of a target word and their neighbours in every
+    representation, colored by sense theme.
+
+    The word is :data:`EGO_WORD` when the sample has it, and otherwise the target with the
+    most occurrences.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The matplotlib figure.
+
+    Raises:
+        Skip: If the sample has no target occurrence or the neighbour files are missing.
+    """
+
     occ = ctx.occurrences
     reps = _drawing_reps(ctx)
     marked = occ[occ["target_word"] != ""]

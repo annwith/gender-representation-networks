@@ -146,7 +146,17 @@ COMMUNITY_COLUMNS = [
 
 @dataclass(frozen=True)
 class GraphSpec:
-    """One graph to measure: which neighbour set, how it is symmetrized, where it lives."""
+    """One graph to measure: which neighbour set, how it is symmetrized, where it lives.
+
+    Attributes:
+        rep: Representation name, or ``vocab``.
+        k: Number of neighbours.
+        sym: ``union``, ``directed`` or ``mutual``.
+        tie: ``rand``, ``pos``, ``all``, ``rand_eps`` or ``pos_eps``.
+        seed: Tie-break seed index (0 for the deterministic rules).
+        source: Name of the ``.npz`` file inside the knn directory.
+        group: ``main``, ``robust`` or ``vocab``.
+    """
 
     rep: str
     k: int
@@ -157,6 +167,12 @@ class GraphSpec:
     group: str  # main | robust | vocab
 
     def __post_init__(self) -> None:
+        """Reject unknown symmetrizations and tie treatments.
+
+        Raises:
+            ValueError: If ``sym`` is not in :data:`SYMS` or ``tie`` is not in :data:`TIES`.
+        """
+
         if self.sym not in SYMS:
             raise ValueError(f"Unknown symmetrization '{self.sym}'")
         if self.tie not in TIES:
@@ -164,16 +180,26 @@ class GraphSpec:
 
     @property
     def graph_id(self) -> str:
+        """Identifier ``rep|k{k}|{sym}|{tie}|s{seed}`` of the specification."""
+
         return graph_id(self.rep, self.k, self.sym, self.tie, self.seed)
 
     @property
     def directed(self) -> bool:
+        """True for the directed graph."""
+
         return self.sym == "directed"
 
 
 @dataclass(frozen=True)
 class CommunityRequest:
-    """A partition to compute on one graph specification."""
+    """A partition to compute on one graph specification.
+
+    Attributes:
+        graph_id: Graph the partition is computed on.
+        resolution: Modularity resolution.
+        method: ``leiden`` or ``louvain``.
+    """
 
     graph_id: str
     resolution: float
@@ -181,7 +207,15 @@ class CommunityRequest:
 
 
 def vocab_community_k(settings: Settings) -> int | None:
-    """k of the vocabulary graph that gets communities: ``k_main`` or the closest vocab k."""
+    """k of the vocabulary graph that gets communities: ``k_main`` or the closest vocab k.
+
+    Args:
+        settings: Run configuration.
+
+    Returns:
+        The value of ``networks.vocab.k_values`` nearest to ``k_main`` (the smaller on a
+        tie), or ``None`` when the vocabulary network is disabled.
+    """
 
     values = settings.networks.vocab.k_values
     if not values:
@@ -191,7 +225,20 @@ def vocab_community_k(settings: Settings) -> int | None:
 
 
 def plan_graphs(settings: Settings) -> list[GraphSpec]:
-    """Every graph specification of a run, main configuration first (pure, no file access)."""
+    """Every graph specification of a run, main configuration first (pure, no file access).
+
+    Main group: for each main representation at ``k_main``, the union and directed graphs
+    with random ties (every seed for ``lex``, seed 0 elsewhere) and with the position rule.
+    Robust group: the other ``k`` values, the mutual graphs and variant (b) for every ``k``,
+    the robust and centered representations at ``k_main``, and the eps-sensitivity graphs.
+    Vocab group: union and directed graphs of every vocabulary ``k``, random and position.
+
+    Args:
+        settings: Run configuration.
+
+    Returns:
+        The specifications, without repeats, in planning order.
+    """
 
     net = settings.networks
     k_main = net.k_main
@@ -199,13 +246,33 @@ def plan_graphs(settings: Settings) -> list[GraphSpec]:
     seen: set[str] = set()
 
     def add(rep: str, k: int, sym: str, tie: str, seed: int, source: str, group: str) -> None:
+        """Append a specification unless one with the same graph id was already planned.
+
+        Args:
+            rep: Representation name, or ``vocab``.
+            k: Number of neighbours.
+            sym: Symmetrization.
+            tie: Tie treatment.
+            seed: Tie-break seed index.
+            source: Neighbour file name.
+            group: ``main``, ``robust`` or ``vocab``.
+        """
+
         spec = GraphSpec(rep, k, sym, tie, seed, source, group)
         if spec.graph_id not in seen:
             seen.add(spec.graph_id)
             specs.append(spec)
 
     def block(rep: str, k: int, seeds: Sequence[int], group: str, with_main: bool) -> None:
-        """Union/directed graphs (``with_main``) and, for robustness, mutual and variant (b)."""
+        """Union/directed graphs (``with_main``) and, for robustness, mutual and variant (b).
+
+        Args:
+            rep: Representation name.
+            k: Number of neighbours.
+            seeds: Random tie-break seeds to plan.
+            group: ``main`` or ``robust``.
+            with_main: Plan the union and directed graphs (random seeds and position rule).
+        """
 
         source = neighbors_name(rep, k)
         if with_main:
@@ -239,7 +306,20 @@ def plan_graphs(settings: Settings) -> list[GraphSpec]:
 
 
 def plan_communities(settings: Settings, specs: Sequence[GraphSpec]) -> list[CommunityRequest]:
-    """Partitions to compute, restricted to specifications present in ``specs``."""
+    """Partitions to compute, restricted to specifications present in ``specs``.
+
+    Leiden at the main resolution on the union graph at ``k_main`` of every occurrence
+    representation (random seed 0 and the position rule; for ``lex`` also seed 1); the
+    resolution sweep and a Louvain run on the main representations; and Leiden on one
+    vocabulary graph.
+
+    Args:
+        settings: Run configuration.
+        specs: Planned specifications whose files exist.
+
+    Returns:
+        The requests, without repeats.
+    """
 
     net, analysis = settings.networks, settings.analysis
     k_main, res = net.k_main, float(analysis.resolution)
@@ -247,6 +327,14 @@ def plan_communities(settings: Settings, specs: Sequence[GraphSpec]) -> list[Com
     requests: list[CommunityRequest] = []
 
     def add(gid: str, resolution: float, method: str = "leiden") -> None:
+        """Append a request when its graph is available and it is not already listed.
+
+        Args:
+            gid: Graph id.
+            resolution: Modularity resolution.
+            method: ``leiden`` or ``louvain``.
+        """
+
         request = CommunityRequest(gid, float(resolution), method)
         if gid in available and request not in requests:
             requests.append(request)
@@ -268,7 +356,16 @@ def plan_communities(settings: Settings, specs: Sequence[GraphSpec]) -> list[Com
 
 
 def distance_mode(spec: GraphSpec, settings: Settings) -> str:
-    """``none`` for digraphs, ``exact`` for occurrence graphs, exact or sampled for ``vocab``."""
+    """``none`` for digraphs, ``exact`` for occurrence graphs, exact or sampled for ``vocab``.
+
+    Args:
+        spec: Graph specification.
+        settings: Run configuration.
+
+    Returns:
+        The distance mode. A vocabulary graph is exact only at ``k_main`` with
+        ``analysis.exact_distances_vocab``.
+    """
 
     if spec.directed:
         return "none"
@@ -283,7 +380,21 @@ def distance_mode(spec: GraphSpec, settings: Settings) -> str:
 
 
 def select_neighbors(data: Mapping[str, np.ndarray], tie: str, seed: int) -> Neighbors:
-    """Neighbour structure of one tie treatment from a loaded ``nbr_*.npz`` / ``vocab_k*.npz``."""
+    """Neighbour structure of one tie treatment from a loaded ``nbr_*.npz`` / ``vocab_k*.npz``.
+
+    Args:
+        data: Arrays of the file, by name.
+        tie: ``pos``/``pos_eps`` read ``pos``; ``rand``/``rand_eps`` read one seed of
+            ``rand``; ``all`` reads the CSR pair of variant (b). The ``_eps`` treatments
+            differ only in the file they are read from.
+        seed: Seed index into ``rand``.
+
+    Returns:
+        Dense ``[N, k]`` array, or the CSR pair for ``all``.
+
+    Raises:
+        ValueError: If the treatment is unknown or the seed is not in the file.
+    """
 
     if tie in ("pos", "pos_eps"):
         return np.asarray(data["pos"])
@@ -301,29 +412,68 @@ class _NpzCache(Mapping[str, np.ndarray]):
     """Reads each array of an open ``.npz`` once (``NpzFile`` decompresses on every access)."""
 
     def __init__(self, npz: Mapping[str, np.ndarray]) -> None:
+        """Wrap an open ``.npz`` file.
+
+        Args:
+            npz: The open file; it must stay open while the cache is used.
+        """
+
         self._npz = npz
         self._arrays: dict[str, np.ndarray] = {}
 
     def __getitem__(self, key: str) -> np.ndarray:
+        """The array stored under ``key``, read on first use and kept in memory.
+
+        Args:
+            key: Array name.
+
+        Returns:
+            The array.
+        """
+
         if key not in self._arrays:
             self._arrays[key] = np.asarray(self._npz[key])
         return self._arrays[key]
 
     def __iter__(self) -> Iterator[str]:
+        """Iterate over the array names of the file."""
+
         return iter(self._npz)
 
     def __len__(self) -> int:
+        """Number of arrays in the file."""
+
         return len(self._npz)
 
 
 def load_neighbors(knn_dir: Path, spec: GraphSpec) -> Neighbors:
+    """Neighbour structure of a specification, read from its file.
+
+    Args:
+        knn_dir: Directory of the ``knn`` stage.
+        spec: Graph specification.
+
+    Returns:
+        Dense ``[N, k]`` array, or the CSR pair for variant (b).
+    """
+
     with np.load(knn_dir / spec.source) as data:
         return select_neighbors(data, spec.tie, spec.seed)
 
 
 @dataclass(frozen=True)
 class Fingerprint:
-    """What the planner needs to know about a graph before measuring it."""
+    """What the planner needs to know about a graph before measuring it.
+
+    Attributes:
+        edge_hash: Hash of the symmetrized edge set (see ``graphs.edge_hash``).
+        n_vertices: Number of rows of the neighbour structure.
+        n_edges: Edges of the symmetrized graph.
+        n_self_loops: Neighbour entries equal to their own row.
+        n_repeated: Neighbour entries that repeat another entry of the same row.
+        out_degree_min: Smallest number of distinct neighbours of a row.
+        out_degree_max: Largest number of distinct neighbours of a row.
+    """
 
     edge_hash: str
     n_vertices: int
@@ -335,7 +485,15 @@ class Fingerprint:
 
 
 def fingerprint(neighbors: Neighbors, sym: str) -> Fingerprint:
-    """Edge-set hash and sanity counts (self loops, repeated ids, out-degree range)."""
+    """Edge-set hash and sanity counts (self loops, repeated ids, out-degree range).
+
+    Args:
+        neighbors: Neighbour sets, dense or CSR.
+        sym: ``union``, ``directed`` or ``mutual``.
+
+    Returns:
+        The :class:`Fingerprint` of the graph.
+    """
 
     rows, ids, n = neighbor_rows(neighbors)
     edges = directed_edges(neighbors, n)
@@ -345,6 +503,19 @@ def fingerprint(neighbors: Neighbors, sym: str) -> Fingerprint:
 def _fingerprint_from_edges(
     edges: np.ndarray, n: int, sym: str, rows: np.ndarray, ids: np.ndarray
 ) -> Fingerprint:
+    """:func:`fingerprint` from directed edges that were already computed.
+
+    Args:
+        edges: Directed edges from ``graphs.directed_edges``.
+        n: Number of vertices.
+        sym: Symmetrization of the graph to fingerprint.
+        rows: Row of every neighbour entry (before removing loops and repeats).
+        ids: Neighbour id of every entry.
+
+    Returns:
+        The :class:`Fingerprint`.
+    """
+
     loops = int(np.count_nonzero(rows == ids))
     outdeg = np.bincount(edges[:, 0], minlength=n) if n else np.zeros(0, dtype=np.int64)
     graph_edges = symmetrize(edges, n, sym)
@@ -360,7 +531,15 @@ def _fingerprint_from_edges(
 
 
 def fingerprint_specs(knn_dir: Path, specs: Sequence[GraphSpec]) -> dict[str, Fingerprint]:
-    """Fingerprints of every specification, opening each ``.npz`` file once."""
+    """Fingerprints of every specification, opening each ``.npz`` file once.
+
+    Args:
+        knn_dir: Directory of the ``knn`` stage.
+        specs: Specifications whose files exist.
+
+    Returns:
+        Graph id to its :class:`Fingerprint`.
+    """
 
     by_source: dict[str, list[GraphSpec]] = defaultdict(list)
     for spec in specs:
@@ -387,7 +566,22 @@ def fingerprint_specs(knn_dir: Path, specs: Sequence[GraphSpec]) -> dict[str, Fi
 
 @dataclass(frozen=True)
 class GraphJob:
-    """Everything a worker needs to measure one distinct graph (arrays are loaded there)."""
+    """Everything a worker needs to measure one distinct graph (arrays are loaded there).
+
+    Attributes:
+        spec: Graph specification.
+        knn_dir: Directory of the ``knn`` stage, as a string (the job is pickled).
+        distances: Distance mode: ``exact``, ``sampled`` or ``none``.
+        sample_sources: BFS sources of the sampled mode.
+        distance_seed: Seed of the source draw.
+        leiden_resolutions: Resolutions to run Leiden at.
+        louvain_resolutions: Resolutions to run Louvain at.
+        leiden_runs: Leiden runs per resolution.
+        leiden_iterations: Iteration cap per Leiden run (-1 for none).
+        community_seed: First seed of the community runs.
+        top_hubs: Hubs kept for directed graphs.
+        cost: Rough cost estimate, used only to order the jobs.
+    """
 
     spec: GraphSpec
     knn_dir: str
@@ -405,7 +599,18 @@ class GraphJob:
 
 @dataclass
 class GraphResult:
-    """Metrics, histograms and partitions of one measured graph."""
+    """Metrics, histograms and partitions of one measured graph.
+
+    Attributes:
+        graph_id: Graph that was measured.
+        metrics: Scalar metrics (columns of ``graph_metrics.csv``).
+        degree_hist: Kind (``undirected``, ``in``, ``out``) to its degree histogram.
+        component_sizes: Component size to the number of components.
+        distance_hist: Distance to the number of pairs.
+        hubs: ``(vertex, in_degree)`` of the top hubs (directed graphs only).
+        partitions: ``(method, resolution)`` to its :class:`Partition`.
+        elapsed_s: Time spent measuring.
+    """
 
     graph_id: str
     metrics: dict[str, Any]
@@ -418,7 +623,20 @@ class GraphResult:
 
 
 def measure_graph(neighbors: Neighbors, n: int, job: GraphJob) -> GraphResult:
-    """Metrics (and partitions, for undirected graphs) of one neighbour structure."""
+    """Metrics (and partitions, for undirected graphs) of one neighbour structure.
+
+    A directed specification gets the size metrics, the weak components and the in-degree
+    and reciprocity statistics; an undirected one gets clustering, distances, components
+    and the requested partitions.
+
+    Args:
+        neighbors: Neighbour sets, dense or CSR.
+        n: Number of vertices.
+        job: The job (specification, distance mode, community requests, seeds).
+
+    Returns:
+        The :class:`GraphResult`.
+    """
 
     started = time.perf_counter()
     spec = job.spec
@@ -466,7 +684,14 @@ def measure_graph(neighbors: Neighbors, n: int, job: GraphJob) -> GraphResult:
 
 
 def compute_graph(job: GraphJob) -> GraphResult:
-    """Worker entry point: load the neighbour set from disk and measure it."""
+    """Worker entry point: load the neighbour set from disk and measure it.
+
+    Args:
+        job: The job.
+
+    Returns:
+        The :class:`GraphResult`.
+    """
 
     neighbors = load_neighbors(Path(job.knn_dir), job.spec)
     _, _, n = neighbor_rows(neighbors)
@@ -479,6 +704,9 @@ def single_thread_blas() -> Iterator[None]:
 
     Spawned children read these variables when numpy loads, so they must be set before the
     pool starts; the parent's values are restored afterwards.
+
+    Yields:
+        Nothing; the variables of :data:`BLAS_THREAD_VARS` are ``1`` inside the block.
     """
 
     saved = {name: os.environ.get(name) for name in BLAS_THREAD_VARS}
@@ -494,7 +722,16 @@ def single_thread_blas() -> Iterator[None]:
 
 
 def execute_jobs(jobs: Sequence[GraphJob], workers: int) -> Iterator[GraphResult]:
-    """Run jobs inline (``workers <= 1``) or in a pool of spawned processes, as they finish."""
+    """Run jobs inline (``workers <= 1``) or in a pool of spawned processes, as they finish.
+
+    Args:
+        jobs: Jobs to run.
+        workers: Number of worker processes.
+
+    Yields:
+        One :class:`GraphResult` per job, in completion order (not in job order) when a
+        pool is used.
+    """
 
     if workers <= 1 or len(jobs) <= 1:
         for job in jobs:
@@ -511,7 +748,15 @@ def execute_jobs(jobs: Sequence[GraphJob], workers: int) -> Iterator[GraphResult
 
 @dataclass
 class MetricsPlan:
-    """Specifications grouped into distinct jobs, with duplicates and community requests."""
+    """Specifications grouped into distinct jobs, with duplicates and community requests.
+
+    Attributes:
+        specs: Every specification, in planning order.
+        fingerprints: Graph id to its :class:`Fingerprint`.
+        duplicate_of: Graph id to the graph id whose identical edge set is measured.
+        requests: Partitions to compute.
+        jobs: One job per distinct graph, slowest first.
+    """
 
     specs: list[GraphSpec]
     fingerprints: dict[str, Fingerprint]
@@ -520,6 +765,15 @@ class MetricsPlan:
     jobs: list[GraphJob]
 
     def canonical(self, gid: str) -> str:
+        """Graph id that was actually measured for ``gid`` (itself unless it is a duplicate).
+
+        Args:
+            gid: Graph id.
+
+        Returns:
+            The canonical graph id.
+        """
+
         return self.duplicate_of.get(gid, gid)
 
 
@@ -529,7 +783,22 @@ def build_plan(
     fingerprints: Mapping[str, Fingerprint],
     knn_dir: Path,
 ) -> MetricsPlan:
-    """Deduplicate specifications by edge set and attach communities to the distinct graphs."""
+    """Deduplicate specifications by edge set and attach communities to the distinct graphs.
+
+    Two specifications are duplicates when they have the same edge hash and the same
+    distance mode; the first in planning order is measured. Community requests of a
+    duplicate are run on the graph it points to.
+
+    Args:
+        settings: Run configuration.
+        specs: Specifications whose files exist.
+        fingerprints: Graph id to its fingerprint.
+        knn_dir: Directory of the ``knn`` stage.
+
+    Returns:
+        The :class:`MetricsPlan`. The distance seed of a job is
+        ``crc32("{base_seed}|{graph_id}")`` and the community seed is ``base_seed``.
+    """
 
     canonical_by_key: dict[tuple[str, str], str] = {}
     duplicate_of: dict[str, str] = {}
@@ -580,7 +849,14 @@ def build_plan(
 
 
 def _blank(value: Any) -> Any:
-    """CSV cell: None and NaN become empty; numpy scalars become Python numbers."""
+    """CSV cell: None and NaN become empty; numpy scalars become Python numbers.
+
+    Args:
+        value: Cell value.
+
+    Returns:
+        The value to write.
+    """
 
     if value is None:
         return ""
@@ -598,7 +874,18 @@ def metric_row(
     duplicate_of: str | None,
     main_partition: Partition | None,
 ) -> dict[str, Any]:
-    """One ``graph_metrics.csv`` row (not-applicable cells are empty)."""
+    """One ``graph_metrics.csv`` row (not-applicable cells are empty).
+
+    Args:
+        spec: Specification of the row.
+        fp: Its fingerprint.
+        result: Result of the graph that was measured (its own, or the one it duplicates).
+        duplicate_of: Graph id it duplicates, or ``None``.
+        main_partition: Leiden partition at the main resolution, when there is one.
+
+    Returns:
+        Dictionary with the keys of :data:`METRIC_COLUMNS`.
+    """
 
     row: dict[str, Any] = dict.fromkeys(METRIC_COLUMNS)
     row.update(
@@ -624,6 +911,18 @@ def metric_row(
 
 
 def _save_partition(path: Path, partition: Partition, vocab_ids: np.ndarray | None) -> None:
+    """Write a partition to ``communities/*.npz``.
+
+    Args:
+        path: Output file.
+        partition: The partition; ``memberships`` falls back to the single membership.
+        vocab_ids: Token id of every vertex of a vocabulary graph, stored when given.
+
+    Side effects:
+        Writes the file with ``membership``, ``modularity``, ``quality``, ``stability``,
+        ``resolution``, ``seed``, ``sizes``, ``qualities`` and ``memberships``.
+    """
+
     arrays: dict[str, Any] = {
         "membership": partition.membership.astype(np.int32),
         "modularity": np.float64(partition.modularity),
@@ -645,10 +944,29 @@ def _save_partition(path: Path, partition: Partition, vocab_ids: np.ndarray | No
 
 
 def _occurrence_token_ids(paths: RunPaths) -> np.ndarray | None:
+    """Token id of every occurrence, or ``None`` when ``occurrences.csv`` is missing.
+
+    Args:
+        paths: Paths of the run.
+
+    Returns:
+        int64 array ``[N]`` or ``None``.
+    """
+
     return read_token_ids(paths.occurrences) if paths.occurrences.exists() else None
 
 
 def _vocab_ids(knn_dir: Path, specs: Sequence[GraphSpec]) -> dict[str, np.ndarray]:
+    """Token ids of the rows of every vocabulary neighbour file.
+
+    Args:
+        knn_dir: Directory of the ``knn`` stage.
+        specs: Specifications; only the ``vocab`` ones are read.
+
+    Returns:
+        File name to its ``vocab_ids`` array.
+    """
+
     out: dict[str, np.ndarray] = {}
     for spec in specs:
         if spec.rep == VOCAB and spec.source not in out:
@@ -663,7 +981,21 @@ def _check_vertex_counts(
     occurrence_tokens: np.ndarray | None,
     vocab_ids: Mapping[str, np.ndarray],
 ) -> dict[str, Any]:
-    """Every occurrence graph must have the same |V| (and match occurrences.csv)."""
+    """Every occurrence graph must have the same |V| (and match occurrences.csv).
+
+    Args:
+        specs: Specifications.
+        fingerprints: Graph id to its fingerprint.
+        occurrence_tokens: Token id of every occurrence, or ``None``.
+        vocab_ids: File name to the token ids of its rows.
+
+    Returns:
+        ``n_occurrences`` and, per vocabulary ``k``, the number of rows.
+
+    Raises:
+        ValueError: If the occurrence graphs disagree on the number of vertices, differ
+            from ``occurrences.csv``, or a vocabulary file disagrees with its id list.
+    """
 
     occurrence_n = {fingerprints[s.graph_id].n_vertices for s in specs if s.rep != VOCAB}
     if len(occurrence_n) > 1:
@@ -686,7 +1018,15 @@ def _check_vertex_counts(
 def _anomalies(
     specs: Sequence[GraphSpec], fingerprints: Mapping[str, Fingerprint]
 ) -> list[dict[str, Any]]:
-    """Neighbour sets breaking the knn contract (loops, repeats, out-degree != k)."""
+    """Neighbour sets breaking the knn contract (loops, repeats, out-degree != k).
+
+    Args:
+        specs: Specifications.
+        fingerprints: Graph id to its fingerprint.
+
+    Returns:
+        One entry per offending graph; variant (b) may exceed ``k`` but not fall below it.
+    """
 
     found = []
     for spec in specs:
@@ -707,13 +1047,39 @@ def _anomalies(
 
 
 def metrics_inputs(paths: RunPaths) -> list[Path]:
-    """Upstream files whose change makes the metrics stale."""
+    """Upstream files whose change makes the metrics stale.
+
+    Args:
+        paths: Paths of the run.
+
+    Returns:
+        The manifests of the ``knn`` and ``sample`` stages.
+    """
 
     return [paths.manifest("knn"), paths.manifest("sample")]
 
 
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
-    """Measure every graph specification whose neighbour file exists in ``paths.knn_dir``."""
+    """Measure every graph specification whose neighbour file exists in ``paths.knn_dir``.
+
+    Args:
+        settings: Run configuration; the ``networks`` and ``analysis`` sections are used.
+        paths: Paths of the run.
+        force: Redo the stage even when it is up to date.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Raises:
+        FileNotFoundError: If the knn directory or a main-configuration neighbour file is
+            missing. Missing robustness files only skip their graphs, with a warning.
+        ValueError: If the neighbour sets disagree on the number of vertices.
+
+    Side effects:
+        Starts worker processes, removes the old partition files and writes the tables of
+        ``metrics/``, the partitions with their index and, last, the manifest.
+
+    Notes:
+        Only ``graph_metrics.csv`` is tested to decide whether the stage is up to date.
+    """
 
     out_dir = paths.metrics_dir
     outputs = [paths.metrics_table("graph_metrics")]
@@ -814,7 +1180,23 @@ def _write_outputs(
     occurrence_tokens: np.ndarray | None,
     vocab_ids: Mapping[str, np.ndarray],
 ) -> dict[str, Any]:
-    """Write every table and partition file; return statistics for the manifest."""
+    """Write every table and partition file; return statistics for the manifest.
+
+    Args:
+        settings: Run configuration.
+        paths: Paths of the run.
+        plan: The plan that was executed.
+        results: Canonical graph id to its result.
+        occurrence_tokens: Token id of every occurrence, for the hub table.
+        vocab_ids: File name to the token ids of its rows.
+
+    Returns:
+        The number of partition files, the Louvain cross-check and the main-configuration
+        summary.
+
+    Side effects:
+        Deletes every ``.npz`` in ``metrics/communities`` before writing the new ones.
+    """
 
     community_dir = ensure_dir(paths.communities_dir)
     for stale in community_dir.glob("*.npz"):

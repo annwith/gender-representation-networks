@@ -97,13 +97,30 @@ _TOLERANCES: dict[torch.dtype, tuple[float, float]] = {
 
 
 def partial_all_layers_path(paths: RunPaths) -> Path:
-    """Where all_layers.npy is filled before it is renamed into place."""
+    """Where all_layers.npy is filled before it is renamed into place.
+
+    Args:
+        paths: Paths of the run.
+
+    Returns:
+        ``reps/all_layers.npy.partial``.
+    """
 
     return paths.all_layers.with_name(paths.all_layers.name + ".partial")
 
 
 def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
-    """Every file a complete extraction leaves behind (the manifest is written last)."""
+    """Every file a complete extraction leaves behind (the manifest is written last).
+
+    Args:
+        settings: Run configuration (``model.layers`` and ``model.capture_all_layers``).
+        paths: Paths of the run.
+
+    Returns:
+        One ``.safetensors`` file per configured layer name, the final-norm file (always named
+        ``L36n``), the embeddings, ``pred_next.npy``, ``diagnostics.json``, ``verify.json``,
+        ``all_layers.npy`` when every layer is captured, and ``reps/_manifest.json``.
+    """
 
     files = [paths.rep(name) for name in settings.model.layers]
     files += [
@@ -125,6 +142,18 @@ def output_paths(settings: Settings, paths: RunPaths) -> list[Path]:
 
 
 def _torch_dtype(name: str) -> torch.dtype:
+    """The torch dtype with the given name.
+
+    Args:
+        name: Attribute name of ``torch`` (``bfloat16``, ``float32``).
+
+    Returns:
+        The dtype object.
+
+    Raises:
+        ValueError: If ``torch`` has no dtype with that name.
+    """
+
     dtype = getattr(torch, name, None)
     if not isinstance(dtype, torch.dtype):
         raise ValueError(f"Unknown torch dtype '{name}'")
@@ -136,6 +165,16 @@ def load_model(model_settings: ModelSettings) -> PreTrainedModel:
 
     With ``device_map='auto'`` and ``max_memory`` the blocks that do not fit on the GPU are
     offloaded to the CPU by accelerate and streamed to the GPU during the forward pass.
+
+    Args:
+        model_settings: The ``model`` section. ``device_map`` and ``max_memory`` are passed
+            only when set; the attention implementation is left to the library default.
+
+    Returns:
+        The model, in eval mode.
+
+    Side effects:
+        Reads the Hugging Face cache and downloads the weights when they are missing.
     """
 
     kwargs: dict[str, Any] = {
@@ -158,7 +197,17 @@ def load_model(model_settings: ModelSettings) -> PreTrainedModel:
 
 
 def decoder_parts(model: nn.Module) -> tuple[nn.ModuleList, nn.Module, nn.Module]:
-    """Blocks, final norm and input embedding of a Qwen3-like decoder (bare or ``*ForCausalLM``)."""
+    """Blocks, final norm and input embedding of a Qwen3-like decoder (bare or ``*ForCausalLM``).
+
+    Args:
+        model: A decoder with ``layers`` and ``norm`` attributes, directly or under ``.model``.
+
+    Returns:
+        ``(layers, norm, input embedding module)``; ``layers[i]`` is block ``i + 1``.
+
+    Raises:
+        TypeError: If the model has no ``layers`` or ``norm``.
+    """
 
     base = model
     if not hasattr(base, "layers") and hasattr(base, "model"):
@@ -171,7 +220,14 @@ def decoder_parts(model: nn.Module) -> tuple[nn.ModuleList, nn.Module, nn.Module
 
 
 def _accelerate_hooks(module: nn.Module) -> list[Any]:
-    """accelerate hooks attached to a module (a ``SequentialHook`` holds several)."""
+    """accelerate hooks attached to a module (a ``SequentialHook`` holds several).
+
+    Args:
+        module: Any module of the model.
+
+    Returns:
+        The module's ``_hf_hook`` followed by the hooks it wraps; empty without accelerate.
+    """
 
     hook = getattr(module, "_hf_hook", None)
     if hook is None:
@@ -180,7 +236,15 @@ def _accelerate_hooks(module: nn.Module) -> list[Any]:
 
 
 def module_device(module: nn.Module) -> torch.device:
-    """Device where a module computes: accelerate's execution device when it is offloaded."""
+    """Device where a module computes: accelerate's execution device when it is offloaded.
+
+    Args:
+        module: Any module of the model.
+
+    Returns:
+        The execution device of an accelerate hook when there is one; otherwise the device of
+        the first parameter that is not on the meta device; the CPU as a last resort.
+    """
 
     for hook in _accelerate_hooks(module):
         device = getattr(hook, "execution_device", None)
@@ -193,7 +257,18 @@ def module_device(module: nn.Module) -> torch.device:
 
 
 def embedding_weight(model: nn.Module) -> torch.Tensor:
-    """The real input embedding matrix, also when accelerate offloaded it (meta parameter)."""
+    """The real input embedding matrix, also when accelerate offloaded it (meta parameter).
+
+    Args:
+        model: The loaded model.
+
+    Returns:
+        Tensor ``[embedding rows, d]`` in the model dtype: the detached parameter, or the
+        tensor held by accelerate's weights map when the parameter is on the meta device.
+
+    Raises:
+        RuntimeError: If the weight is on the meta device and no hook holds it.
+    """
 
     module = model.get_input_embeddings()
     weight = module.weight
@@ -217,6 +292,17 @@ class HookRecorder:
     Each hook gathers ``out[0, positions]`` and moves it to the CPU at once, so a forward pass
     never holds more than what the model itself needs plus ``m x d`` rows per captured block.
     Use as a context manager (hooks are removed on exit) and call :meth:`run` per sequence.
+
+    Attributes:
+        model: The model the hooks are attached to.
+        layers: The decoder blocks.
+        norm_module: The final RMSNorm.
+        embedding: The input embedding module.
+        block_indices: Sorted 0-based indices of the captured blocks.
+        store_dtype: Dtype the rows are stored in; ``None`` keeps the model dtype.
+        norm: Rows ``[m, d]`` of the final norm from the last run, on the CPU.
+        norm_native: The same rows on the compute device in the model dtype, used for the
+            next-token prediction.
     """
 
     def __init__(
@@ -225,6 +311,19 @@ class HookRecorder:
         block_indices: Iterable[int] | None = None,
         store_dtype: torch.dtype | None = torch.bfloat16,
     ) -> None:
+        """Prepare the recorder; hooks are attached on ``__enter__``.
+
+        Args:
+            model: A Qwen3-like decoder (see :func:`decoder_parts`).
+            block_indices: 0-based indices of the blocks to capture; ``None`` captures every
+                block. Repeats are dropped.
+            store_dtype: Dtype of the stored rows. Defaults to bfloat16; ``None`` keeps the
+                model dtype (used by :func:`verify`).
+
+        Raises:
+            ValueError: If an index is outside ``0..n_layers - 1``.
+        """
+
         self.model = model
         self.layers, self.norm_module, self.embedding = decoder_parts(model)
         n_layers = len(self.layers)
@@ -243,9 +342,20 @@ class HookRecorder:
 
     @property
     def n_layers(self) -> int:
+        """Number of decoder blocks of the model."""
+
         return len(self.layers)
 
     def __enter__(self) -> HookRecorder:
+        """Attach one forward hook per captured block and one on the final norm.
+
+        Returns:
+            The recorder itself.
+
+        Raises:
+            RuntimeError: If the hooks are already attached.
+        """
+
         if self._handles:
             raise RuntimeError("Hooks are already attached")
         for index in self.block_indices:
@@ -254,12 +364,29 @@ class HookRecorder:
         return self
 
     def __exit__(self, *exc: object) -> None:
+        """Remove every hook, whatever happened inside the ``with`` block.
+
+        Args:
+            *exc: Exception triple of the context manager protocol; ignored.
+        """
+
         for handle in self._handles:
             handle.remove()
         self._handles.clear()
         self._active = False
 
     def _rows(self, output: Any) -> torch.Tensor:
+        """Rows of the vertex positions in a module output.
+
+        Args:
+            output: Output of a block (a tensor or a tuple whose first item is the hidden state
+                ``[1, n, d]``) or of the norm.
+
+        Returns:
+            Tensor ``[m, d]`` on the device of the output; the position index is moved to each
+            device once per run.
+        """
+
         hidden = output[0] if isinstance(output, tuple) else output
         index = self._by_device.get(hidden.device)
         if index is None:
@@ -268,23 +395,75 @@ class HookRecorder:
         return hidden[0, index]
 
     def _store(self, rows: torch.Tensor) -> torch.Tensor:
+        """Rows moved to the CPU in the storage dtype.
+
+        Args:
+            rows: Tensor ``[m, d]`` on the compute device.
+
+        Returns:
+            The rows on the CPU, in ``store_dtype`` (or unchanged dtype when it is ``None``).
+        """
+
         return rows.to(device="cpu", dtype=self.store_dtype or rows.dtype)
 
     def _block_hook(self, index: int):
+        """Forward hook that records the vertex rows of one block.
+
+        Args:
+            index: 0-based block index the rows are stored under.
+
+        Returns:
+            A function with the forward-hook signature ``(module, args, output)``.
+        """
+
         def hook(module: nn.Module, args: Any, output: Any) -> None:
+            """Store the vertex rows of this block's output while a run is active.
+
+            Args:
+                module: The block (unused).
+                args: Positional inputs of the block (unused).
+                output: Output of the block.
+            """
+
             if self._active:
                 self._blocks[index] = self._store(self._rows(output))
 
         return hook
 
     def _norm_hook(self, module: nn.Module, args: Any, output: Any) -> None:
+        """Store the vertex rows of the final norm output while a run is active.
+
+        Args:
+            module: The norm module (unused).
+            args: Positional inputs of the norm (unused).
+            output: Output of the norm, ``[1, n, d]``.
+        """
+
         if self._active:
             rows = self._rows(output)
             self.norm_native = rows
             self.norm = self._store(rows)
 
     def run(self, input_ids: Sequence[int], positions: Sequence[int], **forward_kwargs: Any) -> Any:
-        """One forward pass (batch 1, attention mask of ones, no cache) recording ``positions``."""
+        """One forward pass (batch 1, attention mask of ones, no cache) recording ``positions``.
+
+        Args:
+            input_ids: Token ids of the sequence, prefix token included.
+            positions: 0-based positions in the sequence whose rows are kept, in the order the
+                rows are returned.
+            **forward_kwargs: Extra arguments of the model call (``output_hidden_states``, which
+                defaults to False here).
+
+        Returns:
+            The model output object.
+
+        Raises:
+            RuntimeError: If called outside the ``with`` block, or a hook did not fire.
+            ValueError: If a position is outside the sequence.
+
+        Side effects:
+            Replaces the rows recorded by the previous run.
+        """
 
         if not self._handles:
             raise RuntimeError("Use HookRecorder as a context manager before calling run()")
@@ -315,13 +494,24 @@ class HookRecorder:
         return outputs
 
     def block(self, index: int) -> torch.Tensor:
-        """Recorded rows ``[m, d]`` of block ``index`` (0-based) from the last run."""
+        """Recorded rows ``[m, d]`` of block ``index`` (0-based) from the last run.
+
+        Args:
+            index: 0-based block index, one of ``block_indices``.
+
+        Returns:
+            CPU tensor ``[m, d]`` in the storage dtype; row ``i`` is position ``positions[i]``.
+        """
 
         return self._blocks[index]
 
     @property
     def blocks(self) -> torch.Tensor:
-        """Recorded rows of every captured block, ``[len(block_indices), m, d]``."""
+        """Recorded rows of every captured block, ``[len(block_indices), m, d]``.
+
+        Returns:
+            CPU tensor stacked in the order of ``block_indices``.
+        """
 
         return torch.stack([self._blocks[i] for i in self.block_indices])
 
@@ -333,7 +523,18 @@ def capture_outputs(
     block_indices: Iterable[int] | None = None,
     store_dtype: torch.dtype | None = torch.bfloat16,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Rows of the vertex positions: blocks ``[L, m, d]`` and final norm ``[m, d]`` (CPU)."""
+    """Rows of the vertex positions: blocks ``[L, m, d]`` and final norm ``[m, d]`` (CPU).
+
+    Args:
+        model: A Qwen3-like decoder.
+        input_ids: Token ids of the sequence.
+        positions: 0-based positions whose rows are kept.
+        block_indices: 0-based blocks to capture; ``None`` captures all.
+        store_dtype: Dtype of the returned rows. Defaults to bfloat16.
+
+    Returns:
+        ``(blocks, norm)`` from one forward pass.
+    """
 
     with HookRecorder(model, block_indices, store_dtype) as recorder:
         recorder.run(input_ids, positions)
@@ -352,6 +553,23 @@ def predict_next(
     With tied embeddings this is the model's own next-token choice. The vocabulary is processed
     in chunks so the float32 copy of the weight stays small on the GPU; ties keep the lowest id,
     as ``torch.argmax`` does.
+
+    Args:
+        rows: Final-norm rows ``[m, d]`` in any dtype and device.
+        weight: Embedding matrix ``[embedding rows, d]``; the computation runs on its device.
+        vocab_size: Number of leading rows searched (the tokenizer ids; padding rows of the
+            matrix are left out).
+        chunk_rows: Vocabulary rows per chunk.
+
+    Returns:
+        int64 CPU tensor ``[m]`` with the predicted token id of each row.
+
+    Raises:
+        ValueError: If ``vocab_size`` exceeds the rows of ``weight``.
+
+    Notes:
+        The function assumes the output matrix is the input embedding matrix; it does not
+        check ``tie_word_embeddings``.
     """
 
     if vocab_size > weight.shape[0]:
@@ -377,14 +595,32 @@ def predict_next(
 
 
 def bf16_bits(x: torch.Tensor) -> np.ndarray:
-    """Raw bfloat16 bits of a tensor as a uint16 array (rounded to nearest even)."""
+    """Raw bfloat16 bits of a tensor as a uint16 array (rounded to nearest even).
+
+    Args:
+        x: Tensor of any float dtype, device and shape.
+
+    Returns:
+        uint16 array of the same shape. A bfloat16 input is reinterpreted without loss; other
+        dtypes are converted to bfloat16 first.
+    """
 
     bf16 = x.detach().to(device="cpu", dtype=torch.bfloat16).contiguous()
     return bf16.view(torch.int16).numpy().view(np.uint16)
 
 
 def bits_to_float32(bits: np.ndarray) -> np.ndarray:
-    """Exact float32 values of raw bfloat16 bits."""
+    """Exact float32 values of raw bfloat16 bits.
+
+    bfloat16 is the upper half of a float32, so shifting the bits left by 16 gives the
+    float32 with the same value.
+
+    Args:
+        bits: uint16 array of bfloat16 bit patterns, any shape.
+
+    Returns:
+        float32 array of the same shape.
+    """
 
     return (np.asarray(bits, dtype=np.uint16).astype(np.uint32) << 16).view(np.float32)
 
@@ -396,7 +632,15 @@ def bits_to_float32(bits: np.ndarray) -> np.ndarray:
 
 @dataclass(frozen=True)
 class SequenceTask:
-    """One forward pass: a sequence and the vertex rows read from it."""
+    """One forward pass: a sequence and the vertex rows read from it.
+
+    Attributes:
+        sequence_id: Id of the sequence in ``sequences.jsonl``.
+        input_ids: Token ids of the sequence, prefix token included.
+        positions: int64 array ``[m]`` of vertex positions in the sequence (at least 1).
+        occurrence_ids: int64 array ``[m]``, sorted: the row of each vertex in every
+            representation file, aligned with ``positions``.
+    """
 
     sequence_id: int
     input_ids: tuple[int, ...]
@@ -414,6 +658,22 @@ def build_tasks(
 
     Mismatches between ``occurrences.csv`` and ``sequences.jsonl`` would silently scramble
     vectors, so they fail here, before the model is even loaded.
+
+    Args:
+        sequences: Records of ``sequences.jsonl``.
+        occurrences: Occurrence rows with at least ``occurrence_id``, ``sequence_id``,
+            ``pos_in_sequence`` and ``token_id``.
+        vocab_size: When given, every token id must be below it.
+        prefix_id: When given, every sequence must start with it.
+
+    Returns:
+        One task per sequence that has vertices, in the order of ``sequences``.
+
+    Raises:
+        ValueError: On a missing column, no rows, ``occurrence_id`` different from the row
+            index, a duplicate or empty sequence, a wrong prefix, an id outside the
+            vocabulary, an unknown sequence, a position outside ``1..len - 1``, a repeated
+            position, or a ``token_id`` that differs from the sequence.
     """
 
     required = {"occurrence_id", "sequence_id", "pos_in_sequence", "token_id"}
@@ -468,7 +728,14 @@ def build_tasks(
 
 
 def prefix_group_members(prefix_group: Sequence[int] | np.ndarray) -> list[np.ndarray]:
-    """Sorted rows of each prefix group with two or more members (first row = lowest id)."""
+    """Sorted rows of each prefix group with two or more members (first row = lowest id).
+
+    Args:
+        prefix_group: Group label of every vertex; -1 for vertices without a group.
+
+    Returns:
+        One int64 array of rows per group, in increasing label order.
+    """
 
     groups: dict[int, list[int]] = defaultdict(list)
     for row, label in enumerate(np.asarray(prefix_group, dtype=np.int64).tolist()):
@@ -478,7 +745,16 @@ def prefix_group_members(prefix_group: Sequence[int] | np.ndarray) -> list[np.nd
 
 
 def check_prefix_groups(tasks: Sequence[SequenceTask], prefix_group: np.ndarray) -> None:
-    """``prefix_group`` must match the token prefixes: same prefix if and only if same group."""
+    """``prefix_group`` must match the token prefixes: same prefix if and only if same group.
+
+    Args:
+        tasks: Tasks from :func:`build_tasks`.
+        prefix_group: Group label of every vertex, in vertex order.
+
+    Raises:
+        ValueError: If two vertices share their token prefix without sharing a group, or a
+            group holds different prefixes.
+    """
 
     prefix_of: dict[int, tuple[int, ...]] = {}
     for task in tasks:
@@ -509,7 +785,18 @@ def check_prefix_groups(tasks: Sequence[SequenceTask], prefix_group: np.ndarray)
 
 @dataclass
 class ExtractionResult:
-    """Representations in ``occurrence_id`` order, as raw bfloat16 bits."""
+    """Representations in ``occurrence_id`` order, as raw bfloat16 bits.
+
+    Attributes:
+        blocks: uint16 array ``[len(block_layers), N, d]`` (memmap or in memory).
+        block_layers: 1-based block of each slice of ``blocks``.
+        norm: uint16 array ``[N, d]``, the final-norm output.
+        pred_next: int32 array ``[N]``, the predicted next token id.
+        n_sequences: Number of forward passes.
+        tokens: Tokens processed, prefix tokens included.
+        forward_seconds: Time inside the forward passes and the predictions.
+        seconds: Total time of the loop.
+    """
 
     blocks: np.ndarray  # uint16 [len(block_layers), N, d] (memmap or in memory)
     block_layers: list[int]  # 1-based block of each slice of ``blocks``
@@ -522,7 +809,14 @@ class ExtractionResult:
 
 
 def _row_index(rows: np.ndarray) -> slice | np.ndarray:
-    """A slice when rows are consecutive (faster memmap writes), else the index array."""
+    """A slice when rows are consecutive (faster memmap writes), else the index array.
+
+    Args:
+        rows: Sorted int array of vertex rows.
+
+    Returns:
+        ``slice(first, last + 1)`` for a run of consecutive rows; ``rows`` otherwise.
+    """
 
     if len(rows) and int(rows[-1]) - int(rows[0]) + 1 == len(rows):
         if np.all(np.diff(rows) == 1):
@@ -544,6 +838,22 @@ def extract_representations(
     ``block_layers`` are 1-based block indices (sorted here); ``blocks_out`` may be a
     preallocated ``[len(block_layers), N, d]`` uint16 array such as the ``all_layers.npy``
     memmap.
+
+    Args:
+        model: The loaded decoder.
+        tasks: One task per sequence.
+        n_vertices: ``N``, the number of occurrences.
+        block_layers: 1-based blocks to capture.
+        vocab_size: Number of tokenizer ids, for the next-token prediction.
+        blocks_out: Array the block rows are written into; ``None`` allocates one in memory.
+        log_every: Sequences between progress messages.
+
+    Returns:
+        The representations before the prefix-group copy.
+
+    Raises:
+        ValueError: If a block is outside ``1..n_layers``, ``blocks_out`` has the wrong shape
+            or dtype, two sequences write the same row, or a vertex is in no sequence.
     """
 
     layers, _, embedding = decoder_parts(model)
@@ -617,6 +927,18 @@ def copy_prefix_groups(
     lengths, so kernels may round differently. The lowest occurrence_id of each group is copied
     to the others (every captured block, the final norm and the prediction); the largest
     absolute difference seen before copying is the numerical-noise diagnostic.
+
+    Args:
+        prefix_group: Group label of every vertex; -1 for none.
+        blocks: uint16 array ``[L, N, d]``, modified in place.
+        block_layers: 1-based block of each slice of ``blocks``.
+        norm: uint16 array ``[N, d]``, modified in place.
+        pred_next: int array ``[N]``, modified in place.
+
+    Returns:
+        Number of groups and of copied rows, the largest absolute difference per block and
+        for the norm (in the float32 values of the stored bits), and how many predictions
+        changed.
     """
 
     groups = prefix_group_members(prefix_group)
@@ -655,12 +977,34 @@ def copy_prefix_groups(
 
 
 def _max_abs_diff(a: torch.Tensor, b: torch.Tensor) -> float:
+    """Largest absolute difference between two tensors, compared in float32 on the CPU.
+
+    Args:
+        a: First tensor.
+        b: Second tensor, same shape.
+
+    Returns:
+        The difference; 0.0 for empty tensors.
+    """
+
     if a.numel() == 0:
         return 0.0
     return float((a.detach().cpu().float() - b.detach().cpu().float()).abs().max())
 
 
 def _close(a: torch.Tensor, b: torch.Tensor, rtol: float, atol: float) -> bool:
+    """``torch.allclose`` of two tensors compared in float32 on the CPU.
+
+    Args:
+        a: First tensor.
+        b: Second tensor, same shape.
+        rtol: Relative tolerance.
+        atol: Absolute tolerance.
+
+    Returns:
+        True when every element satisfies ``|a - b| <= atol + rtol * |b|``.
+    """
+
     return bool(torch.allclose(a.detach().cpu().float(), b.detach().cpu().float(), rtol, atol))
 
 
@@ -684,6 +1028,24 @@ def verify(
     5. a second run gives identical outputs (a tiny nonzero difference is only a warning).
 
     ``passed`` covers checks 1-4, the ones a normal run aborts on.
+
+    Args:
+        model: The loaded decoder.
+        sequences: Token id lists, or records with ``input_ids``.
+        n: Number of leading sequences to run.
+
+    Returns:
+        Report written to ``verify.json``: ``passed``, the number of sequences and tokens,
+        ``n_layers``, the dtype and its tolerance, one entry per check with its largest
+        absolute difference, the warnings, the time, and the ``tie_word_embeddings`` and
+        attention implementation of the model configuration (recorded, not checked).
+
+    Raises:
+        ValueError: If no sequence is left to run (``n`` below 1 or no sequences).
+
+    Notes:
+        Checks 2, 3 and the norm hook use exact equality; the comparisons through
+        ``norm(hook)`` and between two runs use the tolerance of the model dtype.
     """
 
     layers, norm_module, embedding = decoder_parts(model)
@@ -811,7 +1173,19 @@ def verify(
 
 
 def random_pairs(n: int, n_pairs: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
-    """Uniform pairs of distinct rows (with replacement across pairs), reproducible by seed."""
+    """Uniform pairs of distinct rows (with replacement across pairs), reproducible by seed.
+
+    Args:
+        n: Number of rows.
+        n_pairs: Number of pairs.
+        seed: Seed of the numpy generator.
+
+    Returns:
+        ``(first, second)`` int arrays ``[n_pairs]`` with ``first[i] != second[i]``.
+
+    Raises:
+        ValueError: If ``n`` is smaller than 2.
+    """
 
     if n < 2:
         raise ValueError("Need at least two rows for pairs")
@@ -825,7 +1199,17 @@ def random_pairs(n: int, n_pairs: int, seed: int) -> tuple[np.ndarray, np.ndarra
 def mean_pair_cosine(
     x: np.ndarray, pairs: tuple[np.ndarray, np.ndarray], norms: np.ndarray | None = None
 ) -> float | None:
-    """Mean cosine (float32) of the given row pairs, skipping zero-norm rows (anisotropy)."""
+    """Mean cosine (float32) of the given row pairs, skipping zero-norm rows (anisotropy).
+
+    Args:
+        x: Array ``[N, d]``.
+        pairs: ``(first, second)`` row indices from :func:`random_pairs`.
+        norms: Row norms ``[N]``; computed when ``None``.
+
+    Returns:
+        The mean over the pairs whose two rows have nonzero norm; ``None`` when no pair
+        qualifies.
+    """
 
     x = np.asarray(x, dtype=np.float32)
     norms = np.linalg.norm(x, axis=1) if norms is None else norms
@@ -848,7 +1232,22 @@ def representation_summary(
     top_dims: int = TOP_DIMS,
     outlier_factor: float = OUTLIER_FACTOR,
 ) -> dict[str, Any]:
-    """Norms, anisotropy, dominant dimensions (massive activations) and norms by position."""
+    """Norms, anisotropy, dominant dimensions (massive activations) and norms by position.
+
+    Args:
+        x: Array ``[N, d]`` of one representation.
+        pos_bucket: Position bucket label of every row.
+        pairs: Row pairs for the mean cosine; ``None`` skips it.
+        top_dims: Number of dominant dimensions reported.
+        outlier_factor: A norm above this many times the median counts as an outlier.
+
+    Returns:
+        Dictionary with the number of rows and of rows with non-finite values, the norm
+        quantiles of :data:`QUANTILES`, the mean norm, the mean pair cosine, the ``top_dims``
+        dimensions of largest mean absolute value with their mean share of the squared norm,
+        the ratio of the largest mean absolute value to the median one, the number of norm
+        outliers and the mean norm per position bucket.
+    """
 
     x = np.asarray(x, dtype=np.float32)
     norms = np.linalg.norm(x, axis=1)
@@ -896,7 +1295,17 @@ def representation_summary(
 def layer_curve(
     blocks: np.ndarray, block_layers: Sequence[int], n_pairs: int, seed: int
 ) -> list[dict[str, Any]]:
-    """Mean norm and mean random-pair cosine per captured block (layer curve of P2)."""
+    """Mean norm and mean random-pair cosine per captured block (layer curve of P2).
+
+    Args:
+        blocks: uint16 array ``[L, N, d]`` of bfloat16 bits.
+        block_layers: 1-based block of each slice.
+        n_pairs: Random pairs behind the cosine.
+        seed: Seed of the pairs; the same pairs are used for every block.
+
+    Returns:
+        One ``{"layer", "mean_norm", "median_norm", "mean_pair_cosine"}`` entry per block.
+    """
 
     n = blocks.shape[1]
     pairs = random_pairs(n, n_pairs, seed) if n >= 2 else None
@@ -918,7 +1327,16 @@ def layer_curve(
 
 
 def describe_devices(model: nn.Module) -> dict[str, Any]:
-    """Where the model computes (CUDA is queried only when the model actually uses it)."""
+    """Where the model computes (CUDA is queried only when the model actually uses it).
+
+    Args:
+        model: The loaded decoder.
+
+    Returns:
+        Devices of the input, the embedding weight and the norm, the number of modules per
+        device of the device map, the dtype, the attention implementation and, when CUDA is
+        in use, the GPU name and the peak allocated memory in GiB.
+    """
 
     _, norm_module, embedding = decoder_parts(model)
     device_map = getattr(model, "hf_device_map", None) or {}
@@ -952,7 +1370,25 @@ def build_diagnostics(
     curve_pairs: int = LAYER_CURVE_PAIRS,
     next_token_id: np.ndarray | None = None,
 ) -> dict[str, Any]:
-    """Numerical profile of every representation (same random pairs for all of them)."""
+    """Numerical profile of every representation (same random pairs for all of them).
+
+    Args:
+        result: Extraction result, after the prefix-group copy.
+        rep_layers: Representation name to its 1-based block.
+        weight: Embedding matrix ``[V, d]`` on the CPU; the lexical vectors are its rows.
+        token_ids: Token id of every occurrence.
+        pos_bucket: Position bucket label of every occurrence.
+        seed: Seed of the random pairs.
+        n_pairs: Pairs behind the per-representation cosine.
+        curve_pairs: Pairs behind the layer curve.
+        next_token_id: Actual next token of every occurrence (-1 for none); when given, the
+            agreement of ``pred_next`` with it is reported.
+
+    Returns:
+        The content of ``diagnostics.json`` that depends on the vectors: one summary per
+        block representation, for the final norm and for ``lex``, the layer curve and the
+        next-token agreement.
+    """
 
     n = result.norm.shape[0]
     pairs = random_pairs(n, n_pairs, seed) if n >= 2 else None
@@ -993,7 +1429,18 @@ def build_diagnostics(
 
 
 def load_occurrences(path: Path) -> pd.DataFrame:
-    """The columns of ``occurrences.csv`` this stage needs, as integers where numeric."""
+    """The columns of ``occurrences.csv`` this stage needs, as integers where numeric.
+
+    Args:
+        path: The occurrences file.
+
+    Returns:
+        DataFrame with the columns of :data:`OCCURRENCE_INPUT_COLUMNS` that the file has;
+        empty ``prefix_group`` and ``next_token_id`` cells become -1.
+
+    Raises:
+        ValueError: If ``occurrence_id`` is not the row index.
+    """
 
     frame = read_occurrences(path, OCCURRENCE_INPUT_COLUMNS, dtype={"pos_bucket": str})
     for column in ("occurrence_id", "sequence_id", "pos_in_sequence", "token_id"):
@@ -1005,6 +1452,16 @@ def load_occurrences(path: Path) -> pd.DataFrame:
 
 
 def _pos_buckets(occurrences: pd.DataFrame) -> np.ndarray:
+    """Position bucket label of every occurrence.
+
+    Args:
+        occurrences: Occurrence rows.
+
+    Returns:
+        The ``pos_bucket`` column when every cell is filled; otherwise the buckets computed
+        from ``pos_in_sequence``.
+    """
+
     if "pos_bucket" in occurrences and (occurrences["pos_bucket"].astype(str) != "").all():
         return occurrences["pos_bucket"].astype(str).to_numpy()
     return np.array([position_bucket(int(p)) for p in occurrences["pos_in_sequence"]])
@@ -1026,6 +1483,31 @@ def extract_to_directory(
 
     Returns the statistics recorded in the stage manifest. ``verify.json`` and the manifest are
     written by :func:`run`.
+
+    Args:
+        model: The loaded decoder.
+        paths: Paths of the run.
+        tasks: One task per sequence.
+        occurrences: Occurrence rows from :func:`load_occurrences`.
+        vocab_size: Number of tokenizer ids; the stored embedding matrix has this many rows.
+        rep_layers: Representation name to its 1-based block.
+        capture_all_layers: Capture every block into ``all_layers.npy``.
+        seed: Seed of the diagnostic random pairs.
+        timings: Timings measured by the caller, added to the diagnostics.
+
+    Returns:
+        Statistics for the manifest: sizes, representation names, prefix-group figures,
+        timings and devices.
+
+    Raises:
+        ValueError: If a representation name is reserved (``lex``, ``L36n``), a block is out
+            of range or ``vocab_size`` exceeds the embedding rows.
+
+    Side effects:
+        Writes one ``.safetensors`` file per representation and for the final norm,
+        ``embeddings.safetensors``, ``pred_next.npy`` and ``diagnostics.json``;
+        ``all_layers.npy`` is filled under a temporary name and renamed when complete, or
+        removed when a previous run left one and all layers are no longer captured.
     """
 
     layers, _, embedding = decoder_parts(model)
@@ -1175,6 +1657,29 @@ def run(
     verify_only: bool = False,
     **_: object,
 ) -> None:
+    """Stage ``extract``: verify the model assumptions, then extract every representation.
+
+    The inputs are checked against the tokenizer before the model is loaded. The checks of
+    :func:`verify` always run and are written to ``verify.json``; with ``verify_only`` the
+    stage stops there, and otherwise a failed gating check aborts before any extraction.
+
+    Args:
+        settings: Run configuration; the ``model`` section and ``sample.seed`` are used.
+        paths: Paths of the run.
+        force: Redo the stage even when it is up to date.
+        verify_only: Only run the checks and write ``verify.json``.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Raises:
+        FileNotFoundError: If the sample files are missing.
+        ValueError: If the prefix token is unknown or the inputs are inconsistent.
+        RuntimeError: If a gating check of :func:`verify` fails.
+
+    Side effects:
+        Loads the model (GPU when available), removes the previous stage manifest before
+        extracting, and writes the files of ``reps/`` and, last, the manifest.
+    """
+
     targets = output_paths(settings, paths)
     inputs = [paths.manifest("sample")]
     if not verify_only and up_to_date("extract", paths, settings, inputs, targets, force):

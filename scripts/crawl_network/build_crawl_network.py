@@ -98,7 +98,16 @@ ARTICLE_FIELDS = [
 
 
 def trace_walk(client: WikiClient, walk: Walk, skip_patterns: Sequence[str]) -> CrawlTrace:
-    """The walk of the corpus stage, with what it went through."""
+    """The walk of the corpus stage, with what it went through.
+
+    Args:
+        client: API client (offline, reading the cache).
+        walk: The walk to replay.
+        skip_patterns: ``corpus.skip_category_patterns``.
+
+    Returns:
+        The filled trace.
+    """
 
     trace = CrawlTrace()
     client.crawl(walk.roots, walk.depth, walk.max_titles, skip_patterns, trace=trace)
@@ -106,6 +115,19 @@ def trace_walk(client: WikiClient, walk: Walk, skip_patterns: Sequence[str]) -> 
 
 
 def build_graph(walk_list: Sequence[Walk], traces: dict[str, CrawlTrace]) -> nx.DiGraph:
+    """Directed graph of the crawl: opened categories, recorded titles and listing arcs.
+
+    Args:
+        walk_list: The walks, in corpus order.
+        traces: Walk id to its trace.
+
+    Returns:
+        DiGraph whose category vertices carry the attributes of the first walk that opened
+        them, whose article vertices carry the walk that first recorded them and the themes
+        that reached them, and whose arcs have ``kind`` (``subcategory`` or ``member``) and
+        ``first`` (the arc the pipeline used).
+    """
+
     g = nx.DiGraph()
     theme_roots = {root for w in walk_list if w.origin == "root" for root in w.roots}
     extra_roots = {root for w in walk_list if w.origin != "root" for root in w.roots}
@@ -165,6 +187,16 @@ def build_graph(walk_list: Sequence[Walk], traces: dict[str, CrawlTrace]) -> nx.
 
 
 def _add_arc(g: nx.DiGraph, u: str, v: str, kind: str, first: bool) -> None:
+    """Add an arc, or mark an existing one as used by the pipeline.
+
+    Args:
+        g: The crawl graph, modified in place.
+        u: Source vertex.
+        v: Target vertex.
+        kind: ``subcategory`` or ``member``.
+        first: Whether a walk used this arc to reach ``v``.
+    """
+
     if g.has_edge(u, v):
         g.edges[u, v]["first"] = g.edges[u, v]["first"] or first
     else:
@@ -179,6 +211,24 @@ def check_against_pipeline(
     g: nx.DiGraph,
     articles_path: Path,
 ) -> int:
+    """Check the replayed walks against ``articles.jsonl``.
+
+    Args:
+        client: API client (unused).
+        settings: The ``corpus`` section (unused).
+        walk_list: The walks (unused).
+        traces: Walk id to its trace.
+        g: The crawl graph.
+        articles_path: ``articles.jsonl`` of the ``corpus`` stage.
+
+    Returns:
+        Number of articles checked.
+
+    Raises:
+        ValueError: If the file came from ``corpus-rebuild`` (no ``origin``).
+        AssertionError: If the category, the depth or the themes of an article differ.
+    """
+
     checked = 0
     with articles_path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -203,7 +253,15 @@ def check_against_pipeline(
 
 
 def tree_root(g: nx.DiGraph, name: str) -> str:
-    """Follow ``parent`` (the arc the pipeline used) up to a walk root."""
+    """Follow ``parent`` (the arc the pipeline used) up to a walk root.
+
+    Args:
+        g: The crawl graph.
+        name: Any vertex.
+
+    Returns:
+        The root category of the tree the vertex belongs to.
+    """
 
     while g.nodes[name]["parent"] is not None:
         name = g.nodes[name]["parent"]
@@ -216,6 +274,14 @@ def radial_tree(g: nx.DiGraph, members: list[str]) -> tuple[dict[str, tuple[floa
     igraph places children in vertex-id order, so ``members`` (sorted by discovery) keeps the
     order in which the walk queued categories and recorded titles around the circle. The
     radius grows with the square root of the tree size, so every tree has a similar density.
+
+    Args:
+        g: The crawl graph.
+        members: Vertices of the tree, the root first, in discovery order.
+
+    Returns:
+        ``(positions, radius)``: vertex to its ``(x, y)`` around the origin, and the radius
+        of the tree.
     """
 
     index = {name: i for i, name in enumerate(members)}
@@ -233,11 +299,27 @@ def layout(g: nx.DiGraph, walk_list: Sequence[Walk]) -> dict[str, tuple[float, f
 
     The 8 theme blocks sit on a 4 x 2 grid. Cross-tree arcs (a title listed by categories of
     several walks, multi-theme titles) are left to the drawing.
+
+    Args:
+        g: The crawl graph.
+        walk_list: The walks, in corpus order.
+
+    Returns:
+        Vertex to its ``(x, y)`` position.
     """
 
     rank = {w.walk_id: i for i, w in enumerate(walk_list)}
 
     def discovery(name: str) -> tuple[int, int, int]:
+        """Sort key of a vertex: its walk, categories before articles, then discovery order.
+
+        Args:
+            name: Vertex.
+
+        Returns:
+            The key tuple.
+        """
+
         data = g.nodes[name]
         is_article = data["kind"] == "article"
         order = data["found_order"] if is_article else data["open_order"]
@@ -286,6 +368,19 @@ def to_json(
     traces: dict[str, CrawlTrace],
     positions: dict[str, tuple[float, float]],
 ) -> dict[str, Any]:
+    """The network as the JSON object embedded in the page.
+
+    Args:
+        g: The crawl graph.
+        walk_list: The walks, in corpus order.
+        traces: Walk id to its trace.
+        positions: Vertex to its position.
+
+    Returns:
+        Dictionary with the themes and their colors, one entry per walk, the vertices and
+        the arcs as ``[source, target, is_subcategory, first, tree]`` index rows.
+    """
+
     names = list(g.nodes)
     index = {name: i for i, name in enumerate(names)}
     nodes = []
@@ -349,7 +444,13 @@ def to_json(
 
 
 def write_graphml(g: nx.DiGraph, positions: dict[str, tuple[float, float]], path: Path) -> None:
-    """GraphML has no list type: lists become ``;``-joined strings; absent values become ""."""
+    """GraphML has no list type: lists become ``;``-joined strings; absent values become "".
+
+    Args:
+        g: The crawl graph.
+        positions: Vertex to its position, stored as ``x`` and ``y``.
+        path: Output file.
+    """
 
     out = nx.DiGraph()
     keys = sorted({k for _, d in g.nodes(data=True) for k in d})
@@ -373,6 +474,18 @@ def articles_payload(articles_path: Path, paragraphs_path: Path) -> tuple[dict[s
     with the rows (the kept paragraphs of each article, in order; empty for dropped ones),
     gzip-compressed with a fixed timestamp (so an unchanged corpus gives the same bytes) and
     base64-encoded.
+
+    Args:
+        articles_path: ``articles.jsonl``.
+        paragraphs_path: ``paragraphs.jsonl``.
+
+    Returns:
+        ``(table, text)``: the rows with their field names and the reason labels, and the
+        packed text.
+
+    Raises:
+        AssertionError: If the paragraphs are out of order, a kept article has none, or a
+            paragraph belongs to an article that is not kept.
     """
 
     texts: dict[int, list[str]] = {}
@@ -410,14 +523,31 @@ def articles_payload(articles_path: Path, paragraphs_path: Path) -> tuple[dict[s
 
 
 def _pack(data: Any) -> str:
-    """Compact JSON, gzip-compressed with a fixed timestamp (same input, same bytes), base64."""
+    """Compact JSON, gzip-compressed with a fixed timestamp (same input, same bytes), base64.
+
+    Args:
+        data: JSON-serializable value.
+
+    Returns:
+        ASCII text.
+    """
 
     packed = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return base64.b64encode(gzip.compress(packed, compresslevel=9, mtime=0)).decode("ascii")
 
 
 def _context(text: str, start: int, end: int) -> tuple[str, str, str]:
-    """Left context, occurrence and right context, cut at word boundaries."""
+    """Left context, occurrence and right context, cut at word boundaries.
+
+    Args:
+        text: Paragraph text.
+        start: Start of the occurrence.
+        end: End of the occurrence, exclusive.
+
+    Returns:
+        ``(left, occurrence, right)`` with up to :data:`KWIC_WINDOW` characters on each
+        side and an ellipsis where the context was cut.
+    """
 
     left = text[max(0, start - KWIC_WINDOW) : start]
     right = text[end : end + KWIC_WINDOW]
@@ -437,6 +567,19 @@ def sample_payload(
     paragraph and starts a token of the same id; the core has the manifest's vertex and cut
     counts; the strata have the manifest's sizes; every target and control keeps its ``final``
     count in each theme; every multitheme type has ``before + drawn`` occurrences.
+
+    Args:
+        sample_dir: ``sample/`` directory of a run.
+        paragraphs_path: ``paragraphs.jsonl``.
+        tokenizer: Hugging Face fast tokenizer.
+        corpus: The ``corpus`` section.
+        k_main: ``networks.k_main``, shown on the page.
+
+    Returns:
+        ``(stats, packed)``: counts for the console and the packed data of the tab.
+
+    Raises:
+        AssertionError: If the sample does not match the corpus or its manifest.
     """
 
     themes = list(corpus.themes)
@@ -650,7 +793,15 @@ def sample_payload(
 
 
 def write_page(payloads: dict[str, str], path: Path) -> None:
-    """Fill each mark of the page template (``</`` escaped so no tag closes early)."""
+    """Fill each mark of the page template (``</`` escaped so no tag closes early).
+
+    Args:
+        payloads: Mark to the text that replaces it.
+        path: Output HTML file.
+
+    Raises:
+        ValueError: If a mark is not in the template exactly once.
+    """
 
     page = TEMPLATE.read_text(encoding="utf-8")
     for mark, payload in payloads.items():
@@ -661,6 +812,14 @@ def write_page(payloads: dict[str, str], path: Path) -> None:
 
 
 def summary(g: nx.DiGraph, walk_list: Sequence[Walk], traces: dict[str, CrawlTrace]) -> None:
+    """Print the size of the network and one line per walk.
+
+    Args:
+        g: The crawl graph.
+        walk_list: The walks, in corpus order.
+        traces: Walk id to its trace.
+    """
+
     kinds = Counter(d["kind"] for _, d in g.nodes(data=True))
     arcs = Counter((d["kind"], d["first"]) for _, _, d in g.edges(data=True))
     multi = sum(1 for _, d in g.nodes(data=True) if d.get("multitheme"))
@@ -681,6 +840,16 @@ def summary(g: nx.DiGraph, walk_list: Sequence[Walk], traces: dict[str, CrawlTra
 
 
 def main() -> None:
+    """Rebuild the crawl network and the page of the crawl, the corpus and the sample.
+
+    Side effects:
+        Reads the API cache (offline), the corpus, the sample of the run and the tokenizer
+        from the local cache; writes ``crawl_network.graphml`` in the output folder and
+        ``index.html`` in the page folder (``data/crawl`` and ``docs/coleta`` by default),
+        after checking the walks against ``articles.jsonl`` and the sample against the
+        corpus.
+    """
+
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)

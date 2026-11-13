@@ -109,16 +109,38 @@ class BrFormatter(ScalarFormatter):
     """Tick labels with the decimal comma (and a thousands dot for large integers)."""
 
     def __init__(self) -> None:
+        """Create the formatter without offset, math text or scientific notation."""
+
         super().__init__(useOffset=False, useMathText=False)
         self.set_scientific(False)
 
     def __call__(self, x: float, pos: int | None = None) -> str:
+        """Format one tick value.
+
+        Args:
+            x: Tick value.
+            pos: Tick position (unused by this formatter).
+
+        Returns:
+            Integers of magnitude 10 000 or more with a thousands dot; every other value as
+            matplotlib formats it, with the decimal point replaced by a comma.
+        """
+
         if abs(x) >= 10_000 and float(x).is_integer():
             return ("−" if x < 0 else "") + fmt_int(abs(x))
         return super().__call__(x, pos).replace(".", ",")
 
 
 def percent_formatter(digits: int = 0) -> FuncFormatter:
+    """Formatter that shows a fraction as a pt-BR percentage (``0.25`` -> ``25%``).
+
+    Args:
+        digits: Decimal places of the percentage. Defaults to 0.
+
+    Returns:
+        The tick formatter.
+    """
+
     return FuncFormatter(lambda v, _: f"{fmt_dec(v * 100, digits)}%")
 
 
@@ -127,7 +149,11 @@ def percent_formatter(digits: int = 0) -> FuncFormatter:
 
 
 def apply_style() -> None:
-    """One quiet style for every figure: sans text, hairline axes, embedded TrueType fonts."""
+    """One quiet style for every figure: sans text, hairline axes, embedded TrueType fonts.
+
+    Side effects:
+        Updates the global ``matplotlib.rcParams``; call it once before building figures.
+    """
 
     plt.rcParams.update(
         {
@@ -172,7 +198,18 @@ def apply_style() -> None:
 def figure(
     nrows: int = 1, ncols: int = 1, height: float = 2.4, width: float = WIDTH_IN, **kwargs: Any
 ) -> tuple[Figure, np.ndarray]:
-    """Constrained-layout figure at the final width; ``axes`` is always a 2-D array."""
+    """Constrained-layout figure at the final width; ``axes`` is always a 2-D array.
+
+    Args:
+        nrows: Rows of axes.
+        ncols: Columns of axes.
+        height: Figure height in inches.
+        width: Figure width in inches. Defaults to :data:`WIDTH_IN`.
+        **kwargs: Passed to ``plt.subplots`` (``sharex``, ``width_ratios``...).
+
+    Returns:
+        ``(figure, axes)`` with ``axes`` of shape ``[nrows, ncols]``.
+    """
 
     fig, axes = plt.subplots(
         nrows, ncols, figsize=(width, height), layout="constrained", squeeze=False, **kwargs
@@ -182,7 +219,13 @@ def figure(
 
 
 def prepare(ax: Axes, title: str | None = None, grid: str = "y") -> None:
-    """Hairline grid behind the marks, only the baseline spines."""
+    """Hairline grid behind the marks, only the baseline spines.
+
+    Args:
+        ax: Axes to style.
+        title: Panel title, when given.
+        grid: Axis of the grid lines: ``x``, ``y``, ``both`` or anything else for none.
+    """
 
     if grid in ("x", "y", "both"):
         ax.grid(axis=grid, color=GRID, linewidth=0.6)
@@ -196,12 +239,27 @@ def prepare(ax: Axes, title: str | None = None, grid: str = "y") -> None:
 
 
 def decimal_axis(ax: Axes, which: str = "y") -> None:
+    """Use the pt-BR number formatter on one axis.
+
+    Args:
+        ax: Axes to change.
+        which: ``y`` (default) or ``x``.
+    """
+
     axis = ax.yaxis if which == "y" else ax.xaxis
     axis.set_major_formatter(BrFormatter())
 
 
 def save(fig: Figure, path: Path) -> Path:
-    """Vector PDF without a creation date, so reruns give byte-identical files."""
+    """Vector PDF without a creation date, so reruns give byte-identical files.
+
+    Args:
+        fig: Figure to write; it is closed afterwards.
+        path: Output file; its directory is created.
+
+    Returns:
+        ``path``.
+    """
 
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, format="pdf", metadata={"CreationDate": None, "ModDate": None})
@@ -210,6 +268,13 @@ def save(fig: Figure, path: Path) -> Path:
 
 
 def empty_note(ax: Axes, text: str = "sem dados") -> None:
+    """Replace a panel without data by a centered note.
+
+    Args:
+        ax: Axes to annotate; its ticks are removed.
+        text: Note text.
+    """
+
     ax.text(0.5, 0.5, text, transform=ax.transAxes, ha="center", va="center", color=MUTED)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -217,7 +282,14 @@ def empty_note(ax: Axes, text: str = "sem dados") -> None:
 
 @dataclass(frozen=True)
 class Style:
-    """Color, marker and hatch of one series."""
+    """Color, marker and hatch of one series.
+
+    Attributes:
+        color: Hex color.
+        marker: Matplotlib marker; the empty string draws none.
+        hatch: Matplotlib hatch pattern for bars; the empty string draws none.
+        label: Legend text.
+    """
 
     color: str
     marker: str = "o"
@@ -226,7 +298,16 @@ class Style:
 
 
 def rep_styles(reps: Sequence[str]) -> dict[str, Style]:
-    """lex in gray, the blocks on the ordinal blue ramp (by depth), robust variants after."""
+    """lex in gray, the blocks on the ordinal blue ramp (by depth), robust variants after.
+
+    Args:
+        reps: Representation names (``vocab`` allowed).
+
+    Returns:
+        Name to its :class:`Style`. Raw blocks get ramp colors by depth and their own
+        markers; ``lex`` is gray; ``vocab`` is dark gray; other names (``L36n``, centered
+        variants) take accent colors with a star marker.
+    """
 
     parsed = {r: try_parse(r) for r in reps}
     blocks = sorted(
@@ -255,7 +336,15 @@ def rep_styles(reps: Sequence[str]) -> dict[str, Style]:
 
 
 def categorical_styles(keys: Sequence[str], labels: Mapping[str, str] | None = None) -> dict:
-    """Fixed-order categorical slots; keys beyond the eighth fold into the gray."""
+    """Fixed-order categorical slots; keys beyond the eighth fold into the gray.
+
+    Args:
+        keys: Category codes, in the order that fixes their colors.
+        labels: Code to legend text; a code without a label shows as itself.
+
+    Returns:
+        Code to its :class:`Style` (color, marker and hatch of its slot).
+    """
 
     styles = {}
     for i, key in enumerate(keys):
@@ -267,7 +356,15 @@ def categorical_styles(keys: Sequence[str], labels: Mapping[str, str] | None = N
 
 
 def ordinal_styles(keys: Sequence[str], labels: Mapping[str, str] | None = None) -> dict:
-    """Ordered keys (frequency bands, transitions) on the blue ramp, light to dark."""
+    """Ordered keys (frequency bands, transitions) on the blue ramp, light to dark.
+
+    Args:
+        keys: Keys in their order.
+        labels: Key to legend text.
+
+    Returns:
+        Key to its :class:`Style`.
+    """
 
     if len(keys) == 1:
         ramp = [BLUE_RAMP[6]]
@@ -282,6 +379,16 @@ def ordinal_styles(keys: Sequence[str], labels: Mapping[str, str] | None = None)
 
 
 def plot_series(ax: Axes, x: Sequence[float], y: Sequence[float], style: Style, **kw: Any) -> None:
+    """Draw one line with a marker on every point, in the style of a series.
+
+    Args:
+        ax: Axes to draw on.
+        x: Horizontal positions.
+        y: Values.
+        style: Color, marker and label of the series.
+        **kw: Extra arguments of ``Axes.plot`` (``markersize``, ``linewidth``...).
+    """
+
     ax.plot(
         x,
         y,
@@ -303,14 +410,29 @@ LAYER_AXIS_LABEL = "camada ℓ (0 = lex)"
 
 
 def layer_axis(reps: Sequence[str]) -> bool:
-    """True when ``reps`` has too many blocks for one tick per representation."""
+    """True when ``reps`` has too many blocks for one tick per representation.
+
+    Args:
+        reps: Representation names.
+
+    Returns:
+        Whether more than :data:`LAYER_AXIS_MAX_BLOCKS` non-lexical representations are
+        listed.
+    """
 
     blocks = [r for r in reps if (rep := try_parse(r)) is not None and not rep.is_lexical]
     return len(blocks) > LAYER_AXIS_MAX_BLOCKS
 
 
 def rep_positions(reps: Sequence[str]) -> np.ndarray:
-    """x of each representation: its index, or its layer number on a layer axis."""
+    """x of each representation: its index, or its layer number on a layer axis.
+
+    Args:
+        reps: Representation names.
+
+    Returns:
+        float or int array with one position per name (``lex`` at 0 on a layer axis).
+    """
 
     if not layer_axis(reps):
         return np.arange(len(reps))
@@ -318,6 +440,17 @@ def rep_positions(reps: Sequence[str]) -> np.ndarray:
 
 
 def rep_ticks(ax: Axes, reps: Sequence[str], xs: np.ndarray) -> None:
+    """Ticks of an axis over the representations.
+
+    Args:
+        ax: Axes to change.
+        reps: Representation names.
+        xs: Positions from :func:`rep_positions`.
+
+    Side effects:
+        One labelled tick per representation, or integer layer ticks on a layer axis.
+    """
+
     if layer_axis(reps):
         ax.xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))
     else:
@@ -327,7 +460,15 @@ def rep_ticks(ax: Axes, reps: Sequence[str], xs: np.ndarray) -> None:
 def plot_rep_series(
     ax: Axes, reps: Sequence[str], xs: np.ndarray, y: Sequence[float], style: Style
 ) -> None:
-    """One series over the representations: markers on every point, or a line on a layer axis."""
+    """One series over the representations: markers on every point, or a line on a layer axis.
+
+    Args:
+        ax: Axes to draw on.
+        reps: Representation names.
+        xs: Positions from :func:`rep_positions`.
+        y: One value per representation.
+        style: Style of the series.
+    """
 
     if not layer_axis(reps):
         plot_series(ax, xs, y, style)
@@ -338,6 +479,14 @@ def plot_rep_series(
 
 
 def legend_top(fig: Figure, handles: Sequence[Any], ncol: int | None = None) -> None:
+    """Figure legend above the panels, aligned to the left.
+
+    Args:
+        fig: Figure that receives the legend.
+        handles: Legend handles.
+        ncol: Number of columns; ``None`` uses at most five.
+    """
+
     fig.legend(
         handles=list(handles),
         loc="outside upper left",
@@ -349,6 +498,15 @@ def legend_top(fig: Figure, handles: Sequence[Any], ncol: int | None = None) -> 
 
 
 def line_handle(style: Style) -> Line2D:
+    """Legend handle of a line series (line and marker).
+
+    Args:
+        style: Style of the series.
+
+    Returns:
+        The handle.
+    """
+
     return Line2D(
         [],
         [],
@@ -362,6 +520,15 @@ def line_handle(style: Style) -> Line2D:
 
 
 def patch_handle(style: Style) -> Patch:
+    """Legend handle of a bar series (color and hatch).
+
+    Args:
+        style: Style of the series.
+
+    Returns:
+        The handle.
+    """
+
     return Patch(
         facecolor=style.color,
         hatch=style.hatch,
@@ -372,6 +539,19 @@ def patch_handle(style: Style) -> Patch:
 
 
 def _hatched_bar(ax: Axes, horizontal: bool, *args: Any, style: Style, **kw: Any) -> Any:
+    """Bars of one series, with its hatch drawn in the surface color.
+
+    Args:
+        ax: Axes to draw on.
+        horizontal: Draw with ``barh`` instead of ``bar``.
+        *args: Positional arguments of the bar call (positions and lengths).
+        style: Style of the series.
+        **kw: Keyword arguments of the bar call (``height``, ``left``...).
+
+    Returns:
+        The bar container.
+    """
+
     draw = ax.barh if horizontal else ax.bar
     bars = draw(*args, color=style.color, linewidth=0, **kw)
     if style.hatch:
@@ -383,6 +563,15 @@ def _hatched_bar(ax: Axes, horizontal: bool, *args: Any, style: Style, **kw: Any
 
 
 def _label_bars(ax: Axes, values: Sequence[float], ys: Sequence[float], xmax: float) -> None:
+    """Write the value of each horizontal bar just past its tip.
+
+    Args:
+        ax: Axes to draw on.
+        values: Bar lengths.
+        ys: Vertical positions of the bars.
+        xmax: Upper limit of the x axis, used to space the labels.
+    """
+
     for y, value in zip(ys, values, strict=True):
         ax.text(
             value + xmax * 0.015,
@@ -398,7 +587,15 @@ def _label_bars(ax: Axes, values: Sequence[float], ys: Sequence[float], xmax: fl
 def hbar_panel(
     ax: Axes, labels: Sequence[str], values: Sequence[float], title: str, color: str = BLUE_RAMP[7]
 ) -> None:
-    """Single-series horizontal bars (one color), value labels past the tips."""
+    """Single-series horizontal bars (one color), value labels past the tips.
+
+    Args:
+        ax: Axes to draw on.
+        labels: Bar labels, top to bottom.
+        values: Bar lengths, shown as integers.
+        title: Panel title.
+        color: Bar color.
+    """
 
     prepare(ax, title, grid="x")
     ys = np.arange(len(labels))[::-1]
@@ -417,7 +614,16 @@ def hbar_panel(
 
 
 def corpus_paragraphs_figure(counts: pd.Series, lengths: np.ndarray) -> Figure:
-    """Paragraphs per theme (bars) and the distribution of paragraph lengths in words."""
+    """Paragraphs per theme (bars) and the distribution of paragraph lengths in words.
+
+    Args:
+        counts: Theme code to its number of paragraphs.
+        lengths: Number of words of every paragraph.
+
+    Returns:
+        The figure. The histogram clips the tail above the 99.5% quantile into the last bin
+        and marks the median.
+    """
 
     fig, axes = figure(1, 2, height=2.5, width_ratios=[1, 1.15])
     order = counts.sort_values(ascending=False)
@@ -455,7 +661,14 @@ def corpus_paragraphs_figure(counts: pd.Series, lengths: np.ndarray) -> Figure:
 
 
 def corpus_discards_figure(table: pd.DataFrame) -> Figure:
-    """Small multiples: discarded candidate pages per theme, one panel per reason."""
+    """Small multiples: discarded candidate pages per theme, one panel per reason.
+
+    Args:
+        table: Themes in the index, one column per discard reason, counts in the cells.
+
+    Returns:
+        The figure.
+    """
 
     reasons = [r for r in REASON_ORDER if r in table.columns] + [
         r for r in table.columns if r not in REASON_ORDER
@@ -478,7 +691,14 @@ def corpus_discards_figure(table: pd.DataFrame) -> Figure:
 
 
 def sample_composition_figure(panels: Sequence[tuple[str, Sequence[str], Sequence[int]]]) -> Figure:
-    """Vertices by stratum, theme, frequency band and token category (one panel each)."""
+    """Vertices by stratum, theme, frequency band and token category (one panel each).
+
+    Args:
+        panels: ``(title, labels, values)`` of each panel.
+
+    Returns:
+        The figure, with the panels in two columns.
+    """
 
     n = len(panels)
     ncols = 2
@@ -499,7 +719,18 @@ def sample_composition_figure(panels: Sequence[tuple[str, Sequence[str], Sequenc
 def extraction_layers_figure(
     curve: pd.DataFrame, lexical: Mapping[str, float] | None, marked: Mapping[str, int]
 ) -> Figure:
-    """Mean norm (log scale) and mean random-pair cosine per block; layer 0 = embedding."""
+    """Mean norm (log scale) and mean random-pair cosine per block; layer 0 = embedding.
+
+    Args:
+        curve: Rows of the layer curve of ``diagnostics.json`` (``layer``, ``mean_norm``,
+            ``mean_pair_cosine``).
+        lexical: The same two values for the input embedding, drawn at layer 0, or ``None``.
+        marked: Representation name to the layer it is read from; those points are
+            highlighted and labelled.
+
+    Returns:
+        The figure.
+    """
 
     fig, axes = figure(1, 2, height=2.3)
     curve = curve.sort_values("layer")
@@ -550,7 +781,15 @@ def extraction_layers_figure(
 
 def extraction_dimensions_figure(summaries: Mapping[str, Mapping[str, Any]]) -> Figure:
     """Per representation: top coordinates over the median one, their share of the squared
-    norm, and the mean norm by position bucket (relative to the representation's mean)."""
+    norm, and the mean norm by position bucket (relative to the representation's mean).
+
+    Args:
+        summaries: Representation name to its summary from
+            ``extract.representation_summary``.
+
+    Returns:
+        The figure with three panels.
+    """
 
     reps = list(summaries)
     styles = rep_styles(reps)
@@ -611,7 +850,16 @@ def extraction_dimensions_figure(summaries: Mapping[str, Mapping[str, Any]]) -> 
 
 
 def ccdf(degrees: np.ndarray, counts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """``P(K >= d)`` at each observed degree ``d > 0``, from a degree histogram."""
+    """``P(K >= d)`` at each observed degree ``d > 0``, from a degree histogram.
+
+    Args:
+        degrees: Observed degrees.
+        counts: Number of vertices at each degree.
+
+    Returns:
+        ``(degrees, probabilities)`` sorted by degree; degree 0 counts in the total but is
+        left out of the result (the axis is logarithmic). Both empty without vertices.
+    """
 
     order = np.argsort(degrees)
     degrees = np.asarray(degrees, dtype=float)[order]
@@ -627,7 +875,16 @@ def ccdf(degrees: np.ndarray, counts: np.ndarray) -> tuple[np.ndarray, np.ndarra
 def sparse_markers(
     ax: Axes, x: np.ndarray, y: np.ndarray, style: Style, n: int = 8, size: float = 4.0
 ) -> None:
-    """Markers on about ``n`` points of a dense line, so that it stays identifiable in grey."""
+    """Markers on about ``n`` points of a dense line, so that it stays identifiable in grey.
+
+    Args:
+        ax: Axes to draw on.
+        x: Horizontal positions of the line.
+        y: Values of the line.
+        style: Style of the series.
+        n: Approximate number of markers.
+        size: Marker size.
+    """
 
     every = max(1, x.size // n)
     ax.plot(
@@ -649,7 +906,18 @@ def degree_ccdf_figure(
     title: str,
     height: float = 2.6,
 ) -> Figure:
-    """CCDF of the in-degree, log-log, one line per series; vertical line at ``k``."""
+    """CCDF of the in-degree, log-log, one line per series; vertical line at ``k``.
+
+    Args:
+        series: Series key to its ``(degrees, counts)`` histogram.
+        k: Number of neighbours, marked on the x axis; ``None`` draws no mark.
+        styles: Series key to its style.
+        title: Panel title.
+        height: Figure height in inches.
+
+    Returns:
+        The figure.
+    """
 
     fig, axes = figure(1, 1, height=height, width=4.4)
     ax = axes[0, 0]
@@ -684,7 +952,13 @@ def degree_ccdf_figure(
 
 @dataclass
 class GraphPanel:
-    """One panel of a fixed-layout drawing: the edges of one network and its active vertices."""
+    """One panel of a fixed-layout drawing: the edges of one network and its active vertices.
+
+    Attributes:
+        title: Panel title.
+        edges: int array ``[m, 2]`` of indices into the shared positions.
+        active: bool array ``[n]``, the vertices touched by the panel's edges.
+    """
 
     title: str
     edges: np.ndarray  # [m, 2] indices into the shared positions
@@ -706,6 +980,20 @@ def fixed_layout_figure(
     ``focal`` (bool [n]) marks the vertices whose out-edges are drawn; ``focal_keys`` /
     ``neighbor_keys`` index into ``focal_styles`` (``-1`` = gray "outros"). Vertices that are
     not touched by a panel's edges stay as faint dots, so positions are comparable.
+
+    Args:
+        positions: float array ``[n, 2]`` with the shared layout.
+        panels: One :class:`GraphPanel` per network.
+        focal: bool array ``[n]``.
+        focal_styles: Styles of the focal classes.
+        focal_keys: int array ``[n]``, class of every vertex as a focal vertex.
+        neighbor_keys: int array ``[n]``, class of every vertex as a neighbour, or ``None``
+            to draw every neighbour in one color.
+        legend_title: Title of the legend.
+        height: Figure height in inches.
+
+    Returns:
+        The figure.
     """
 
     ncols = 2
@@ -717,6 +1005,15 @@ def fixed_layout_figure(
     lo, hi = pos.min(axis=0) - pad, pos.max(axis=0) + pad
 
     def colors_of(keys: np.ndarray) -> list[str]:
+        """Colors of a list of class keys (-1 is the muted gray).
+
+        Args:
+            keys: Class keys.
+
+        Returns:
+            One hex color per key.
+        """
+
         return [focal_styles[k].color if k >= 0 else MUTED for k in keys]
 
     for ax, panel in zip(axes.flat, panels, strict=False):
@@ -832,7 +1129,18 @@ def jaccard_bands_figure(
     floors: Mapping[str, float],
     bands: Sequence[str],
 ) -> Figure:
-    """Box plots of ``J(lex, l)`` per frequency band and layer, with the noise floor."""
+    """Box plots of ``J(lex, l)`` per frequency band and layer, with the noise floor.
+
+    Args:
+        values: Representation name to band label to the per-vertex Jaccard values.
+        floors: Band label to its noise floor (mean Jaccard between lexical tie seeds).
+        bands: Band labels, in order.
+
+    Returns:
+        The figure: boxes with whiskers at the 5% and 95% quantiles, the mean as a marker
+        and the floor as a horizontal segment. With too many blocks (see :func:`layer_axis`)
+        the layer-axis version is returned instead.
+    """
 
     reps = list(values)
     if layer_axis(reps):
@@ -907,7 +1215,16 @@ def _jaccard_layers_figure(
     floors: Mapping[str, float],
     bands: Sequence[str],
 ) -> Figure:
-    """``J(lex, l)`` over every block: median and quartile ribbon per band, dotted noise floor."""
+    """``J(lex, l)`` over every block: median and quartile ribbon per band, dotted noise floor.
+
+    Args:
+        values: Representation name to band label to the per-vertex Jaccard values.
+        floors: Band label to its noise floor.
+        bands: Band labels, in order.
+
+    Returns:
+        The figure.
+    """
 
     reps = list(values)
     xs = rep_positions(reps)
@@ -953,6 +1270,14 @@ def dominance_figure(
 
     ``data`` columns: ``measure`` (D | Dn), ``grouping``, ``group``, ``rep``, ``value``;
     ``panels`` lists ``(grouping, title, groups)``.
+
+    Args:
+        data: Long table of mean dominance values.
+        reps: Representation names, in depth order.
+        panels: One column of panels per grouping.
+
+    Returns:
+        The figure.
     """
 
     fig, axes = figure(2, len(panels), height=4.4, sharex=True, sharey="row")
@@ -991,6 +1316,13 @@ def transition_share_figure(
 
     Each block is ``(title, frame)`` with one row per group (index = label) and one column per
     transition. The transitions are ordered, so the segments use the ordinal ramp plus hatches.
+
+    Args:
+        blocks: Panels of the figure.
+        transitions: Transition names ``a->b``, in order.
+
+    Returns:
+        The figure; the layer-axis version when there are too many destination blocks.
     """
 
     destinations = [t.split("->")[-1] for t in transitions]
@@ -1033,7 +1365,15 @@ def _transition_share_layers_figure(
     blocks: Sequence[tuple[str, pd.DataFrame]], transitions: Sequence[str]
 ) -> Figure:
     """Share of vertices whose largest change falls in each transition ``l-1 → l``, as lines
-    over the destination layer ``l`` (one per group, ``todos`` in black)."""
+    over the destination layer ``l`` (one per group, ``todos`` in black).
+
+    Args:
+        blocks: ``(title, frame)`` panels, as in :func:`transition_share_figure`.
+        transitions: Transition names ``a->b``, in order.
+
+    Returns:
+        The figure.
+    """
 
     xs = rep_positions([t.split("->")[-1] for t in transitions])
     fig, axes = figure(1, len(blocks), height=2.8, sharey=True)
@@ -1066,7 +1406,15 @@ def _transition_share_layers_figure(
 
 
 def layer_curves_figure(layers: pd.DataFrame, categories: Sequence[str]) -> Figure:
-    """``J(l-1, l)`` and ``D(l)`` over every block, one line per token category."""
+    """``J(l-1, l)`` and ``D(l)`` over every block, one line per token category.
+
+    Args:
+        layers: Rows of ``p2_layers.csv``.
+        categories: Token categories to draw, besides ``all``.
+
+    Returns:
+        The figure.
+    """
 
     fig, axes = figure(1, 2, height=2.6, sharex=True)
     keys = ["all", *categories]
@@ -1113,7 +1461,18 @@ def layer_curves_figure(layers: pd.DataFrame, categories: Sequence[str]) -> Figu
 def nmi_layers_figure(
     frame: pd.DataFrame, reps: Sequence[str], labels: Sequence[str], stability: Mapping[str, float]
 ) -> Figure:
-    """Small multiples of NMI minus the permutation baseline per label; Leiden stability."""
+    """Small multiples of NMI minus the permutation baseline per label; Leiden stability.
+
+    Args:
+        frame: Rows of ``p3_agreement.csv`` for one subset.
+        reps: Representation names, in depth order.
+        labels: Label names, one panel each.
+        stability: Representation name to the stability of its partition, drawn in the last
+            panel.
+
+    Returns:
+        The figure, with a common y range in the NMI panels.
+    """
 
     n = len(labels) + 1
     ncols = 3 if n <= 9 else 4
@@ -1165,7 +1524,17 @@ def separation_figure(
     measures: Sequence[tuple[str, str]],
     keys: Sequence[str],
 ) -> Figure:
-    """Same-type separation per layer: one panel per measure, one line per group."""
+    """Same-type separation per layer: one panel per measure, one line per group.
+
+    Args:
+        groups: Rows of ``p4_groups.csv``.
+        reps: Representation names, in depth order.
+        measures: ``(column, title)`` of each panel.
+        keys: Group codes, one line each.
+
+    Returns:
+        The figure.
+    """
 
     ncols = 2
     nrows = math.ceil(len(measures) / ncols)
@@ -1197,6 +1566,12 @@ class SensePanel:
     ``counts[i]`` is the contingency table in ``titles[i]``'s representation: one row per sense
     (in the order of ``senses``), one column per community, the community holding most of the
     word's occurrences first.
+
+    Attributes:
+        word: The target word.
+        senses: Sense labels, one bar each.
+        counts: One int array ``[n_senses, n_communities]`` per representation.
+        titles: Title of each representation's panel.
     """
 
     word: str
@@ -1211,7 +1586,14 @@ SENSE_WORD_ROWS = 1.3
 
 
 def _split_balanced(sizes: Sequence[int]) -> int:
-    """Where to cut ``sizes`` (at least two) into two runs of nearly equal sum, both non-empty."""
+    """Where to cut ``sizes`` (at least two) into two runs of nearly equal sum, both non-empty.
+
+    Args:
+        sizes: Size of each item, in order.
+
+    Returns:
+        Index of the first item of the second run.
+    """
 
     total, running = sum(sizes), 0
     for i, size in enumerate(sizes):
@@ -1229,6 +1611,13 @@ def sense_communities_figure(words: Sequence[SensePanel], note: str = "") -> Fig
     word's occurrences in that panel (the same color in two panels is not the same community).
     A sense that the network separates is a bar of one color that no other bar of the word
     shares. With up to two representations the words go in two columns.
+
+    Args:
+        words: One :class:`SensePanel` per word.
+        note: Extra line of the legend title.
+
+    Returns:
+        The figure.
     """
 
     n_reps = max(len(w.counts) for w in words)
@@ -1332,7 +1721,18 @@ def tie_variants_figure(
     variants: Sequence[str],
     variant_labels: Mapping[str, str],
 ) -> Figure:
-    """Mean ``J(lex, l)`` per frequency band for each tie variant, one panel per layer."""
+    """Mean ``J(lex, l)`` per frequency band for each tie variant, one panel per layer.
+
+    Args:
+        frame: Long table with ``rep``, ``variant``, ``band`` and ``value``.
+        reps: Representation names, one panel each.
+        bands: Band labels, in order.
+        variants: Variant codes, one line each.
+        variant_labels: Variant code to legend text.
+
+    Returns:
+        The figure.
+    """
 
     fig, axes = figure(1, len(reps), height=2.6, sharey=True)
     styles = categorical_styles(list(variants), variant_labels)
@@ -1354,7 +1754,16 @@ def tie_variants_figure(
 def community_composition_figure(
     shares: pd.DataFrame, sizes: Sequence[int], classes: Sequence[str]
 ) -> Figure:
-    """100% stacked bars: script-class composition of the largest communities."""
+    """100% stacked bars: script-class composition of the largest communities.
+
+    Args:
+        shares: One row per community and one column per script class, with fractions.
+        sizes: Size of each community, written to the right of its bar.
+        classes: Script classes to stack, in order (``other`` is drawn in gray).
+
+    Returns:
+        The figure.
+    """
 
     n = len(shares)
     fig, axes = figure(1, 1, height=0.9 + 0.2 * n)
@@ -1386,6 +1795,14 @@ def lens_ranks_figure(curve: pd.DataFrame, categories: Sequence[str], discrete: 
 
     ``curve`` columns: ``x`` (layer number or position), ``xlabel``, ``group``,
     ``own_rank_median``, ``next_rank_median``.
+
+    Args:
+        curve: Long table of median ranks.
+        categories: Token categories to draw, besides ``all``.
+        discrete: One labelled tick per representation instead of a layer axis.
+
+    Returns:
+        The figure.
     """
 
     fig, axes = figure(1, 2, height=2.6, sharey=True)

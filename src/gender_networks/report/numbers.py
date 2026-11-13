@@ -51,7 +51,20 @@ STAGE_MANIFESTS = [("corpus", None)] + [
 
 
 def collect_numbers(ctx: Context) -> dict[str, str]:
-    """Value of every macro that the artifacts on disk can give (formatted pt-BR text)."""
+    """Value of every macro that the artifacts on disk can give (formatted pt-BR text).
+
+    Corpus counts come from the corpus manifest; sample counts from the sample manifest;
+    the prefix-group figures from the extraction manifest; the vocabulary sizes from the knn
+    manifest and the vocabulary neighbour file; the prediction agreement from the lens
+    summary; the date and the git revision from the manifest of the stage that started
+    last.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        Macro name to its text; macros without data are absent.
+    """
 
     values: dict[str, str] = {}
     corpus = ctx.manifest(None)
@@ -136,6 +149,15 @@ def collect_numbers(ctx: Context) -> dict[str, str]:
 
 
 def stage_manifests(ctx: Context) -> dict[str, dict[str, Any]]:
+    """Manifests of the stages that have one, in pipeline order.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        Stage name to its manifest (``corpus`` first; ``report`` itself is not included).
+    """
+
     out = {}
     for stage, directory in STAGE_MANIFESTS:
         data = ctx.manifest(directory)
@@ -145,11 +167,34 @@ def stage_manifests(ctx: Context) -> dict[str, dict[str, Any]]:
 
 
 def latest_manifest(ctx: Context) -> dict[str, Any] | None:
+    """Manifest of the stage that started last.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The manifest with the largest ``started_unix``, or ``None`` without manifests.
+    """
+
     manifests = [m for m in stage_manifests(ctx).values() if finite_or_none(m.get("started_unix"))]
     return max(manifests, key=lambda m: float(m["started_unix"]), default=None)
 
 
 def write_numbers(ctx: Context, path: Path) -> dict[str, str]:
+    """Write ``numeros.tex`` with one ``\\newcommand`` per macro that has a value.
+
+    Args:
+        ctx: Context of the run.
+        path: Output file.
+
+    Returns:
+        Macro name to its text, as written.
+
+    Side effects:
+        Replaces the file; a macro without data is written as a comment, so the report
+        prints its ``\\providecommand`` fallback.
+    """
+
     values = collect_numbers(ctx)
     lines = [
         HEADER,

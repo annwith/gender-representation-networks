@@ -100,6 +100,18 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Item:
+    """One generated figure or table of the report.
+
+    Attributes:
+        kind: ``figure`` (written to ``figuras/<name>.pdf``) or ``table`` (written to
+            ``tabelas/<name>.tex``).
+        name: File name without extension; the same name the report passes to
+            ``\\figuraopcional`` or ``\\tabelaopcional``.
+        build: Function that receives the :class:`Context` and returns a matplotlib figure
+            or a :class:`~gender_networks.report.latex.Tabular`; it raises :class:`Skip`
+            when its inputs are missing.
+    """
+
     kind: str  # figure | table
     name: str
     build: Callable[[Context], Any]
@@ -149,13 +161,35 @@ TABLES = [item.name for item in ITEMS if item.kind == "table"]
 
 
 def output_path(paths: RunPaths, item: Item) -> Path:
+    """File an item is written to.
+
+    Args:
+        paths: Paths of the run.
+        item: The item.
+
+    Returns:
+        ``figuras/<name>.pdf`` for a figure, ``tabelas/<name>.tex`` for a table.
+    """
+
     if item.kind == "figure":
         return paths.figures_dir / f"{item.name}.pdf"
     return paths.tables_dir / f"{item.name}.tex"
 
 
 def produce(ctx: Context, item: Item) -> Path:
-    """Build one item and write it; raises :class:`Skip` when its inputs are missing."""
+    """Build one item and write it; raises :class:`Skip` when its inputs are missing.
+
+    Args:
+        ctx: Context of the run.
+        item: The item to build.
+
+    Returns:
+        Path of the written file.
+
+    Side effects:
+        Writes the PDF (through ``plots.save``, which closes the figure) or the ``.tex``
+        fragment.
+    """
 
     path = output_path(ctx.paths, item)
     result = item.build(ctx)
@@ -168,7 +202,19 @@ def produce(ctx: Context, item: Item) -> Path:
 
 
 def compile_report(report_dir: Path) -> dict[str, Any]:
-    """``latexmk -pdf relatorio.tex`` when both exist; never raises."""
+    """``latexmk -pdf relatorio.tex`` when both exist; never raises.
+
+    Args:
+        report_dir: Directory that holds ``relatorio.tex``.
+
+    Returns:
+        ``{"compiled": bool, ...}`` with the return code and the time, or the reason the
+        compilation was not attempted.
+
+    Side effects:
+        Runs ``latexmk`` in ``report_dir`` (10-minute limit), which writes the PDF and the
+        auxiliary files there.
+    """
 
     latexmk = shutil.which("latexmk")
     if latexmk is None or not (report_dir / "relatorio.tex").exists():
@@ -201,7 +247,24 @@ def compile_report(report_dir: Path) -> dict[str, Any]:
 
 
 def run(settings: Settings, paths: RunPaths, force: bool = False, **_: object) -> None:
-    """Write every figure and table whose inputs exist, plus numeros.tex (always regenerated)."""
+    """Write every figure and table whose inputs exist, plus numeros.tex (always regenerated).
+
+    Args:
+        settings: Run configuration.
+        paths: Paths of the run.
+        force: Ignored: the stage always regenerates everything.
+        **_: Ignored; accepted so every stage has the same call.
+
+    Raises:
+        RuntimeError: At the end, when one or more items failed with an error (the other
+            items and the manifest are still written).
+
+    Side effects:
+        Sets the global matplotlib style; writes the items of :data:`ITEMS` under
+        ``report_dir``, removes the file of every skipped or failed item, writes
+        ``tabelas/numeros.tex``, compiles the report when ``latexmk`` and ``relatorio.tex``
+        exist, and writes ``<run>/report/_manifest.json`` with the status of every item.
+    """
 
     del force  # the stage is cheap and always regenerates everything
     started = time.time()

@@ -94,12 +94,28 @@ _CJK_NAMES = ("CJK", "HIRAGANA", "KATAKANA", "HANGUL")
 
 
 def is_function_word(word: str) -> bool:
-    """True when ``word`` (any case, surrounding spaces ignored) is a Portuguese function word."""
+    """True when ``word`` (any case, surrounding spaces ignored) is a Portuguese function word.
+
+    Args:
+        word: A word, or a decoded token with its leading space.
+
+    Returns:
+        Whether the stripped, lower-cased word is in :data:`STOPWORDS`.
+    """
 
     return word.strip().lower() in STOPWORDS
 
 
 def _script_of(character: str) -> str:
+    """First word of a character's Unicode name, used as its script (``CYRILLIC``, ``GREEK``).
+
+    Args:
+        character: One character.
+
+    Returns:
+        The script word, or ``UNKNOWN`` for a character without a Unicode name.
+    """
+
     name = unicodedata.name(character, "")
     return name.split(" ", 1)[0] if name else "UNKNOWN"
 
@@ -109,6 +125,18 @@ def script_class(decoded_text: str, is_special: bool = False) -> str:
 
     The checks run in a fixed order so each entry gets exactly one class; the letter checks use
     the text without surrounding whitespace, since most entries carry a leading space.
+
+    Order: ``special``; ``byte_fragment`` (the text holds U+FFFD); ``whitespace``; ``digits``;
+    ``punctuation`` (no alphanumeric character); then, for all-letter text, ``latin``, ``cjk``
+    (CJK, hiragana, katakana, hangul) or ``other_script`` (one other script); everything else,
+    such as letters with digits or punctuation and mixtures of scripts, is ``mixed``.
+
+    Args:
+        decoded_text: ``tokenizer.decode([token_id])`` of the entry.
+        is_special: True for special and added tokens. Defaults to False.
+
+    Returns:
+        One of :data:`SCRIPT_CLASSES`.
     """
 
     if is_special:
@@ -134,7 +162,14 @@ def script_class(decoded_text: str, is_special: bool = False) -> str:
 
 
 def special_token_ids(tokenizer: Any) -> set[int]:
-    """Special ids: the declared special tokens plus every added token of the tokenizer."""
+    """Special ids: the declared special tokens plus every added token of the tokenizer.
+
+    Args:
+        tokenizer: Hugging Face tokenizer.
+
+    Returns:
+        The ids of ``all_special_ids`` and the keys of ``added_tokens_decoder``.
+    """
 
     ids = set(getattr(tokenizer, "all_special_ids", []) or [])
     ids.update(int(key) for key in (getattr(tokenizer, "added_tokens_decoder", {}) or {}))
@@ -142,13 +177,30 @@ def special_token_ids(tokenizer: Any) -> set[int]:
 
 
 def decode_vocabulary(tokenizer: Any) -> list[str]:
-    """Decoded text of every tokenizer id ``0..len(tokenizer)-1``."""
+    """Decoded text of every tokenizer id ``0..len(tokenizer)-1``.
+
+    Args:
+        tokenizer: Hugging Face tokenizer.
+
+    Returns:
+        List of ``len(tokenizer)`` strings, one decode call per id. Pieces of a multi-byte
+        character decode to U+FFFD.
+    """
 
     return [tokenizer.decode([token_id]) for token_id in range(len(tokenizer))]
 
 
 def vocab_script_classes(tokenizer: Any, decoded: Sequence[str] | None = None) -> list[str]:
-    """Script class of every tokenizer id ``0..len(tokenizer)-1``."""
+    """Script class of every tokenizer id ``0..len(tokenizer)-1``.
+
+    Args:
+        tokenizer: Hugging Face tokenizer.
+        decoded: Texts from :func:`decode_vocabulary`, to avoid decoding twice; ``None``
+            decodes here.
+
+    Returns:
+        List of ``len(tokenizer)`` class names (see :func:`script_class`).
+    """
 
     special = special_token_ids(tokenizer)
     texts = decoded if decoded is not None else decode_vocabulary(tokenizer)
@@ -163,6 +215,20 @@ class TokenInfo:
     whitespace and punctuation tokens. Number tokens keep the word they belong to (so "1990" is
     one word of four number tokens), which also makes the letters after digits ("1990s") a
     continuation instead of a separate whole word.
+
+    Attributes:
+        index: Position of the token in the paragraph, 0-based (no prefix token here).
+        token_id: Vocabulary id.
+        char_start: Start of the token's character span in the paragraph.
+        char_end: End of the span, exclusive.
+        text: ``paragraph[char_start:char_end]``, leading space included.
+        has_leading_space: True when ``text`` starts with whitespace.
+        category: One of :data:`CATEGORIES`.
+        word: The word the token belongs to.
+        word_idx: Index of that word among the words of the paragraph.
+        word_n_tokens: Number of tokens of that word.
+        pos_in_word: Rank of the token inside the word, 0-based.
+        is_function_word: True for a word token whose word is in :data:`STOPWORDS`.
     """
 
     index: int
@@ -181,12 +247,29 @@ class TokenInfo:
 
 @dataclass(frozen=True)
 class _Words:
+    """The words of a paragraph, as found by :func:`_find_words`.
+
+    Attributes:
+        spans: ``(start, end)`` character span of each word, in order.
+        texts: Text of each word.
+        starts: Start offsets alone, for binary search.
+    """
+
     spans: list[tuple[int, int]]
     texts: list[str]
     starts: list[int]
 
 
 def _find_words(text: str) -> _Words:
+    """Words of a text: maximal runs of Unicode word characters (letters, digits, ``_``).
+
+    Args:
+        text: Paragraph text.
+
+    Returns:
+        The words in order of appearance. Hyphens and apostrophes separate words.
+    """
+
     spans, texts = [], []
     for match in _WORD.finditer(text):
         spans.append((match.start(), match.end()))
@@ -195,7 +278,18 @@ def _find_words(text: str) -> _Words:
 
 
 def _best_word(text: str, words: _Words, start: int, end: int) -> int:
-    """Index of the word sharing the most alphanumeric characters with ``text[start:end]``."""
+    """Index of the word sharing the most alphanumeric characters with ``text[start:end]``.
+
+    Args:
+        text: Paragraph text.
+        words: Words of the paragraph.
+        start: Start of the token's character span.
+        end: End of the span, exclusive.
+
+    Returns:
+        Index into ``words``, or -1 when the span shares no alphanumeric character with any
+        word. On a tie the earlier word wins.
+    """
 
     best, best_overlap = -1, 0
     index = max(bisect_right(words.starts, start) - 1, 0)
@@ -217,6 +311,21 @@ def token_categories(
 
     This is the light-weight core of :func:`label_tokens`, used directly when only the
     categories of a whole corpus are needed.
+
+    A token whose slice is only whitespace is ``whitespace``; one without alphanumeric
+    characters is ``punctuation``; otherwise it joins the word it overlaps most. Among the
+    tokens of a word, one made only of digits is ``number``; the others are ``whole_word``
+    when the word has a single token (number tokens count as tokens of the word),
+    ``word_start`` when first in the word and ``continuation`` otherwise.
+
+    Args:
+        text: Paragraph text.
+        offsets: ``(char_start, char_end)`` of each token, in token order.
+
+    Returns:
+        ``(categories, word_of, rank, size, words)``: per token, the category name, the word
+        index (-1 without a word), the 0-based rank in the word (-1) and the number of tokens
+        of the word (0); and the words of the paragraph.
     """
 
     words = _find_words(text)
@@ -268,7 +377,19 @@ def token_categories(
 def label_tokens(
     text: str, token_ids: Sequence[int], offsets: Sequence[tuple[int, int]]
 ) -> list[TokenInfo]:
-    """Build :class:`TokenInfo` records from token ids and their character offsets."""
+    """Build :class:`TokenInfo` records from token ids and their character offsets.
+
+    Args:
+        text: Paragraph text.
+        token_ids: Token ids of the paragraph, without special tokens.
+        offsets: ``(char_start, char_end)`` of each token.
+
+    Returns:
+        One :class:`TokenInfo` per token, in order.
+
+    Raises:
+        ValueError: If ``token_ids`` and ``offsets`` differ in length.
+    """
 
     if len(token_ids) != len(offsets):
         raise ValueError("token_ids and offsets must have the same length")
@@ -301,7 +422,19 @@ def label_tokens(
 def encode_with_offsets(
     tokenizer: Any, texts: Sequence[str]
 ) -> list[tuple[list[int], list[tuple[int, int]]]]:
-    """Ids and character offsets of each text, without special tokens (fast tokenizer only)."""
+    """Ids and character offsets of each text, without special tokens (fast tokenizer only).
+
+    Args:
+        tokenizer: Hugging Face fast tokenizer.
+        texts: Texts to encode, as one batch.
+
+    Returns:
+        One ``(ids, offsets)`` pair per text, where ``offsets[i]`` is the
+        ``(char_start, char_end)`` span of token ``i`` in its text.
+
+    Raises:
+        ValueError: If the tokenizer is not a fast tokenizer.
+    """
 
     if not getattr(tokenizer, "is_fast", False):
         raise ValueError("Character offsets need a fast tokenizer")
@@ -318,7 +451,15 @@ def encode_with_offsets(
 
 
 def tokenize_paragraph(tokenizer: Any, text: str) -> list[TokenInfo]:
-    """Tokenize one paragraph (no special tokens) and label each token."""
+    """Tokenize one paragraph (no special tokens) and label each token.
+
+    Args:
+        tokenizer: Hugging Face fast tokenizer.
+        text: Paragraph text.
+
+    Returns:
+        One :class:`TokenInfo` per token.
+    """
 
     ((ids, offsets),) = encode_with_offsets(tokenizer, [text])
     return label_tokens(text, ids, offsets)
@@ -327,7 +468,16 @@ def tokenize_paragraph(tokenizer: Any, text: str) -> list[TokenInfo]:
 def tokenize_paragraphs(
     tokenizer: Any, texts: Iterable[str], batch_size: int = 256
 ) -> list[list[TokenInfo]]:
-    """Batched :func:`tokenize_paragraph` (the fast tokenizer encodes batches in parallel)."""
+    """Batched :func:`tokenize_paragraph` (the fast tokenizer encodes batches in parallel).
+
+    Args:
+        tokenizer: Hugging Face fast tokenizer.
+        texts: Paragraph texts.
+        batch_size: Texts per tokenizer call. Defaults to 256.
+
+    Returns:
+        One list of :class:`TokenInfo` per text, in input order.
+    """
 
     items = list(texts)
     result: list[list[TokenInfo]] = []
@@ -343,6 +493,18 @@ def load_tokenizer(model: ModelSettings) -> Any:
 
     ``transformers`` is imported lazily to keep the CLI light. The fast tokenizer is required:
     token categories come from character offsets.
+
+    Args:
+        model: The ``model`` section (``name_or_path`` and ``revision``).
+
+    Returns:
+        The tokenizer.
+
+    Raises:
+        ValueError: If the model has no fast tokenizer.
+
+    Side effects:
+        Reads the Hugging Face cache and downloads the tokenizer files when they are missing.
     """
 
     from transformers import AutoTokenizer
