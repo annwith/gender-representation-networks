@@ -1,0 +1,57 @@
+% ============================================================
+\section{Discussão, limitações e conclusão}\label{sec:discussao}
+% ============================================================
+
+\paragraph{Três regiões do modelo.} Juntas, as medidas descrevem o Qwen3-4B-Base em três
+regiões. Nos primeiros blocos (até o 5, aproximadamente), o vetor de uma ocorrência ainda é o
+seu token: a rede do bloco 1 é a rede lexical com os empates desfeitos, e a linha mais próxima
+em $E$ é a do próprio token. Nos blocos do meio (de 6 a 22), o vetor deixa de se parecer com o
+próprio token e ainda não se parece com o próximo; é aí que as comunidades seguem o artigo, o
+parágrafo e o tema, e que os sentidos de uma palavra ambígua mais se afastam. No último terço,
+o vetor se aproxima do token que vem depois, as comunidades passam a segui-lo, a anisotropia
+cresce e surgem \emph{hubs} fortes. A passagem entre as duas últimas regiões é abrupta: nos
+blocos 22 a 25, a troca de vizinhos entre blocos, a concordância com o contexto e a distância
+ao próximo token mudam juntas. A divisão é coerente com a ``lente de
+\emph{logits}''~\cite{nostalgebraist2020}, em que as previsões só se formam nas camadas finais.
+
+\paragraph{O que as redes mostram além das médias.} A autossimilaridade, a medida clássica de
+contextualidade~\cite{ethayarajh2019}, cai até o meio do modelo e volta a subir no fim, igual
+para palavras ambíguas e estáveis; sozinha, ela sugeriria que o último bloco é ``menos
+contextual'' que o do meio. As redes mostram que a troca de vizinhos continua até o último
+bloco, que as comunidades mudam de natureza (do texto para o próximo token) e que a separação
+das palavras ambíguas cresce até o fim; a subida da autossimilaridade acompanha a anisotropia.
+Mostram também que a identidade do token é persistente: a linha do token em $E$ deixa de ser a
+mais próxima já no bloco 5, mas as ocorrências continuam vizinhas muito depois, numa direção que
+não é mais o \emph{embedding} de entrada. E a fragmentação do português pesa: continuações de
+palavra perdem a identidade logo, inícios de palavra a mantêm.
+
+\paragraph{Limitações.}
+\begin{itemize}
+    \item \textbf{Os temas são recortes} próximos da categoria raiz, com alguns artigos pouco
+    típicos (prêmios em Física, canções em Futebol). No núcleo, 39\% dos vértices vêm de
+    categorias extras; só com os artigos da raiz, a concordância com o tema no bloco 18 vai de
+    0,197 para 0,205.
+    \item \textbf{Os sentidos foram anotados por um modelo de linguagem}, sem revisão humana nem
+    segundo anotador, com rótulos definidos pelo próprio anotador. A comparação com os
+    controles, que não depende da anotação, aponta na mesma direção.
+    \item \textbf{O Qwen3 fragmenta o português}: muitos vértices são pedaços de palavra, e as
+    palavras-alvo ficaram restritas às que são um token só (\emph{corrente}, \emph{onda},
+    \emph{célula} e \emph{núcleo} saíram por isso).
+    \item \textbf{A amostra é desenhada}: as cotas (50 e 20 ocorrências) explicam parte da
+    estrutura da rede lexical (componentes isolados, grupos muito clusterizados), e o núcleo
+    domina as métricas globais.
+    \item \textbf{A ilha da posição 1} pode formar uma comunidade própria no núcleo; esse efeito
+    sobre a P3 não foi medido.
+    \item \textbf{Um modelo, uma língua, um tipo de texto}, que o modelo provavelmente viu no
+    treinamento; os vetores carregam o arredondamento do \emph{bfloat16}. Não sabemos se as
+    três regiões aparecem nos mesmos blocos em outros modelos.
+\end{itemize}
+
+\paragraph{Conclusão.} Redes k-NN sobre as mesmas ocorrências, uma por camada, permitem
+acompanhar a reorganização das representações de um Transformer vértice a vértice e em várias
+escalas, e o objetivo geral e as quatro perguntas foram respondidos. No Qwen3-4B-Base e em
+texto enciclopédico em português, a reorganização é grande, não monótona e dependente do tipo
+de token: a identidade lexical cede espaço aos poucos sem desaparecer, o contexto do texto
+domina o meio do modelo, o próximo token domina o fim, e as palavras ambíguas separam as
+ocorrências pelo sentido. Do lado da entrada, a rede do vocabulário é organizada por significado
+entre línguas, e não por escrita.

@@ -1,0 +1,248 @@
+% ============================================================
+\section{Resultados e interpretação}\label{sec:resultados}
+% ============================================================
+
+Salvo indicação, os valores são da configuração principal: $k=10$, desempate por sorteio,
+rede por união nas métricas estruturais e direcionada nas vizinhanças. As curvas nos 36 blocos
+vêm da segunda execução, com a mesma amostra e os mesmos vetores.
+
+% ------------------------------------------------------------
+\subsection{As quatro redes}\label{sec:res-geral}
+
+A Tabela~\ref{tab:metricas-globais} reúne as métricas estruturais da fase final, que repetem as
+da entrega parcial com a média sobre as 20 sementes do desempate e acrescentam a reciprocidade,
+a assimetria do grau de entrada, as comunidades e a rede do vocabulário.
+
+\tabelaopcional{metricas_globais}
+    {Métricas estruturais das redes ($k=10$, versão por união). Na rede lexical, média $\pm$
+    desvio entre as 20 sementes do desempate; nas camadas contextuais, semente 0.}
+    {tab:metricas-globais}
+
+A clusterização alta das redes \cod{lex} e \cod{L01} e os 44 componentes da rede lexical são
+efeito da construção: uma ocorrência de um tipo frequente tem os 10 vizinhos entre as outras
+ocorrências do mesmo tipo, que também se escolhem entre si e formam grupos densos, às vezes
+isolados. Nos blocos 18 e 36, as vizinhanças misturam tokens diferentes, os triângulos rareiam,
+os grupos se fundem e surgem atalhos. O número de comunidades cai de 186 para 58 e 44, e a
+modularidade de 0,95 para 0,77: as comunidades ficam maiores e menos separadas.
+
+\figuraopcionallado{graus_camadas}
+    {Distribuição do grau de entrada nas redes direcionadas: fração dos vértices com grau de
+    entrada pelo menos $d$, em escala log-log. A linha vertical marca $k=10$, a média comum a
+    todas as redes. Quanto mais longa a cauda, mais fortes os \emph{hubs}.}
+    {fig:graus-camadas}
+
+\paragraph{\emph{Hubs} e anisotropia.} O grau de entrada é estreito na rede lexical (máximo de
+30, assimetria próxima de zero), porque o sorteio espalha os arcos entre cópias idênticas
+(Figura~\ref{fig:graus-camadas}). A cauda cresce nos blocos 1 e 18 (assimetria 1,0 e 1,4) e
+fica pesada no bloco 36: um vértice (\tok{\esp apresent}) recebe 247 arcos e a assimetria
+chega a 4,9; os maiores \emph{hubs} são inícios e continuações de palavras e dígitos.
+\emph{Hubs} são comuns em espaços de alta
+dimensão~\cite{radovanovic2010}, e aqui crescem junto com a anisotropia: o cosseno médio entre
+pares de vértices ao acaso sobe de 0,03 na camada lexical para 0,39 no bloco 18 e 0,58 no
+bloco 36. A reciprocidade sobe de 0,49 para 0,61 no bloco 18 e cai para 0,44 no 36, porque
+muitos vértices escolhem um \emph{hub} que não os escolhe de volta.
+
+\paragraph{Uma ilha de primeiros tokens.} O segundo componente das redes \cod{L18} e \cod{L36}
+é formado pelo primeiro token de vários parágrafos (quase sempre ``O'' ou ``A''). No bloco 18,
+os vetores da posição 1 têm norma cerca de 50 vezes maior que a dos outros (mediana de 2.814
+contra 55), as \emph{ativações massivas}~\cite{sun2024}, e todos os seus vizinhos são outros
+vértices da posição 1. São 0,6\% dos vértices, e retirá-los quase não muda as métricas globais.
+
+% ------------------------------------------------------------
+\subsection{P1: quanto e de que forma a organização muda}\label{sec:res-p1}
+
+\textbf{Resposta:} a organização quase não muda no bloco 1 e muda muito nos blocos 18 e 36, mas
+a identidade do token não desaparece.
+
+\paragraph{Troca de vizinhos.} O Jaccard médio entre a vizinhança lexical e a de cada camada é
+0,35 no bloco 1, 0,16 no bloco 18 e 0,10 no bloco 36: no último bloco, uma ocorrência mantém em
+média menos de 2 dos seus 10 vizinhos lexicais. Descontado o piso de ruído, a mudança é de 0,14,
+0,34 e 0,40. A Figura~\ref{fig:p1-jaccard-faixas} mostra por que o desconto importa. Para tipos
+com 10 ou mais ocorrências, o Jaccard entre \cod{lex} e \cod{L01} é igual ao piso (0,38 contra
+0,39 na faixa de 10 a 49; 0,12 contra 0,12 na de 50): no bloco 1, os vizinhos continuam sendo as
+outras ocorrências do mesmo token, e só muda \emph{quais} cópias foram sorteadas (o Jaccard por
+composição de tipos, que ignora o sorteio, vale 0,98). Já os tipos raros mudam desde o bloco 1
+(Jaccard de 0,29 e 0,50, contra pisos de 0,73 e 0,76): os seus vizinhos lexicais eram outros
+tipos parecidos, e o bloco 1, que já vê o token anterior, os troca. Nos blocos 18 e 36, todas
+as faixas ficam bem abaixo do piso.
+
+\figuraopcional{p1_jaccard_faixas}
+    {Jaccard entre a vizinhança de cada ocorrência na rede lexical e nos blocos 1, 18 e 36, por
+    faixa de frequência do tipo (caixas: quartis; marcadores: médias). A linha horizontal é o
+    piso de ruído da faixa: só a distância abaixo dela é reorganização.}
+    {fig:p1-jaccard-faixas}
+
+\paragraph{Dominância lexical.} A fração de vizinhos do mesmo tipo é 0,70 na rede lexical (o
+teto), 0,69 no bloco 1, 0,43 no bloco 18 e 0,25 no bloco 36; relativa ao teto, cai de 1 para
+0,99, 0,62 e 0,40. Mesmo no bloco 36, uma ocorrência de um tipo com 50 ocorrências tem em média
+3,9 vizinhos do mesmo token, quando o acaso daria 0,04. A queda depende da categoria: no bloco
+36, a dominância relativa é de 0,25 nas continuações de palavra, 0,29 nos números, 0,35 nas
+palavras inteiras, 0,54 na pontuação e 0,79 nos inícios de palavra. Os inícios de palavra são
+a exceção: a dominância deles até sobe entre os blocos 18 e 36 (de 0,73 para 0,79). Uma
+explicação provável é que o bloco 36 codifica o próximo token (Seção~\ref{sec:res-lente}), e o
+que vem depois de \tok{\esp apresent} é a continuação da palavra, que depende sobretudo do
+próprio início; duas ocorrências dele preveem continuações parecidas e ficam próximas.
+
+\textbf{Interpretação.} A H1 se confirma: a dominância cai, mas fica muito acima do acaso;
+surgem \emph{hubs} no bloco 36; e, como mostra a P3, as comunidades se alinham menos ao token.
+A mudança não é só local: ela troca vizinhos, encurta distâncias, funde componentes e cria
+\emph{hubs}.
+
+% ------------------------------------------------------------
+\subsection{P2: em que camadas a mudança se concentra}\label{sec:res-p2}
+
+\textbf{Resposta:} a mudança se espalha pelo modelo, com três momentos mais fortes (os
+primeiros blocos, os blocos 22 a 25 e o último), e a ordem depende da categoria do token.
+
+O painel da esquerda da Figura~\ref{fig:p2-curvas-camadas} mostra o Jaccard entre as
+vizinhanças de blocos consecutivos: baixo no começo (0,54 entre os blocos 1 e 2), cerca de 0,83
+nos blocos 15 a 18 (cada bloco mantém uns 9 dos 10 vizinhos), 0,67 no bloco 25 e 0,59 no último
+bloco. Os blocos do meio mudam pouco de cada vez, mas a mudança acumulada é grande. O painel da
+direita mostra a dominância lexical: as continuações de palavra caem de 0,61 para 0,26 já no
+bloco 4, e os números de 0,93 para 0,60 no bloco 3; as palavras inteiras perdem a identidade
+devagar (0,86 no bloco 1, 0,64 no bloco 20) e caem mais rápido depois do bloco 28 (0,30 no
+bloco 36); os inícios de palavra ficam quase constantes. Entre as três transições da
+configuração principal, a maioria dos vértices perde mais vizinhos entre os blocos 1 e 18
+(48\%) ou entre 18 e 36 (37\%); as continuações, sobretudo na primeira (78\%), e as palavras
+inteiras, na segunda (50\%).
+
+\figuraopcional{p2_curvas_camadas}
+    {Curvas nos 36 blocos. À esquerda, o Jaccard entre as vizinhanças de blocos consecutivos
+    (no bloco 1, a comparação é com a rede lexical); à direita, a dominância lexical $D$ em cada
+    bloco, por categoria de token.}
+    {fig:p2-curvas-camadas}
+
+\textbf{Interpretação.} A H2 se confirma em parte. Continuações de palavra e dígitos não
+significam nada sozinhos e perdem a identidade nos primeiros blocos, quando o modelo junta os
+pedaços; palavras inteiras mantêm a identidade até o último terço. Os inícios de palavra não
+seguem a hipótese: quase não perdem a identidade.
+
+% ------------------------------------------------------------
+\subsection{P3: comunidades e contexto}\label{sec:res-p3}
+
+\textbf{Resposta:} sim. As comunidades das redes \cod{lex} e \cod{L01} seguem o token; as do
+meio do modelo seguem mais o texto de origem do que o token; no fim, o próximo token ganha peso.
+
+Medida pelo NMI $-$ base, a concordância das comunidades com o token é 0,32 nas redes \cod{lex}
+e \cod{L01}, e a com qualquer rótulo de contexto fica abaixo de 0,05. No bloco 18 a ordem se
+inverte: artigo 0,25, parágrafo 0,24, sentença 0,21 e tema 0,20, contra 0,18 do token. No bloco
+36, os rótulos de contexto caem para cerca da metade (tema 0,09, artigo 0,12), enquanto o
+próximo token sobe de 0,08 para 0,19 e o token previsto pelo modelo para 0,22. A faixa de
+posição nunca passa de 0,04: as comunidades não são um artefato da posição.
+
+\figuratodas{p3_nmi_camadas}
+    {Concordância (NMI $-$ base) entre as comunidades de cada bloco e cada rótulo, nos
+    vértices do núcleo; o bloco 0 é a rede lexical. O último painel mostra a estabilidade do
+    Leiden (concordância média entre as 10 execuções).}
+    {fig:p3-nmi-camadas}
+
+A Figura~\ref{fig:p3-nmi-camadas} mostra as mesmas medidas nos 36 blocos. A concordância com o
+contexto acelera a partir do bloco 9, tem máximos nos blocos 12 e 13 (artigo 0,27, parágrafo
+0,26, tema 0,22) e 19, cai bruscamente nos blocos 22 a 24 (o tema vai a 0,08), volta no 25 e
+diminui até o 36. A concordância com o próximo token cresce a partir do bloco 21 e chega a 0,19
+no bloco 34. A queda dos blocos 22 a 24 coincide com a do Jaccard entre blocos consecutivos e
+com o bloco em que o próximo token passa a ficar mais perto do vetor do que o próprio token
+(Seção~\ref{sec:res-lente}). A estabilidade do Leiden cai de 0,96 para 0,83: as comunidades das
+últimas camadas são menos nítidas, mas reprodutíveis.
+
+\textbf{Interpretação.} A H3 se confirma com uma correção: a organização pelo contexto não
+cresce até o fim; ela tem um máximo nos blocos do meio, onde as comunidades reúnem ocorrências
+do mesmo artigo e parágrafo independentemente do token, e cede lugar ao próximo token nos
+últimos blocos. Isso concorda com a visualização da entrega parcial, em que as arestas entre
+ocorrências do mesmo tema eram 52\% no bloco 18 e 44\% no 36.
+
+% ------------------------------------------------------------
+\subsection{P4: separação das ocorrências de um mesmo token}\label{sec:res-p4}
+
+\textbf{Resposta:} sim. As ocorrências de um token, idênticas na camada lexical, se separam, e
+as palavras ambíguas se separam mais do que as de controle, por tema e, mais ainda, pelo
+sentido anotado.
+
+\figuratodas{p4_separacao}
+    {Separação das ocorrências de um mesmo tipo nos 36 blocos (médias por grupo, tipos com pelo
+    menos 10 ocorrências). O painel do NMI mostra o valor bruto, sem descontar a linha de base,
+    que difere entre os grupos (no bloco 36: 0,09 nos alvos, 0,13 nos controles, 0,26 nas
+    multitema e 0,19 nas funcionais); o texto compara os grupos pelo NMI $-$ base.}
+    {fig:p4-separacao}
+
+\paragraph{Os grupos de palavras (Figura~\ref{fig:p4-separacao}).} A
+\textbf{autossimilaridade} segue a mesma curva em todos os grupos: cai de 1 para 0,6 a 0,7 nos
+blocos 10 a 15 e volta a cerca de 0,78 no bloco 36. Ela não distingue palavras ambíguas de
+estáveis, e a subida final acompanha a anisotropia. A diferença \textbf{intra $-$ entre temas}
+separa os grupos: nos alvos, ela tem o máximo nos blocos 11 e 12 (0,12) e vale 0,09 no bloco 18
+e 0,05 no 36; nos controles, não passa de 0,02. O \textbf{NMI $-$ base entre comunidade e tema}
+é de 0,23 nos alvos no bloco 18 e 0,33 no 36, contra 0,02 e 0,04 nos controles e nas palavras
+multitema. No bloco 36, as ocorrências de um alvo se espalham por 3,3 comunidades efetivas, e as
+de um controle por 2,7.
+
+\tabelaopcional{p4_alvos}
+    {P4 palavra por palavra, no bloco 36: separação pelo tema e pelo sentido anotado, em todas
+    as ocorrências e só nas que o contexto à esquerda decide.}
+    {tab:p4-alvos}
+
+\paragraph{Palavra por palavra (Tabela~\ref{tab:p4-alvos}).} Todos os alvos têm diferença
+intra $-$ entre temas positiva, de 0,024 (\emph{massa}) a 0,094 (\emph{órgão}); nos controles
+ela fica perto de zero, com uma exceção, \emph{primeiro} (0,044): o tema sozinho, sem mudança de
+sentido, também separa um pouco as ocorrências, e por isso os controles são necessários. Nas 11
+palavras-alvo, a separação pelo sentido anotado é maior que pelo tema (\emph{família}: 0,118
+pelo sentido e 0,027 pelo tema), e o NMI entre comunidade e sentido vai de 0,33 (\emph{banco})
+a 0,70 (\emph{matriz}), contra cerca de 0,13 ao acaso. Nas ocorrências em que o texto à esquerda
+já decide o sentido, os valores são parecidos ou maiores (\emph{nota} chega a 0,84): a
+separação não depende de informação à direita, que o modelo não vê.
+
+\paragraph{Onde os sentidos se separam.} No bloco 18, cinco palavras (\emph{órgão},
+\emph{família}, \emph{capital}, \emph{matriz} e \emph{estado}) já dividem as ocorrências em
+comunidades pelo sentido, e as outras seis ficam quase inteiras numa só comunidade. No bloco
+36, todas se dividem, e as divisões seguem o sentido: a maior parte das ocorrências de
+\emph{banco} de dados fica numa comunidade, e a das de \emph{banco} financeiro, em outras. A
+diferença de cosseno entre sentidos é máxima nos blocos 11 e 12 (0,17 em média) e cai para
+0,08 no bloco 36, enquanto o NMI entre comunidade e sentido sobe até o fim (0,37 no bloco 18 e
+0,56 no 36, com linhas de base de 0,06 e 0,13).
+
+\textbf{Interpretação.} A H4 se confirma: os alvos se separam mais que os controles em todas as
+medidas que levam o tema ou o sentido em conta, e o sentido explica a separação melhor que o
+tema. A geometria separa mais os sentidos no meio do modelo; a partição da rede segue mais o
+sentido no fim, quando as ocorrências de cada palavra se espalham por mais comunidades.
+
+% ------------------------------------------------------------
+\subsection{Do próprio token ao próximo, e a rede do vocabulário}\label{sec:res-lente}
+
+A Figura~\ref{fig:lente-ranking} mostra, bloco a bloco, a posição do próprio token e do
+próximo token entre as linhas de $E$ ordenadas pela semelhança com o vetor da ocorrência. No
+bloco 1, a linha mais próxima é a do próprio token em 90\% das ocorrências; no bloco 5, em
+16\%; e a posição mediana dele chega a cerca de 30.000 entre os blocos 13 e 22. A posição
+mediana do próximo token fica entre 50.000 e 70.000 até o bloco 21 e depois cai depressa
+(2.100 no bloco 30, 5 no 36); no bloco 36, o próximo token é a linha mais próxima em 31\% das
+ocorrências e está entre as 20 mais próximas em 69\%. A partir do bloco 23, ele fica mais perto
+do vetor do que o próprio token na maioria das ocorrências. Pela matriz $E$, a identidade sai do
+vetor bem antes do que a dominância lexical sugere: as ocorrências de um token continuam
+vizinhas entre si (P1) mesmo quando já não estão perto da linha do token.
+
+\figuraopcional{lente_ranking}
+    {Posição mediana do próprio token (à esquerda) e do próximo token (à direita) entre as
+    linhas da matriz de \emph{embeddings}, ordenadas pelo cosseno com o vetor da ocorrência,
+    por bloco e categoria de token (escala logarítmica; 1 = a linha mais próxima).}
+    {fig:lente-ranking}
+
+A rede do vocabulário (última coluna da Tabela~\ref{tab:metricas-globais}) é conexa, mas tem
+\emph{hubs} extremos (grau de entrada máximo de 1.756, assimetria de 22,6): caracteres isolados
+de escritas raras, provavelmente pouco vistos no treinamento. As suas 171 comunidades quase não
+seguem a escrita (NMI de 0,11) e misturam línguas: os vizinhos de cada palavra-alvo são
+variantes de grafia e traduções para o inglês, o espanhol e o chinês, e indicam um só sentido
+(os de \emph{banco}, o financeiro). Na entrada, uma palavra ambígua fica perto de um dos seus
+sentidos; os outros só aparecem com o contexto.
+
+% ------------------------------------------------------------
+\subsection{Robustez}\label{sec:robustez}
+
+Refizemos as redes mudando uma escolha de cada vez, e \textbf{em nenhuma variação a conclusão
+qualitativa muda}: a clusterização é maior no bloco 1 que nos blocos 18 e 36, as distâncias
+encurtam a partir do bloco 18 e a troca de vizinhos em relação à rede lexical cresce do bloco 1
+ao 36. Com $k=5$ e $k=20$, os valores mudam na direção esperada (distância média no bloco 18 de
+7,3 e 4,0, contra 5,1 com $k=10$), mas a ordem entre as camadas se mantém. O mesmo vale para a
+rede mútua, para o desempate pela posição (Jaccard de 0,359 contra 0,354 entre \cod{lex} e
+\cod{L01}), para a aceitação de todos os empatados e para uma tolerância cem vezes maior. A
+saída normalizada do bloco 36 dá redes quase iguais às da saída bruta, e subtrair a média dos
+vetores, o que remove a direção comum, muda pouco: a anisotropia não produz os resultados. Com
+outras resoluções do Leiden e com o Louvain, a modularidade de \cod{L18} e \cod{L36} fica
+entre 0,73 e 0,76. A P3 e a P4 não foram repetidas nessas variações.

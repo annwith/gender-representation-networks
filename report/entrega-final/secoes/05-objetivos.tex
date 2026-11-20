@@ -1,0 +1,73 @@
+% ============================================================
+\section{Cumprimento dos objetivos}\label{sec:objetivos}
+% ============================================================
+
+A Tabela~\ref{tab:objetivos} confronta cada objetivo da proposta com o que foi feito e com o
+resultado obtido.
+
+% longtable, e não table: a tabela pode começar no fim de uma página e continuar na seguinte.
+\begingroup
+\small
+\renewcommand{\arraystretch}{1.08}
+\setlength{\LTpre}{2pt}\setlength{\LTpost}{0pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.5cm}
+    >{\raggedright\arraybackslash}p{10.7cm} >{\raggedright\arraybackslash}p{1.9cm}@{}}
+\caption{Os objetivos da proposta, como foram cumpridos e o que os resultados
+mostram.}\label{tab:objetivos}\\
+\toprule
+\textbf{Objetivo} & \textbf{Como foi cumprido e o que mostrou} & \textbf{Situação} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\footnotesize\itshape Tabela~\ref{tab:objetivos} (continuação)}\\
+\toprule
+\textbf{Objetivo} & \textbf{Como foi cumprido e o que mostrou} & \textbf{Situação} \\
+\midrule
+\endhead
+\textbf{Geral}: caracterizar quanto e de que forma a estrutura de similaridade muda entre a
+entrada e as camadas inicial, intermediária e final &
+Quatro redes k-NN com os mesmos \nVertices{} vértices, comparadas vértice a vértice (troca de
+vizinhos, dominância), em escala global (graus, clusterização, distâncias, componentes) e por
+comunidades; curvas nos 36 blocos. A mudança é grande, não monótona e depende da categoria do
+token (Seção~\ref{sec:discussao}). & cumprido \\
+\midrule
+\textbf{P1}: quanto e de que forma a organização muda &
+Dominância de 0,70 para 0,25 (acaso abaixo de 0,004); Jaccard com a rede lexical de 0,10 no
+bloco 36, bem abaixo do piso de ruído; assimetria do grau de entrada de 0 para 4,9; distância
+média de 7,6 para 5,3; concordância das comunidades com o token de 0,32 para 0,19
+(Seção~\ref{sec:res-p1}). & H1 confirmada \\
+\midrule
+\textbf{P2}: em que camadas a mudança se concentra &
+Transições lexical $\to$ 1 $\to$ 18 $\to$ 36 e curvas nos 36 blocos, por faixa de frequência e
+categoria. Continuações e números perdem a identidade até o bloco 4; palavras inteiras, sobretudo
+depois do bloco 28; inícios de palavra quase não perdem (Seção~\ref{sec:res-p2}). & H2 em
+parte \\
+\midrule
+\textbf{P3}: comunidades associadas a contextos &
+Leiden e NMI $-$ base com oito rótulos, no núcleo. O contexto (artigo, parágrafo, tema) supera
+o token nos blocos 12 a 19 e cai depois; o próximo token sobe a partir do bloco 21
+(Seção~\ref{sec:res-p3}). & H3 confirmada, com correção \\
+\midrule
+\textbf{P4}: separação das ocorrências de um token &
+Alvos, controles e multitema com cotas por tema e sentidos anotados. NMI $-$ base comunidade
+$\times$ tema de 0,33 nos alvos contra 0,04 nos controles no bloco 36; separação maior pelo
+sentido que pelo tema nas 11 palavras (Seção~\ref{sec:res-p4}). & H4 confirmada \\
+\midrule
+\textbf{Etapas}: redes com $\approx1{,}5\times10^4$ ocorrências; métricas da disciplina;
+resultados por frequência e categoria, com robustez; visualização &
+\nVertices{} vértices nas quatro redes (e \nTiposVocab{} na rede do vocabulário); todas as
+métricas pedidas, nas versões não direcionada e direcionada (entrega parcial e
+Tabela~\ref{tab:metricas-globais}); resultados por faixa e categoria; robustez a $k$, à
+simetrização, ao desempate, à normalização e ao algoritmo de comunidades
+(Seção~\ref{sec:robustez}); visualização na entrega parcial e na página interativa. &
+cumpridas \\
+\midrule
+\textbf{Além do previsto} &
+Execução com os 36 blocos; anotação dos sentidos; comparação com a matriz de
+\emph{embeddings}; rede do vocabulário inteiro. & -- \\
+\midrule
+\textbf{Não feito} &
+Robustez da P3 e da P4 às variações de construção; rede só com os vértices do núcleo; outros
+modelos. & limitação \\
+\bottomrule
+\end{longtable}
+\endgroup

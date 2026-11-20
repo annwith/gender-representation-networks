@@ -5,7 +5,9 @@
 % Compilação:  cd report/entrega-final && latexmk -pdf entrega-final.tex
 %
 % Versão para leitura do relatório técnico (report/relatorio/), escrita para quem nunca viu o
-% repositório. O texto é escrito à mão; figuras e tabelas NÃO são copiadas: vêm do material
+% repositório, com no máximo 15 páginas (exigência da disciplina; confira com pdfinfo). A
+% versão estendida, de 32 páginas, está no commit 5bdf56f (macro \estendida).
+% O texto é escrito à mão; figuras e tabelas NÃO são copiadas: vêm do material
 % gerado pela etapa `report` em ../relatorio/figuras e ../relatorio/tabelas, e os números do
 % corpus e da amostra, de ../relatorio/tabelas/numeros.tex. Duas figuras com os 36 blocos vêm
 % da execução separada com todas as camadas (configs/all-layers.yaml), que grava o seu
@@ -26,6 +28,8 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multicol}
 \usepackage{array}
 \usepackage[table]{xcolor}
 \usepackage{enumitem}
@@ -83,6 +87,7 @@
 \newcommand{\tecnico}{\repo/tree/main/report/relatorio}
 \newcommand{\viabilidade}{\repo/blob/main/report/estudo-de-viabilidade/estudo-de-viabilidade.pdf}
 \newcommand{\coleta}{https://annwith.github.io/gender-representation-networks/coleta/}
+\newcommand{\estendida}{\repo/blob/5bdf56f/report/entrega-final/entrega-final.pdf}
 
 % ------------------------------------------------------------
 % Figuras e tabelas não atravessam o início de uma seção (como no relatório técnico)
@@ -166,6 +171,25 @@
         }
         \caption{#2}\label{#3}
     \end{figure}}
+% \figuraopcionallado{arquivo}{legenda}{rótulo}: como \figuraopcional, com a legenda ao lado
+% (para figuras estreitas)
+\newcommand{\figuraopcionallado}[3]{%
+    \begin{figure}[htbp]
+        \centering
+        \begin{minipage}[c]{0.66\linewidth}
+            \centering
+            \IfFileExists{\gerado/figuras/#1.pdf}{%
+                \incluirlimitado{\gerado/figuras/#1.pdf}%
+            }{%
+                \caixapendente{\textbf{Figura pendente:}
+                    \texttt{\detokenize{figuras/#1.pdf}} (etapa \texttt{report})}%
+            }
+        \end{minipage}\hfill
+        \begin{minipage}[c]{0.32\linewidth}
+            \captionsetup{margin=0pt}
+            \caption{#2}\label{#3}
+        \end{minipage}
+    \end{figure}}
 % \figuratodas{arquivo sem extensão}{legenda}{rótulo}: a mesma figura, desenhada pela execução
 % com os 36 blocos (outputs/experiment/all-layers/relatorio/figuras/)
 \newcommand{\figuratodas}[3]{%
@@ -210,45 +234,44 @@
     {\large Como um Transformer reorganiza as ocorrências de tokens, visto por redes
     complexas}\\[10pt]
     Juliana Midlej do Espirito Santo (RA 200208)\\[2pt]
-    {\small Unicamp. Números da execução de \dataExecucao{}.}
+    {\small Código da implementação: \url{\repo}}\\[1pt]
+    {\small Números da execução de \dataExecucao{}.}
 \end{center}
 
 \begin{abstract}
 \noindent
-Na entrada de um Transformer, todas as ocorrências de um mesmo token são representadas pelo
-mesmo vetor; ao atravessar as camadas, cada ocorrência passa a carregar o texto em que
-aparece. Este trabalho descreve essa passagem com redes complexas. Os vértices são
-\nVertices{} ocorrências de tokens em parágrafos da Wikipédia em português, de oito temas, e
-cada vértice se liga aos 10 vértices de vetor mais parecido (k vizinhos mais próximos pelo
-cosseno). Os mesmos vértices recebem quatro vetores do modelo Qwen3-4B-Base: o
-\emph{embedding} de entrada e as saídas dos blocos 1, 18 e 36. As quatro redes têm, portanto,
-os mesmos vértices e podem ser comparadas vértice a vértice. No bloco 1, a rede ainda é
-praticamente a rede lexical: as ocorrências de um token continuam vizinhas umas das outras.
-A reorganização vem depois e é grande. No bloco 36, uma ocorrência mantém em média menos de 2
-dos seus 10 vizinhos lexicais, a fração de vizinhos do mesmo token cai de 0,70 para 0,25
-(ainda muito acima do acaso), surgem \emph{hubs} e as distâncias encurtam. As comunidades
-deixam de seguir o token e passam a seguir o contexto: nos blocos do meio (do 12 ao 19,
-aproximadamente), elas concordam mais com o artigo, o parágrafo e o tema de origem do que com
-o próprio token; nos últimos blocos, essa concordância cai e cresce a concordância com o
-próximo token. Palavras ambíguas, como \emph{banco}, \emph{órgão} e \emph{matriz}, separam as
-suas ocorrências por tema e por sentido mais do que palavras de sentido estável. O texto
-descreve também a coleta dos dados, a construção das redes, o tratamento dos empates e as
-limitações do estudo.
+Na entrada de um Transformer, todas as ocorrências de um mesmo token têm o mesmo vetor; ao
+atravessar as camadas, cada ocorrência passa a carregar o texto em que aparece. Descrevemos
+essa passagem com redes complexas: os vértices são \nVertices{} ocorrências de tokens em
+parágrafos da Wikipédia em português, e cada vértice se liga aos 10 de vetor mais parecido.
+Os mesmos vértices recebem quatro vetores do Qwen3-4B-Base (o \emph{embedding} de entrada e as
+saídas dos blocos 1, 18 e 36), o que dá quatro redes comparáveis vértice a vértice. A entrega
+parcial mostrou, pelas métricas globais, que o bloco 1 quase não muda a rede lexical e que
+depois a clusterização cai, as distâncias encurtam e surgem \emph{hubs}. A fase final mediu a
+reorganização vértice a vértice e por comunidades, nos 36 blocos. A fração de vizinhos do mesmo
+token cai de 0,70 para 0,25, ainda muito acima do acaso; nos blocos do meio, as comunidades
+seguem mais o artigo e o tema de origem do que o token, e nos últimos, o próximo token; e
+palavras ambíguas, como \emph{banco} e \emph{órgão}, separam as ocorrências por sentido bem mais
+do que palavras de sentido estável.
 \end{abstract}
 
 \input{secoes/01-introducao}
-\input{secoes/02-dados}
-\input{secoes/03-redes}
-\input{secoes/04-metodos}
-\input{secoes/05-resultados}
-\input{secoes/06-robustez}
-\input{secoes/07-discussao}
-\input{secoes/08-limitacoes}
-\input{secoes/09-material}
+\input{secoes/02-entrega-parcial}
+\input{secoes/03-metodologia}
+\input{secoes/04-resultados}
+\input{secoes/05-objetivos}
+\input{secoes/06-discussao}
+\input{secoes/07-material}
 
 % ------------------------------------------------------------
+% Referências em duas colunas: o título fica fora das colunas, e o \section* que o
+% thebibliography escreveria é anulado dentro do grupo do multicols.
+\section*{\refname}
+\begin{multicols}{2}
+\RenewDocumentCommand{\section}{s o m}{}
 \begin{thebibliography}{99}
-\small
+\footnotesize
+\setlength{\itemsep}{1pt}
 
 \bibitem{blondel2008}
 V.~D. Blondel, J.-L. Guillaume, R.~Lambiotte e E.~Lefebvre.
@@ -265,11 +288,6 @@ K.~Ethayarajh.
 How contextual are contextualized word representations? Comparing the geometry of BERT,
 ELMo, and GPT-2 embeddings.
 Em \emph{Proceedings of EMNLP-IJCNLP}, 2019.
-
-\bibitem{hubert1985}
-L.~Hubert e P.~Arabie.
-Comparing partitions.
-\emph{Journal of Classification}, 2(1):193--218, 1985.
 
 \bibitem{newman2006}
 M.~E.~J. Newman.
@@ -313,5 +331,6 @@ normalization and correction for chance.
 \emph{Journal of Machine Learning Research}, 11:2837--2854, 2010.
 
 \end{thebibliography}
+\end{multicols}
 
 \end{document}
