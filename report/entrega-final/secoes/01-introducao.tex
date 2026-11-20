@@ -8,11 +8,7 @@ uma linha de uma tabela fixa, a matriz de \emph{embeddings}: todas as ocorrênci
 \emph{banco} começam com o mesmo vetor, seja num texto sobre finanças, sobre computação ou
 sobre geografia. Ao atravessar os blocos do modelo, cada vetor recebe informação dos tokens
 anteriores, e as ocorrências de um mesmo token deixam de ser iguais; no último bloco, o vetor
-serve para prever o \emph{próximo} token. Estudos anteriores mediram essa passagem com médias
-sobre pares de vetores, como o cosseno médio entre as ocorrências de uma
-palavra~\cite{ethayarajh2019}. Essas médias dizem quanto os vetores se afastam, mas não dizem
-\emph{quem é vizinho de quem}, nem se a mudança é só local (troca de alguns vizinhos) ou se
-altera a organização em escala maior (\emph{hubs}, distâncias, comunidades).
+serve para prever o \emph{próximo} token.
 
 Este projeto descreve essa passagem com redes complexas. Cada vértice é uma \emph{ocorrência}
 de um token num parágrafo, e cada vértice aponta para os $k=10$ vértices de vetor mais parecido
@@ -20,9 +16,10 @@ de um token num parágrafo, e cada vértice aponta para os $k=10$ vértices de v
 modelo Qwen3-4B-Base: o \emph{embedding} de entrada (rede \cod{lex}) e as saídas dos blocos 1,
 18 e 36 (redes \cod{L01}, \cod{L18} e \cod{L36}). Como as redes têm os mesmos vértices e
 diferem só nos arcos, é possível comparar a vizinhança de cada ocorrência entre as camadas,
-separar o que muda em volta de cada vértice do que muda na rede inteira e comparar as
+caracterizar a reorganização da rede tanto em escala local, pela evolução das vizinhanças dos
+vértices, quanto em escala global, pelas alterações nas propriedades topológicas da rede, e comparar as
 comunidades com rótulos conhecidos dos vértices (o token, o tema, o artigo, o parágrafo, o
-próximo token). Isso transforma ``a representação ficou contextual'' numa afirmação mensurável.
+próximo token).
 
 \subsection{Objetivos}\label{sec:objetivos-def}
 
@@ -31,33 +28,30 @@ que forma a estrutura de similaridade entre representações de tokens se transf
 espaço lexical de entrada e as representações contextuais produzidas pelas camadas inicial,
 intermediária e final de um Transformer.
 
-\textbf{Objetivos específicos}: responder a quatro perguntas, cada uma com uma hipótese
-formulada antes dos resultados.
+\textbf{Objetivos específicos}: responder a quatro perguntas, associadas às seguintes hipóteses.
 \begin{description}
     \item[P1. Quanto e de que forma a organização muda?] Medir a troca de vizinhos de cada
     ocorrência, a fração de vizinhos do mesmo token (dominância lexical) e as métricas globais
-    (graus de entrada, clusterização, distâncias, componentes, comunidades). \emph{H1:} a
-    dominância lexical cai, mas continua acima do acaso no bloco 36; surgem \emph{hubs}; as
-    comunidades se alinham menos ao token.
+    (graus de entrada, clusterização, distâncias, componentes, comunidades). \emph{H1:} Espera-se
+    que a contextualização das representações reduza a dominância lexical nas vizinhanças dos
+    vértices e a associação entre as comunidades e a identidade dos tokens.
     \item[P2. Em que camadas a mudança se concentra?] Comparar as transições entre as redes e
     acompanhar as medidas nos 36 blocos, por faixa de frequência e categoria de token.
-    \emph{H2:} pedaços de palavra, que precisam dos vizinhos para formar uma palavra, mudam
-    antes das palavras inteiras.
+    \emph{H2:} A reorganização das relações de vizinhança não ocorre de maneira uniforme ao
+    longo das camadas.
     \item[P3. Surgem comunidades associadas a contextos semelhantes?] Comparar as comunidades
-    com o token, o tema, o artigo, o parágrafo, a sentença e o próximo token. \emph{H3:} a
-    concordância com o token cai e a com o contexto sobe; no último bloco, cresce a com o
-    próximo token.
+    com o token, o tema, o artigo, o parágrafo, a sentença e o próximo token. \emph{H3:} Ao
+    longo das camadas do Transformer, espera-se que as comunidades apresentem uma associação
+    progressivamente menor com a identidade lexical dos tokens e maior com seus contextos de
+    ocorrência, representados pelo tema, artigo, parágrafo e sentença de origem.
     \item[P4. As ocorrências de um mesmo token se separam conforme o contexto?] Medir se as
     ocorrências de palavras com sentidos diferentes em temas diferentes (\emph{banco},
     \emph{órgão}, \emph{matriz}\ldots), idênticas na entrada, passam a ocupar regiões e
-    comunidades diferentes. \emph{H4:} elas se separam, por tema e por sentido, mais do que
-    palavras de sentido estável (\emph{ano}, \emph{grande}, \emph{água}\ldots).
+    comunidades diferentes. \emph{H4:} Espera-se que as representações contextuais de
+    ocorrências de palavras polissêmicas apresentem maior diferenciação entre contextos temáticos
+    do que as de palavras com sentidos relativamente estáveis, e que a organização das
+    ocorrências das palavras polissêmicas reflita seus diferentes sentidos lexicais.
 \end{description}
-A proposta listava também quatro etapas: construir as redes com cerca de $1{,}5\times10^4$
-ocorrências e os mesmos vértices em todas; calcular as métricas estruturais pedidas na
-disciplina; reportar os resultados por faixa de frequência e categoria de token, com testes de
-robustez; e visualizar as redes.
-
 \textbf{Organização.} A Seção~\ref{sec:parcial} resume o projeto e a entrega parcial; as
 Seções~\ref{sec:metodologia} e~\ref{sec:resultados} trazem a metodologia e os resultados; a
 Seção~\ref{sec:objetivos} mostra como cada objetivo foi cumprido; e a

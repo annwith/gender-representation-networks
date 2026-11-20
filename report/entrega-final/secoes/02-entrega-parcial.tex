@@ -10,13 +10,11 @@ significado próprio (``praca'' vira \tok{pra}${}+{}$\tok{ca}). Um
 de conteúdo o bastante para a P4, o que levou a uma amostra híbrida
 (Seção~\ref{sec:amostra}). O trabalho foi implementado como um \emph{pipeline} em Python, com
 uma etapa por módulo (corpus, amostra, extração dos vetores, k-NN, métricas, análise, lente e
-relatório), configurado por arquivos YAML e coberto por testes.
+relatório), configurado por arquivos YAML.
 
 \paragraph{A entrega parcial.} A entrega parcial construiu as quatro redes de ocorrências
 (\cod{lex}, \cod{L01}, \cod{L18}, \cod{L36}; 13.606 vértices, $k=10$), publicou-as em GraphML
-(\cod{data/graphml/}) e fez a análise inicial em três documentos: as redes não direcionadas
-(versão por união), as redes direcionadas e a visualização. Foram calculadas as métricas
-pedidas na disciplina: número de vértices e arestas, grau médio, densidade, clusterização
+(\cod{data/graphml/}) e fez a análise inicial das redes direcionadas e a visualização. Foram calculadas as métricas: número de vértices e arestas, grau médio, densidade, clusterização
 global e local (e a sua distribuição), distância média e diâmetro (exatos, por busca em
 largura), componentes e a distribuição dos seus tamanhos e a distribuição de graus. Os
 principais achados foram:

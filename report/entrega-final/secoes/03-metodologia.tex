@@ -11,12 +11,12 @@ Os vértices são ocorrências de tokens em parágrafos da Wikipédia em portugu
 escolhidas distantes entre si e de modo que as palavras ambíguas da P4 tenham sentidos
 diferentes em pelo menos dois temas: \emph{banco} é instituição financeira em Economia, banco
 de dados em Computação e banco de areia em Geografia. O modelo nunca vê o tema; ele é só um
-rótulo da análise (contexto na P3 e indicador aproximado do sentido na P4).
+rótulo da análise.
 
 \paragraph{Busca.} Para cada tema, uma busca em largura desce pelas subcategorias até a
 profundidade 2, sem abrir categorias de manutenção nem de listas, e guarda até 600 títulos; os
 títulos são embaralhados com uma semente fixa e baixados até completar 150 artigos por tema,
-com a revisão de cada um registrada. O corte não é aleatório: a API lista as subcategorias em
+com o identificador da versão baixada de cada artigo registrado. O corte não é aleatório: a API lista as subcategorias em
 ordem alfabética, e a busca abriu só parte delas (de 7 de 79 em Computação a 98 de 439 em
 Música). Os temas são, portanto, ``artigos próximos da categoria raiz'', e não a área
 inteira, o que basta para ter temas bem separados. Como alguns sentidos quase não apareciam no
@@ -25,11 +25,9 @@ tema que os representa (\emph{banco} de areia tinha 4 ocorrências em Geografia)
 a Computação, Oceanografia a Geografia\ldots), acrescentam até 60 artigos cada.
 
 \paragraph{Descartes e limpeza.} Um artigo é descartado se for alcançado a partir de mais de
-um tema (108 \textbf{páginas multitema}, como ``Prêmio Nobel'', que borrariam o rótulo de
-tema), se for uma biografia (68), se não sobrar nenhum parágrafo de prosa (295), se for uma
-desambiguação (4) ou se estiver duplicado (3). O \emph{wikitext} é convertido em texto com o
-\cod{mwparserfromhell}, sem referências, tabelas, fórmulas, listas, predefinições e seções de
-apoio. Ficam os parágrafos de prosa corrida (pelo menos 40 palavras, terminados como frase, com
+um tema (108 \textbf{páginas multitema}), se for uma biografia (68), se não sobrar nenhum parágrafo de prosa (295), se for uma 
+página de desambiguação, que apenas lista os diferentes sentidos de um termo (4) 
+ou se estiver duplicado (3). Ficam os parágrafos de prosa corrida (pelo menos 40 palavras, terminados como frase, com
 no máximo 8\% de dígitos, sem repetição), divididos em sentenças. Dos \nArtigosCandidatos{}
 candidatos, ficaram \nArtigos{} artigos, com \nParagrafos{} parágrafos e \nTokensCorpus{}
 tokens do modelo.
@@ -43,19 +41,28 @@ Chamamos de \textbf{tipo} um elemento do vocabulário e de \textbf{ocorrência} 
 um tipo numa posição de um parágrafo; o número de ocorrências do tipo $t$ na amostra é $f_t$.
 Cada ocorrência recebe uma \textbf{categoria de token}: palavra inteira (\tok{\esp banco}),
 início de palavra (\tok{\esp torn} em ``tornou''), continuação (\tok{ou} em ``tornou''),
-pontuação ou número (cada dígito é um token). Tokens só de espaço não viram vértices. O
-\emph{tokenizer} do Qwen3 divide muito o português (1,78 tokens por palavra), e por isso os
-resultados são separados por categoria, e as interpretações sobre sentido usam só palavras
-inteiras. As palavras da P4 são contadas só no tipo minúsculo precedido de espaço, para que
-todas as ocorrências comparadas comecem do mesmo vetor.
+pontuação ou número. 
+Quando uma palavra é dividida em vários tokens, apenas o primeiro é classificado como início; todos os demais são continuações. 
+Tokens só de espaço não viram vértices. O \emph{tokenizer} do Qwen3 divide muitas palavras do
+português em mais de um token (1,78 tokens por palavra, em média). Por isso, os resultados
+são apresentados por categoria de token. Na P4, para comparar diferentes ocorrências de uma
+palavra, escolhemos um mesmo tipo de token. Por exemplo, para ``banco'', usamos o tipo
+\tok{\esp banco}, em minúsculas e com espaço antes; \tok{\esp Banco}, com maiúscula, é outro
+tipo. Todas as ocorrências de um mesmo tipo começam com o mesmo vetor, isto é, a mesma lista
+de números atribuída ao token pelo modelo. Nas camadas seguintes, esse vetor é transformado
+conforme o contexto, permitindo comparar, por exemplo, ``conta no banco'' e ``sentou no banco''.
+
+As ocorrências selecionadas para os estratos de palavras-alvo, controles e multitema
+correspondem a palavras inteiras. Na análise da P4, porém, a comparação reúne as ocorrências
+pelo tipo de token e pode incluir ocorrências do núcleo em que esse mesmo token é parte de uma
+palavra maior, como \tok{\esp capital} em ``capitalismo''.
 
 A amostra limita cada tipo a $f_{\max}=50$ ocorrências, usa uma semente fixa e tem quatro
 \textbf{estratos}:
 \begin{enumerate}
     \item \textbf{Núcleo} (P1 a P3): 5 artigos por tema e 2 parágrafos de cada, 80 parágrafos
     inteiros. Todos os tokens deles viram vértices, inclusive pedaços de palavra, números e
-    pontuação: \nVerticesNucleo{} vértices. É o único estrato com parágrafos inteiros, e a P3
-    é analisada só nele.
+    pontuação: \nVerticesNucleo{} vértices. É o único estrato com parágrafos inteiros.
     \item \textbf{Palavras-alvo} (P4): palavras com sentidos diferentes em temas diferentes,
     com uma cota de 16 a 25 ocorrências em cada tema de sentido, no máximo uma por parágrafo e
     três por artigo. Ficaram \nAlvosMantidos{} (\emph{banco}, \emph{campo}, \emph{órgão},
@@ -66,21 +73,23 @@ A amostra limita cada tipo a $f_{\max}=50$ ocorrências, usa uma semente fixa e 
     \emph{século}, \emph{grande}, \emph{primeiro}, \emph{importante}, \emph{água}), com a mesma
     alocação de cotas dos alvos, para que uma diferença entre os grupos não venha do desenho:
     \nVerticesControle{} vértices.
-    \item \textbf{Multitema} (P4): 150 palavras de conteúdo comuns a pelo menos 3 temas
-    (\emph{metal}, \emph{luz}, \emph{guerra}, \emph{motor}\ldots), com até 20 ocorrências cada,
-    que estendem a P4 a palavras não escolhidas por serem ambíguas: \nVerticesMultitema{}
-    vértices.
+    \item \textbf{Multitema} (P4): 150 palavras de conteúdo que aparecem em pelo menos três
+    temas, como \emph{metal}, \emph{luz}, \emph{guerra} e \emph{motor}, com até 20 ocorrências
+    de cada. Elas permitem aplicar a análise também a palavras selecionadas por aparecerem em
+    vários temas, independentemente de terem sido escolhidas por sua ambiguidade:
+    \nVerticesMultitema{} vértices.
 \end{enumerate}
 Nos estratos 2 a 4, o parágrafo da ocorrência passa pelo modelo só como contexto: o único
 vértice dele é a ocorrência sorteada. Ao todo são \nVertices{} vértices de \nTipos{} tipos, em
-\nSequencias{} parágrafos de 1.172 artigos. Como o núcleo tem três quartos dos vértices, as
-medidas globais descrevem sobretudo texto corrido.
+\nSequencias{} parágrafos de 1.172 artigos.
 
 \paragraph{Anotação dos sentidos.}\label{sec:dados-sentidos} O tema é só um indicador do
 sentido: um artigo de Computação pode citar o Banco Central. Por isso, as 508 ocorrências das
-palavras-alvo foram anotadas pelo modelo de linguagem Claude Opus~5.5, sem revisão humana, com
-3 a 7 sentidos por palavra (\emph{órgão}: biológico, instrumento musical, institucional). Cada
-ocorrência foi lida com o trecho do parágrafo, sem o tema nem o título do artigo. Como o modelo
+palavras-alvo foram classificadas pelo modelo de linguagem Claude Opus~5.5, sem revisão humana.
+Para cada palavra, foram definidos de três a sete rótulos de sentido; cada ocorrência recebeu um
+deles. Por exemplo, as ocorrências de \emph{órgão} foram classificadas como biológicas,
+institucionais ou referentes ao instrumento musical. Cada ocorrência foi lida com o trecho do
+parágrafo, sem o tema nem o título do artigo. Como o modelo
 analisado só vê o texto à esquerda, cada ocorrência recebeu também uma marca que diz se esse
 trecho já decide o sentido (442 das 508).
 
@@ -101,18 +110,21 @@ tipo; e \cod{L01}, \cod{L18} e \cod{L36}, a saída bruta dos blocos 1, 18 e 36 n
 $i$ (antes da normalização final), lida por \emph{hooks} do PyTorch. Uma segunda execução, com
 a mesma amostra, guarda a saída dos 36 blocos, para as curvas camada a camada. Guardamos também
 a saída normalizada do bloco 36 (\cod{L36n}) e o token que o modelo prevê depois de cada
-ocorrência. Vértices cujos parágrafos começam com os mesmos tokens até eles recebem vetores
-idênticos (\nGruposPrefixo{} grupos), para apagar o ruído de arredondamento.
+ocorrência. 
+
+Quando duas ou mais ocorrências têm exatamente a mesma sequência de tokens desde o
+início do parágrafo até a própria ocorrência, o modelo causal deveria produzir vetores iguais
+para elas. Para evitar que pequenas diferenças de arredondamento criem distinções artificiais,
+copiamos o vetor da primeira ocorrência para as demais.
 
 % ------------------------------------------------------------
 \subsection{Construção das redes e o tratamento dos empates}\label{sec:knn}
 
 A semelhança entre dois vértices é o cosseno $s_{ij}=x_i^\top x_j/(\lVert x_i\rVert\,\lVert
-x_j\rVert)$, calculado em precisão dupla. Cada vértice $i$ aponta para os $k=10$ vértices de
+x_j\rVert)$. Cada vértice $i$ aponta para os $k=10$ vértices de
 maior cosseno com ele, entre todos os outros vértices da amostra, de qualquer parágrafo, artigo
 ou tema; esse conjunto é a vizinhança $\N_i$. A rede é \textbf{direcionada} ($i\to j$ não implica
-$j\to i$) e sem pesos; todo vértice tem grau de saída 10, e os vértices de grau de entrada alto
-são os \emph{hubs}. As quatro redes diferem só nos vetores e, portanto, nos arcos
+$j\to i$) e sem pesos; todo vértice tem grau de saída 10. As quatro redes diferem só nos arcos
 (Figura~\ref{fig:ilustracao}). Usamos a versão \textbf{direcionada} nas medidas de vizinhança,
 no grau de entrada e na reciprocidade; a \textbf{não direcionada por união} (aresta se $i$
 escolhe $j$ ou $j$ escolhe $i$) na clusterização, nas distâncias, nos componentes e nas
@@ -184,25 +196,22 @@ umas para as outras. (b) Numa camada contextual, cada \emph{banco} passa a apont
 uma palavra do seu contexto. Os vértices são os mesmos; só os arcos mudam.}\label{fig:ilustracao}
 \end{figure}
 
-\paragraph{Empates.} Na rede lexical, todas as ocorrências de um tipo têm o mesmo vetor, e o
-cosseno entre elas é exatamente 1: para uma ocorrência de \tok{\esp de}, com 50 ocorrências na
-amostra, as outras 49 são candidatas igualmente boas às 10 vagas. Na execução principal,
-87,8\% das linhas da rede lexical têm um empate na fronteira da décima vaga (nas camadas
-contextuais, menos de 1\%). Seja $s_{i(k)}$ a $k$-ésima maior similaridade da linha $i$; os
-vértices com $s_{ij}>s_{i(k)}+\varepsilon$ entram na vizinhança, e as vagas que sobram são
-\textbf{sorteadas} entre os empatados, $\{j:|s_{ij}-s_{i(k)}|\le\varepsilon\}$, com
-$\varepsilon=10^{-6}$. O sorteio é repetido com \textbf{20 sementes}. A alternativa usada no
-piloto, desempatar pela posição na lista, cria \emph{hubs} artificiais: as 50 ocorrências de
-\tok{\esp de} escolheriam as mesmas 10. O sorteio entra na análise de três formas: as métricas
-da rede lexical são a média entre as sementes (elas variam pouco: $102.723\pm73$ arestas); a
-troca de vizinhos entre duas sementes define um \emph{piso de ruído}
-(Seção~\ref{sec:medidas}); e uma variante da troca de vizinhos compara os vizinhos pelo tipo,
-sem depender do sorteio.
+\paragraph{Empates.} Para escolher os vizinhos de cada palavra, o método procura as ocorrências
+mais parecidas com ela. Quando há mais candidatos igualmente parecidos do que vagas disponíveis,
+as vagas restantes são preenchidas por sorteio.
 
-\paragraph{A rede do vocabulário.} Construímos também uma rede de \textbf{tipos}, com um
-vértice para cada token do vocabulário (\nTiposVocab{} vértices, todos menos os 26 especiais),
-representado pela sua linha em $E$ e ligado aos seus 10 vizinhos pelo mesmo procedimento. Ela
-descreve o espaço de entrada inteiro, sem depender da amostra.
+Isso acontece com frequência na rede lexical, pois diferentes ocorrências de uma mesma palavra
+têm a mesma representação. O sorteio evita que as mesmas ocorrências sejam sempre escolhidas
+apenas por aparecerem primeiro na lista. O sorteio é repetido com 20 sementes em todas as
+representações. Nas medidas de vizinhança, usam-se todas elas. Nas métricas estruturais, a
+média das 20 sementes é usada apenas para a rede lexical; nas camadas contextuais, usa-se uma
+semente, pois os sorteios quase não mudam a rede.
+
+\paragraph{A rede do vocabulário.} Além das redes construídas com as palavras da amostra,
+criamos uma rede que reúne todo o vocabulário do modelo. Nela, cada vértice representa um token
+diferente, e cada token é ligado aos 10 tokens com representações mais parecidas com a sua.
+
+A rede tem 151.643 vértices: inclui todos os tokens do vocabulário, exceto os 26 tokens especiais.
 
 % ------------------------------------------------------------
 \subsection{Medidas}\label{sec:medidas}
@@ -232,11 +241,10 @@ nível do acaso é $(f_{t_i}-1)/(n-1)\le0{,}004$.
 com o Leiden~\cite{traag2019}, que maximiza a modularidade~\cite{newman2006} (10 execuções; a
 concordância média entre elas é a \emph{estabilidade}). A partição é comparada com rótulos dos
 vértices (tipo de token, tema, artigo, parágrafo, sentença, próximo token, token previsto pelo
-modelo e faixa de posição, esta como controle de artefato) pela informação mútua normalizada
+modelo e faixa de posição) pela informação mútua normalizada
 (NMI). Como o NMI cresce com o número de classes mesmo sem relação nenhuma~\cite{vinh2010}, e
 os rótulos vão de 4 a 2.780 classes, cada NMI é descontado de uma \textbf{linha de base}, o NMI
-médio com o rótulo embaralhado 20 vezes; a medida lida é \textbf{NMI $-$ base}. A P3 usa só os
-vértices do núcleo, com as comunidades da rede inteira.
+médio com o rótulo embaralhado 20 vezes; a medida lida é \textbf{NMI $-$ base}.
 
 \paragraph{Separação das ocorrências (P4).} Para cada tipo com pelo menos 10 ocorrências, em
 quatro grupos (alvos, controles, multitema e palavras funcionais), medimos a
