@@ -140,14 +140,8 @@ def table_metricas_globais(ctx: Context) -> Tabular:
                 cell = r"$\geq$\," + cell
             cells.append(cell)
         rows.append(cells)
-    lex_seeds = 0
-    if any(c[0].startswith(r"\texttt{lex}") for c in columns):
-        lex_seeds = int(columns[0][1]["seed"].nunique())
-    notes = [
-        f"Redes com $k={k}$, versão por união, desempate por sorteio "
-        f"(média $\\pm$ desvio entre as {lex_seeds} sementes na rede lexical, semente 0 nas "
-        "demais); reciprocidade e grau de entrada vêm da versão direcionada."
-    ]
+    # k, the symmetrization and the tie seeds are stated in the caption, in the LaTeX source.
+    notes = []
     if sampled_note:
         notes.append(
             "$^{*}$ Distâncias estimadas por busca em largura a partir de fontes "
