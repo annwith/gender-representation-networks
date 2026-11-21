@@ -1444,7 +1444,7 @@ def layer_curves_figure(layers: pd.DataFrame, categories: Sequence[str]) -> Figu
             )
             if style.marker:
                 sparse_markers(ax, x, y, style, n=7)
-        ax.set_xlabel("bloco ℓ (em ℓ = 1, comparação com a rede lex por posição)")
+        ax.set_xlabel("bloco ℓ")
         ax.set_ylim(-0.02, 1.02)
         decimal_axis(ax, "y")
         ax.xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))

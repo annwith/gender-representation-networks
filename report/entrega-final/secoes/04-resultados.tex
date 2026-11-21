@@ -34,9 +34,7 @@ modularidade de 0,95 para 0,77: as comunidades ficam maiores e menos separadas.
 30, assimetria próxima de zero), porque o sorteio espalha os arcos entre cópias idênticas
 (Figura~\ref{fig:graus-camadas}). A cauda cresce nos blocos 1 e 18 (assimetria 1,0 e 1,4) e
 fica pesada no bloco 36: um vértice (\tok{\esp apresent}) recebe 247 arcos e a assimetria
-chega a 4,9; os maiores \emph{hubs} são inícios e continuações de palavras e dígitos.
-\emph{Hubs} são comuns em espaços de alta
-dimensão~\cite{radovanovic2010}, e aqui crescem junto com a anisotropia: o cosseno médio entre
+chega a 4,9. Os \emph{hubs} crescem junto com a anisotropia: o cosseno médio entre
 pares de vértices ao acaso sobe de 0,03 na camada lexical para 0,39 no bloco 18 e 0,58 no
 bloco 36. A reciprocidade sobe de 0,49 para 0,61 no bloco 18 e cai para 0,44 no 36, porque
 muitos vértices escolhem um \emph{hub} que não os escolhe de volta.
@@ -47,23 +45,45 @@ os vetores da posição 1 têm norma cerca de 50 vezes maior que a dos outros (m
 contra 55), as \emph{ativações massivas}~\cite{sun2024}, e todos os seus vizinhos são outros
 vértices da posição 1. São 0,6\% dos vértices, e retirá-los quase não muda as métricas globais.
 
+\paragraph{A rede do vocabulário.} É conexa (última coluna da
+Tabela~\ref{tab:metricas-globais}), mas tem \emph{hubs} extremos (grau de entrada máximo de 1.756, assimetria de 22,6): caracteres isolados
+de escritas raras, provavelmente pouco vistos no treinamento. As suas 171 comunidades quase não
+seguem a escrita (NMI de 0,11) e misturam línguas: os vizinhos de cada palavra-alvo são
+variantes de grafia e traduções para o inglês, o espanhol e o chinês, e indicam um só sentido
+(os de \emph{banco}, o financeiro). Na entrada, uma palavra ambígua fica perto de um dos seus
+sentidos; os outros só aparecem com o contexto (Seção~\ref{sec:res-p4}).
+
 % ------------------------------------------------------------
 \subsection{P1: quanto e de que forma a organização muda}\label{sec:res-p1}
 
 \textbf{Resposta:} a organização quase não muda no bloco 1 e muda muito nos blocos 18 e 36, mas
 a identidade do token não desaparece.
 
-\paragraph{Troca de vizinhos.} O Jaccard médio entre a vizinhança lexical e a de cada camada é
-0,35 no bloco 1, 0,16 no bloco 18 e 0,10 no bloco 36: no último bloco, uma ocorrência mantém em
-média menos de 2 dos seus 10 vizinhos lexicais. Descontado o piso de ruído, a mudança é de 0,14,
-0,34 e 0,40. A Figura~\ref{fig:p1-jaccard-faixas} mostra por que o desconto importa. Para tipos
-com 10 ou mais ocorrências, o Jaccard entre \cod{lex} e \cod{L01} é igual ao piso (0,38 contra
-0,39 na faixa de 10 a 49; 0,12 contra 0,12 na de 50): no bloco 1, os vizinhos continuam sendo as
-outras ocorrências do mesmo token, e só muda \emph{quais} cópias foram sorteadas (o Jaccard por
-composição de tipos, que ignora o sorteio, vale 0,98). Já os tipos raros mudam desde o bloco 1
-(Jaccard de 0,29 e 0,50, contra pisos de 0,73 e 0,76): os seus vizinhos lexicais eram outros
-tipos parecidos, e o bloco 1, que já vê o token anterior, os troca. Nos blocos 18 e 36, todas
-as faixas ficam bem abaixo do piso.
+\paragraph{Troca de vizinhos.} O Jaccard médio entre a vizinhança lexical e a de cada camada cai
+de 0,35 no bloco 1 para 0,16 no bloco 18 e 0,10 no bloco 36 (Tabela~\ref{tab:p1-jaccard-medio}).
+No último bloco, uma ocorrência mantém, em média, menos de dois dos seus dez vizinhos lexicais.
+Parte dessa troca, porém, pode ocorrer mesmo quando as representações não mudam: na rede lexical,
+ocorrências de um mesmo token têm vetores idênticos, e o desempate por sorteio pode escolher
+vizinhos diferentes. Para estimar esse efeito, calculamos o \emph{piso de ruído}: o Jaccard médio
+entre redes lexicais construídas com diferentes sementes de sorteio. A diferença entre esse piso e
+o Jaccard observado é de 0,14 no bloco 1, 0,34 no bloco 18 e 0,40 no bloco 36.
+
+\tabelaopcional{p1_jaccard_medio}
+    {Jaccard médio entre a rede lexical e cada camada e mudança média acima do piso de ruído,
+    considerando todas as ocorrências.}
+    {tab:p1-jaccard-medio}
+
+A Figura~\ref{fig:p1-jaccard-faixas} mostra que o piso depende da frequência do token. Para tipos
+com dez ou mais ocorrências, o Jaccard no bloco 1 está próximo do piso: 0,38 contra 0,39 na faixa
+de 10 a 49 ocorrências e 0,12 contra 0,12 na faixa de 50. Isso indica que a troca de vizinhos
+nesse bloco é compatível com o efeito do sorteio: os vizinhos continuam sendo sobretudo outras
+ocorrências do mesmo token, embora as ocorrências escolhidas possam variar. O Jaccard por
+composição de tipos, que compara os tipos dos vizinhos e quase não depende do sorteio, é 0,98.
+Para os tipos raros, a mudança aparece já no bloco 1: os valores de Jaccard são 0,29 e 0,50,
+contra pisos de 0,73 e 0,76. Como há poucas ocorrências do mesmo token, seus vizinhos lexicais
+incluem outros tipos parecidos, que são trocados no bloco 1, onde a representação já incorpora
+o token anterior. Nos blocos 18 e 36, todas as faixas ficam bem abaixo do piso, indicando uma
+reorganização das vizinhanças além da esperada pelo desempate.
 
 \figuraopcional{p1_jaccard_faixas}
     {Jaccard entre a vizinhança de cada ocorrência na rede lexical e nos blocos 1, 18 e 36, por
@@ -71,16 +91,32 @@ as faixas ficam bem abaixo do piso.
     piso de ruído da faixa: só a distância abaixo dela é reorganização.}
     {fig:p1-jaccard-faixas}
 
-\paragraph{Dominância lexical.} A fração de vizinhos do mesmo tipo é 0,70 na rede lexical (o
-teto), 0,69 no bloco 1, 0,43 no bloco 18 e 0,25 no bloco 36; relativa ao teto, cai de 1 para
-0,99, 0,62 e 0,40. Mesmo no bloco 36, uma ocorrência de um tipo com 50 ocorrências tem em média
-3,9 vizinhos do mesmo token, quando o acaso daria 0,04. A queda depende da categoria: no bloco
-36, a dominância relativa é de 0,25 nas continuações de palavra, 0,29 nos números, 0,35 nas
-palavras inteiras, 0,54 na pontuação e 0,79 nos inícios de palavra. Os inícios de palavra são
-a exceção: a dominância deles até sobe entre os blocos 18 e 36 (de 0,73 para 0,79). Uma
-explicação provável é que o bloco 36 codifica o próximo token (Seção~\ref{sec:res-lente}), e o
-que vem depois de \tok{\esp apresent} é a continuação da palavra, que depende sobretudo do
-próprio início; duas ocorrências dele preveem continuações parecidas e ficam próximas.
+\paragraph{Dominância lexical.} A fração de vizinhos do mesmo tipo cai de 0,70 na rede lexical
+(o teto) para 0,25 no bloco 36; relativa ao teto, cai de 1 para 0,40
+(Tabela~\ref{tab:p1-dominancia-media}). Mesmo no bloco 36, uma ocorrência de um tipo com 50
+ocorrências tem em média 3,9 vizinhos do mesmo token, quando o acaso daria 0,04.
+
+\tabelaopcional{p1_dominancia_media}
+    {Dominância lexical média e dominância relativa ao teto por camada. A média relativa ao teto
+    considera apenas ocorrências com pelo menos outra ocorrência do mesmo tipo.}
+    {tab:p1-dominancia-media}
+
+A queda da dominância lexical varia conforme a categoria do token
+(Tabela~\ref{tab:p1-dominancia-categorias}). No bloco 36, as continuações de palavra têm
+dominância relativa de 0,25, enquanto os inícios de palavra chegam a 0,79. Os inícios são a
+exceção: sua dominância relativa sobe de 0,73 no bloco 18 para 0,79 no bloco 36.
+
+\tabelaopcional{p1_dominancia_categorias}
+    {Dominância lexical média relativa ao teto, por categoria de token e camada. A média considera
+    apenas ocorrências com pelo menos outra ocorrência do mesmo tipo.}
+    {tab:p1-dominancia-categorias}
+
+Uma possível explicação envolve a previsão do próximo token (Seção~\ref{sec:res-lente}). Considere
+duas ocorrências do início \tok{\esp apresent}, uma seguida pela continuação de ``apresentação'' e
+outra pela de ``apresentar''. Mesmo em frases diferentes, as continuações possíveis dependem desse
+mesmo início de palavra. Como o bloco 36 prepara a previsão do próximo token, suas representações
+de \tok{\esp apresent} podem ficar parecidas e, por isso, próximas na rede. Essa é uma hipótese
+para a permanência da dominância lexical entre inícios de palavra.
 
 \textbf{Interpretação.} A H1 se confirma: a dominância cai, mas fica muito acima do acaso;
 como mostra a P3, as comunidades se alinham menos ao token. Surgem \emph{hubs} no bloco 36.
@@ -106,9 +142,9 @@ configuração principal, a maioria dos vértices perde mais vizinhos entre os b
 inteiras, na segunda (50\%).
 
 \figuraopcional{p2_curvas_camadas}
-    {Curvas nos 36 blocos. À esquerda, o Jaccard entre as vizinhanças de blocos consecutivos
-    (no bloco 1, a comparação é com a rede lexical); à direita, a dominância lexical $D$ em cada
-    bloco, por categoria de token.}
+    {Curvas nos 36 blocos. À esquerda, o Jaccard entre blocos consecutivos; no bloco 1, com a
+    rede lexical com desempate pela posição (0,359; com o sorteio, 0,354), valor que inclui o
+    ruído do desempate. À direita, a dominância lexical $D$, por categoria de token.}
     {fig:p2-curvas-camadas}
 
 \textbf{Interpretação.} A H2 se confirma: a reorganização varia ao longo das camadas.
@@ -126,7 +162,9 @@ e \cod{L01}, e a com qualquer rótulo de contexto fica abaixo de 0,05. No bloco 
 inverte: artigo 0,25, parágrafo 0,24, sentença 0,21 e tema 0,20, contra 0,18 do token. No bloco
 36, os rótulos de contexto caem para cerca da metade (tema 0,09, artigo 0,12), enquanto o
 próximo token sobe de 0,08 para 0,19 e o token previsto pelo modelo para 0,22. A faixa de
-posição nunca passa de 0,04: as comunidades não são um artefato da posição.
+posição serve de controle: ela agrupa a posição do token no parágrafo, contada em tokens a
+partir de 1, em quatro faixas (1--4, 5--16, 17--64 e 65 ou mais). A concordância com ela nunca
+passa de 0,04: as comunidades não são um artefato da posição.
 
 \figuratodas{p3_nmi_camadas}
     {Concordância (NMI $-$ base) entre as comunidades de cada bloco e cada rótulo, nos
@@ -158,19 +196,19 @@ sentido anotado.
 
 \figuratodas{p4_separacao}
     {Separação das ocorrências de um mesmo tipo nos 36 blocos (médias por grupo, tipos com pelo
-    menos 10 ocorrências). O painel do NMI mostra o valor bruto, sem descontar a linha de base,
+    menos 10 ocorrências). O painel do NMI desconta a linha de base (o NMI esperado ao acaso),
     que difere entre os grupos (no bloco 36: 0,09 nos alvos, 0,13 nos controles, 0,26 nas
-    multitema e 0,19 nas funcionais); o texto compara os grupos pelo NMI $-$ base.}
+    multitema e 0,19 nas funcionais).}
     {fig:p4-separacao}
 
 \paragraph{Os grupos de palavras (Figura~\ref{fig:p4-separacao}).} A
 \textbf{autossimilaridade} segue a mesma curva em todos os grupos: cai de 1 para 0,6 a 0,7 nos
 blocos 10 a 15 e volta a cerca de 0,78 no bloco 36. Ela não distingue palavras ambíguas de
-estáveis, e a subida final acompanha a anisotropia. A diferença \textbf{intra $-$ entre temas}
+estáveis. A diferença \textbf{intra $-$ entre temas}
 separa os grupos: nos alvos, ela tem o máximo nos blocos 11 e 12 (0,12) e vale 0,09 no bloco 18
 e 0,05 no 36; nos controles, não passa de 0,02. O \textbf{NMI $-$ base entre comunidade e tema}
-é de 0,23 nos alvos no bloco 18 e 0,33 no 36, contra 0,02 e 0,04 nos controles e nas palavras
-multitema. No bloco 36, as ocorrências de um alvo se espalham por 3,3 comunidades efetivas, e as
+sobe do bloco 18 para o 36 nos três grupos, mas em escalas diferentes: de 0,23 para 0,33 nos
+alvos, e de 0,02 para 0,04 nos controles e nas palavras multitema. No bloco 36, as ocorrências de um alvo se espalham por 3,3 comunidades efetivas, e as
 de um controle por 2,7.
 
 \tabelaopcional{p4_alvos}
@@ -199,36 +237,29 @@ diferença de cosseno entre sentidos é máxima nos blocos 11 e 12 (0,17 em méd
 
 \textbf{Interpretação.} A H4 se confirma: os alvos se separam mais que os controles em todas as
 medidas que levam o tema ou o sentido em conta, e o sentido explica a separação melhor que o
-tema. A geometria separa mais os sentidos no meio do modelo; a partição da rede segue mais o
-sentido no fim, quando as ocorrências de cada palavra se espalham por mais comunidades.
+tema. A diferença de similaridade entre ocorrências de sentidos iguais e diferentes é maior nos
+blocos intermediários. Já nos blocos finais, as ocorrências de cada palavra se distribuem por
+mais comunidades, e essa divisão acompanha melhor os sentidos anotados.
 
 % ------------------------------------------------------------
-\subsection{Do próprio token ao próximo, e a rede do vocabulário}\label{sec:res-lente}
+\subsection{Do próprio token ao próximo}\label{sec:res-lente}
 
 A Figura~\ref{fig:lente-ranking} mostra, bloco a bloco, a posição do próprio token e do
-próximo token entre as linhas de $E$ ordenadas pela semelhança com o vetor da ocorrência. No
-bloco 1, a linha mais próxima é a do próprio token em 90\% das ocorrências; no bloco 5, em
-16\%; e a posição mediana dele chega a cerca de 30.000 entre os blocos 13 e 22. A posição
+próximo token entre as linhas de $E$ (a matriz de \emph{embeddings}, com um vetor por token do
+vocabulário, usada na entrada e na saída do modelo) ordenadas pela semelhança com o vetor da
+ocorrência. No bloco 1, a linha mais próxima é a do próprio token em 90\% das ocorrências; no
+bloco 5, em 16\%; e a posição mediana dele chega a cerca de 30.000 entre os blocos 13 e 22. A posição
 mediana do próximo token fica entre 50.000 e 70.000 até o bloco 21 e depois cai depressa
 (2.100 no bloco 30, 5 no 36); no bloco 36, o próximo token é a linha mais próxima em 31\% das
 ocorrências e está entre as 20 mais próximas em 69\%. A partir do bloco 23, ele fica mais perto
-do vetor do que o próprio token na maioria das ocorrências. Pela matriz $E$, a identidade sai do
-vetor bem antes do que a dominância lexical sugere: as ocorrências de um token continuam
-vizinhas entre si (P1) mesmo quando já não estão perto da linha do token.
+do vetor do que o próprio token na maioria das ocorrências. As ocorrências de uma mesma palavra
+continuam próximas entre si, mesmo depois de se afastarem do vetor original da palavra.
 
 \figuraopcional{lente_ranking}
     {Posição mediana do próprio token (à esquerda) e do próximo token (à direita) entre as
     linhas da matriz de \emph{embeddings}, ordenadas pelo cosseno com o vetor da ocorrência,
     por bloco e categoria de token (escala logarítmica; 1 = a linha mais próxima).}
     {fig:lente-ranking}
-
-A rede do vocabulário (última coluna da Tabela~\ref{tab:metricas-globais}) é conexa, mas tem
-\emph{hubs} extremos (grau de entrada máximo de 1.756, assimetria de 22,6): caracteres isolados
-de escritas raras, provavelmente pouco vistos no treinamento. As suas 171 comunidades quase não
-seguem a escrita (NMI de 0,11) e misturam línguas: os vizinhos de cada palavra-alvo são
-variantes de grafia e traduções para o inglês, o espanhol e o chinês, e indicam um só sentido
-(os de \emph{banco}, o financeiro). Na entrada, uma palavra ambígua fica perto de um dos seus
-sentidos; os outros só aparecem com o contexto.
 
 % ------------------------------------------------------------
 \subsection{Robustez}\label{sec:robustez}

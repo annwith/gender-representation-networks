@@ -23,12 +23,12 @@ P4_MEASURES = [
     ("self_similarity_mean", "Autossimilaridade (cosseno médio)"),
     ("theme_gap_mean", "Cosseno intra − entre temas"),
     ("effective_communities_mean", "Comunidades efetivas (exp H)"),
-    ("nmi_community_theme_mean", "NMI comunidade × tema"),
+    ("nmi_community_theme_excess_mean", "NMI comunidade × tema − base"),
 ]
 
 # p4_senses subsets shown in the table, with their column headings.
 SENSE_SUBSETS = {"all": "todas", "left": "esq."}
-SENSE_COLUMNS = ["n_senses", "sense_gap", "nmi_community_sense", "nmi_community_sense_baseline"]
+SENSE_COLUMNS = ["sense_gap", "nmi_community_sense", "nmi_community_sense_baseline"]
 SENSE_NOTE = (
     " Sentido: o mesmo contraste pelo sentido anotado (Seção~\\ref{sec:dados-sentidos}), em "
     "todas as ocorrências anotadas e só nas que o contexto à esquerda já decide."
@@ -76,18 +76,52 @@ def figure_p4_separacao(ctx: Context) -> Any:
     keys = ordered([g for g in groups["group"].astype(str) if g in GROUP_ORDER], GROUP_ORDER)
     if not keys:
         raise Skip("p4_groups.csv não tem alvos, controles, multitema nem funcionais")
+    groups = _with_nmi_excess(ctx, groups)
     measures = [(c, t) for c, t in P4_MEASURES if c in groups]
     return plots.separation_figure(groups, reps, measures, keys)
+
+
+def _with_nmi_excess(ctx: Context, groups: pd.DataFrame) -> pd.DataFrame:
+    """``groups`` plus ``nmi_community_theme_excess_mean``, the group mean of NMI − baseline.
+
+    The baseline (NMI expected by chance) differs a lot between groups, so the raw NMI does
+    not compare them; the panel shows what is left above it.
+
+    Args:
+        ctx: Context of the run.
+        groups: Rows of ``p4_groups.csv``.
+
+    Returns:
+        ``groups`` unchanged when ``p4_types.csv`` is missing or has no baseline column.
+    """
+
+    try:
+        types = ctx.analysis("p4_types")
+    except Skip:
+        return groups
+    if "nmi_community_theme_baseline" not in types:
+        return groups
+    excess = (
+        types.assign(
+            excess=pd.to_numeric(types["nmi_community_theme"], errors="coerce")
+            - pd.to_numeric(types["nmi_community_theme_baseline"], errors="coerce")
+        )
+        .groupby(["rep", "group"], as_index=False)["excess"]
+        .mean()
+        .rename(columns={"excess": "nmi_community_theme_excess_mean"})
+    )
+    return groups.merge(excess, on=["rep", "group"], how="left")
 
 
 def table_p4_alvos(ctx: Context) -> Tabular:
     """Table ``p4_alvos``: one row per target and control word with its separation measures at
     the deepest contextual layer.
 
-    Columns: sample frequency, number of themes (and of annotated senses), self-similarity,
+    Columns: sample frequency, number of themes, self-similarity,
     effective communities, the within-minus-between cosine and the community NMI by theme
-    and, when ``p4_senses.csv`` exists, by annotated sense in each subset. The notes give
-    the mean NMI baselines and the lexical values.
+    and, when ``p4_senses.csv`` exists, by annotated sense in each subset. Each group (targets,
+    controls) ends with a ``média`` row. The notes give the mean NMI baselines and the lexical
+    values.
 
     Args:
         ctx: Context of the run.
@@ -128,12 +162,12 @@ def table_p4_alvos(ctx: Context) -> Tabular:
     ]
     words += sorted(set(chosen["word"]) - set(words))
     current = chosen[chosen["rep"] == last].set_index("word")
-    previous_group = None
+    # Numeric cells of each word, by group, with their formatters (the role is text).
+    formats: list[Any] = [integer, integer, num, lambda v: num(v, 1), lambda v: num(v, 3), num]
+    formats += [lambda v: num(v, 3), num] * len(senses)
+    by_group: dict[str, list[tuple[str, list[Any]]]] = {}
     for word in words:
         group = chosen.loc[chosen["word"] == word, "group"].iat[0]
-        if previous_group is not None and group != previous_group:
-            rows.append(r"\midrule")
-        previous_group = group
         cur = current.loc[word] if word in current.index else None
 
         def value(column: str, cur=cur) -> Any:
@@ -165,22 +199,22 @@ def table_p4_alvos(ctx: Context) -> Tabular:
             return table.at[word, column] if word in table.index else np.nan
 
         any_row = chosen[chosen["word"] == word].iloc[0]
-        cells = [
-            tex_text(word),
-            "alvo" if group == "target" else "controle",
-            integer(any_row["f_sample"]),
-            integer(any_row["n_themes"]),
-        ]
-        if senses:
-            cells.append(integer(sense(next(iter(senses)), "n_senses")))
-        cells += [num(value("self_similarity")), num(value("effective_communities"), 1)]
-        cells += [num(value("theme_gap"), 3), num(value("nmi_community_theme"))]
+        raw = [any_row["f_sample"], any_row["n_themes"]]
+        raw += [value("self_similarity"), value("effective_communities")]
+        raw += [value("theme_gap"), value("nmi_community_theme")]
         for subset in senses:
-            cells += [num(sense(subset, "sense_gap"), 3), num(sense(subset, "nmi_community_sense"))]
-        rows.append(cells)
+            raw += [sense(subset, "sense_gap"), sense(subset, "nmi_community_sense")]
+        by_group.setdefault(group, []).append((word, raw))
+    for i, (group, members) in enumerate(by_group.items()):
+        role = "alvo" if group == "target" else "controle"
+        if i:
+            rows.append(r"\midrule")
+        for word, raw in members:
+            rows.append([tex_text(word), role, *(f(v) for f, v in zip(formats, raw, strict=True))])
+        rows.append(_mean_row(role, [raw for _, raw in members], formats))
     gap = r"\begin{tabular}[b]{@{}c@{}}Intra $-$\\entre\end{tabular}"
     blocks = ["Tema", *(f"Sentido ({SENSE_SUBSETS[subset]})" for subset in senses)]
-    single = ["Palavra", "Papel", "$f_t$", "Temas", *(["Sentidos"] if senses else [])]
+    single = ["Palavra", "Papel", "$f_t$", "Temas"]
     single += [
         r"\begin{tabular}[b]{@{}c@{}}Autossi-\\milaridade\end{tabular}",
         r"\begin{tabular}[b]{@{}c@{}}Comunidades\\efetivas\end{tabular}",
@@ -217,6 +251,91 @@ def table_p4_alvos(ctx: Context) -> Tabular:
         )
     spec = "ll" + "r" * (len(single) - 2) + "rr" * len(blocks)
     return Tabular(spec, header, rows, size=r"\footnotesize", notes=notes, colsep="3.5pt")
+
+
+def table_p4_sentidos(ctx: Context) -> Tabular:
+    """Table ``p4_sentidos``: the annotated senses of each target word, with their counts.
+
+    One row per target: the number of annotated occurrences and every sense label, the most
+    frequent first, with its number of occurrences and of those whose left context decides it.
+
+    Args:
+        ctx: Context of the run.
+
+    Returns:
+        The table.
+
+    Raises:
+        Skip: If ``p4_sense_communities.csv`` is missing or empty.
+    """
+
+    table = ctx.analysis("p4_sense_communities")
+    if table.empty:
+        raise Skip("p4_sense_communities.csv está vazia")
+    # Every representation lists the same annotated occurrences; one is enough.
+    table = table[table["rep"].astype(str) == str(table["rep"].iat[0])]
+    table = table.assign(word=table["word"].astype(str), sense=table["sense"].astype(str))
+    left = table["left_determinable"].astype(str).str.lower() == "true"
+    table = table.assign(left=left)
+    present = set(table["word"])
+    words = [w for w in ctx.settings.sample.targets if w in present]
+    words += sorted(present - set(words))
+    rows: list[Any] = []
+    for word in words:
+        part = table[table["word"] == word]
+        counts = part.groupby("sense")["left"].agg(["size", "sum"])
+        listing = [
+            f"{tex_text(label(SENSE_LABELS, sense))}~({integer(counts.at[sense, 'size'])};~"
+            f"{integer(counts.at[sense, 'sum'])})"
+            for sense in _by_count(part["sense"])
+        ]
+        rows.append(
+            [
+                tex_text(word),
+                integer(len(part)),
+                integer(int(part["left"].sum())),
+                integer(len(counts)),
+                ", ".join(listing),
+            ]
+        )
+    header = [header_row(["Palavra", "Ocorr.", "Esq.", "Sentidos", "Sentidos anotados"])]
+    notes = [
+        "Ocorr.: ocorrências anotadas; Esq.: quantas delas o contexto à esquerda já decide. "
+        "Cada sentido traz os mesmos dois números (ocorrências; decididas à esquerda) e eles "
+        "estão em ordem de frequência."
+    ]
+    return Tabular(
+        "lrrr>{\\raggedright\\arraybackslash}X",
+        header,
+        rows,
+        size=r"\footnotesize",
+        notes=notes,
+        width=r"\linewidth",
+        colsep="4pt",
+    )
+
+
+def _mean_row(role: str, values: list[list[Any]], formats: list[Any]) -> list[str]:
+    """The ``média`` row of one group of ``p4_alvos``: the mean of each numeric column.
+
+    Counts (frequency, themes) get one decimal place; the other columns keep the
+    format of the word rows. A column without values in the group shows ``--``.
+
+    Args:
+        role: ``alvo`` or ``controle``.
+        values: Numeric cells of each word of the group, in column order.
+        formats: Formatter of each column of the word rows.
+
+    Returns:
+        The cells of the row.
+    """
+
+    frame = pd.DataFrame(values, dtype=float)
+    cells = [r"\emph{média}", role]
+    for column, fmt in zip(frame.columns, formats, strict=True):
+        mean = frame[column].mean() if frame[column].notna().any() else np.nan
+        cells.append(num(mean, 1) if fmt is integer else fmt(mean))
+    return cells
 
 
 def _baseline_note(

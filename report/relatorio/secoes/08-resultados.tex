@@ -87,6 +87,17 @@ no bloco 36? Os \emph{hubs} mudam? Dados: etapas \etapa{knn}, \etapa{metrics} e
     {Dominância lexical $D$ e dominância relativa ao teto $\tilde D$ por camada, faixa de
     frequência e categoria de token ($f_t\ge3$).}
     {fig:p1-dominancia}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p1_jaccard_medio}
+    {Jaccard médio com a rede lexical e mudança acima do piso de ruído.}
+    {tab:p1-jaccard-medio}
+
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p1_dominancia_media}
+    {Dominância lexical média e relativa ao teto por camada.}
+    {tab:p1-dominancia-media}
+\tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p1_dominancia_categorias}
+    {Dominância lexical relativa ao teto por categoria e camada.}
+    {tab:p1-dominancia-categorias}
+
 \tabelaopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p1_resumo}
     {P1: $J$, $M$ acima do piso, $D$ e $\tilde D$ médios por camada, estrato e categoria de
     token.}
@@ -108,7 +119,8 @@ palavras inteiras de conteúdo? Dados: etapas \etapa{extract} (36 camadas), \eta
 
 \figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p2_curvas_camadas}
     {Curvas camada a camada: $J(\ell,\ell+1)$ entre blocos consecutivos e dominância
-    $D(\ell)$, por categoria de token.}
+    $D(\ell)$, por categoria de token. No bloco 1, o Jaccard é com a rede lexical com
+    desempate pela posição.}
     {fig:p2-curvas-camadas}
 \figuraopcional[etapa \etapa{report} a partir de \etapa{analyze}]{p2_transicoes}
     {Fração de vértices cuja maior mudança acontece em cada transição, por categoria de token

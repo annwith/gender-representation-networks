@@ -118,6 +118,47 @@ def figure_p1_dominancia(ctx: Context) -> Any:
     return plots.dominance_figure(pd.DataFrame(rows), reps, panels)
 
 
+def table_p1_dominancia_media(ctx: Context) -> Tabular:
+    """Mean lexical dominance and dominance relative to each vertex's ceiling."""
+    frame = ctx.vertex_measures()
+    reps = [r for r in ["lex", *ctx.shown_contextual_reps] if f"D_{r}" in frame]
+    if not reps:
+        raise Skip("vertex_measures.csv não tem dominância lexical")
+    rows = [
+        [tex_text(rep), num(frame[f"D_{rep}"].mean(), 2), num(frame[f"Dn_{rep}"].mean(), 2)]
+        for rep in reps
+    ]
+    return Tabular("lrr", [header_row(["Camada", "Dominância", "Relativa ao teto"])], rows)
+
+
+def table_p1_dominancia_categorias(ctx: Context) -> Tabular:
+    """Mean normalized lexical dominance by token category and contextual layer."""
+    frame = ctx.vertex_measures()
+    reps = [r for r in ctx.shown_contextual_reps if f"Dn_{r}" in frame]
+    if not reps:
+        raise Skip("vertex_measures.csv não tem dominância relativa")
+    categories = ordered(list(frame["token_category"]), CATEGORY_ORDER)
+    rows = []
+    for category in categories:
+        part = frame[frame["token_category"] == category]
+        values = [num(part[f"Dn_{r}"].mean(), 2) for r in reps]
+        rows.append([label(CATEGORY_LABELS, category), *values])
+    return Tabular("l" + "r" * len(reps), [header_row(["Categoria", *map(tex_text, reps)])], rows)
+
+
+def table_p1_jaccard_medio(ctx: Context) -> Tabular:
+    """Mean lexical-neighborhood Jaccard and change above the noise floor."""
+    frame = ctx.vertex_measures()
+    reps = [r for r in ctx.shown_contextual_reps if f"J_lex_{r}" in frame]
+    if not reps or "NF_lex" not in frame:
+        raise Skip("vertex_measures.csv não tem J(lex, ℓ) ou piso de ruído")
+    rows = []
+    for rep in reps:
+        j = frame[f"J_lex_{rep}"]
+        rows.append([tex_text(rep), num(j.mean(), 2), num((frame["NF_lex"] - j).mean(), 2)])
+    return Tabular("lrr", [header_row(["Camada", "Jaccard médio", "Mudança acima do piso"])], rows)
+
+
 def table_p1_resumo(ctx: Context) -> Tabular:
     """Table ``p1_resumo``: per shown contextual layer, mean ``J(lex, l)``, change above the
     noise floor, dominance and normalized dominance, overall and by stratum and category.

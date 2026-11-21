@@ -65,7 +65,10 @@ from gender_networks.report.sections.metrics import figure_graus_camadas, table_
 from gender_networks.report.sections.p1 import (
     figure_p1_dominancia,
     figure_p1_jaccard_faixas,
+    table_p1_dominancia_categorias,
+    table_p1_dominancia_media,
     table_p1_hubs,
+    table_p1_jaccard_medio,
     table_p1_resumo,
 )
 from gender_networks.report.sections.p2 import (
@@ -78,6 +81,7 @@ from gender_networks.report.sections.p4 import (
     figure_p4_comunidades_sentidos,
     figure_p4_separacao,
     table_p4_alvos,
+    table_p4_sentidos,
 )
 from gender_networks.report.sections.robustness import figure_robustez_empates, table_robustez
 from gender_networks.report.sections.sample import (
@@ -136,6 +140,9 @@ ITEMS = [
     Item("figure", "p1_jaccard_faixas", figure_p1_jaccard_faixas),
     Item("figure", "p1_dominancia", figure_p1_dominancia),
     Item("table", "p1_resumo", table_p1_resumo),
+    Item("table", "p1_jaccard_medio", table_p1_jaccard_medio),
+    Item("table", "p1_dominancia_media", table_p1_dominancia_media),
+    Item("table", "p1_dominancia_categorias", table_p1_dominancia_categorias),
     Item("table", "p1_hubs", table_p1_hubs),
     Item("figure", "p2_transicoes", figure_p2_transicoes),
     Item("table", "p2_transicoes", table_p2_transicoes),
@@ -144,6 +151,7 @@ ITEMS = [
     Item("table", "p3_concordancia", table_p3_concordancia),
     Item("figure", "p4_separacao", figure_p4_separacao),
     Item("table", "p4_alvos", table_p4_alvos),
+    Item("table", "p4_sentidos", table_p4_sentidos),
     Item("figure", "p4_ego_banco", figure_p4_ego_banco),
     Item("figure", "p4_comunidades_sentidos", figure_p4_comunidades_sentidos),
     Item("table", "robustez", table_robustez),
