@@ -260,18 +260,3 @@ continuam próximas entre si, mesmo depois de se afastarem do vetor original da 
     linhas da matriz de \emph{embeddings}, ordenadas pelo cosseno com o vetor da ocorrência,
     por bloco e categoria de token (escala logarítmica; 1 = a linha mais próxima).}
     {fig:lente-ranking}
-
-% ------------------------------------------------------------
-\subsection{Robustez}\label{sec:robustez}
-
-Refizemos as redes mudando uma escolha de cada vez, e \textbf{em nenhuma variação a conclusão
-qualitativa muda}: a clusterização é maior no bloco 1 que nos blocos 18 e 36, as distâncias
-encurtam a partir do bloco 18 e a troca de vizinhos em relação à rede lexical cresce do bloco 1
-ao 36. Com $k=5$ e $k=20$, os valores mudam na direção esperada (distância média no bloco 18 de
-7,3 e 4,0, contra 5,1 com $k=10$), mas a ordem entre as camadas se mantém. O mesmo vale para a
-rede mútua, para o desempate pela posição (Jaccard de 0,359 contra 0,354 entre \cod{lex} e
-\cod{L01}), para a aceitação de todos os empatados e para uma tolerância cem vezes maior. A
-saída normalizada do bloco 36 dá redes quase iguais às da saída bruta, e subtrair a média dos
-vetores, o que remove a direção comum, muda pouco: a anisotropia não produz os resultados. Com
-outras resoluções do Leiden e com o Louvain, a modularidade de \cod{L18} e \cod{L36} fica
-entre 0,73 e 0,76. A P3 e a P4 não foram repetidas nessas variações.
