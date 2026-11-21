@@ -29,19 +29,14 @@ palavra perdem a identidade logo, inícios de palavra a mantêm.
 \begin{itemize}
     \item \textbf{Os temas são recortes} próximos da categoria raiz, com alguns artigos pouco
     típicos (prêmios em Física, canções em Futebol). No núcleo, 39\% dos vértices vêm de
-    categorias extras; só com os artigos da raiz, a concordância com o tema no bloco 18 vai de
-    0,197 para 0,205.
-    \item \textbf{Os sentidos foram anotados por um modelo de linguagem}, sem revisão humana nem
-    segundo anotador, com rótulos definidos pelo próprio anotador. A comparação com os
-    controles, que não depende da anotação, aponta na mesma direção.
+    categorias extras.
+    \item \textbf{Os sentidos foram anotados por um modelo de linguagem}, sem revisão humana.
     \item \textbf{O Qwen3 fragmenta o português}: muitos vértices são pedaços de palavra, e as
     palavras-alvo ficaram restritas às que são um token só (\emph{corrente}, \emph{onda},
     \emph{célula} e \emph{núcleo} saíram por isso).
     \item \textbf{A amostra é desenhada}: as cotas (50 e 20 ocorrências) explicam parte da
-    estrutura da rede lexical (componentes isolados, grupos muito clusterizados), e o núcleo
+    estrutura da rede lexical, e o núcleo
     domina as métricas globais.
-    \item \textbf{A ilha da posição 1} pode formar uma comunidade própria no núcleo; esse efeito
-    sobre a P3 não foi medido.
     \item \textbf{Um modelo, uma língua, um tipo de texto}, que o modelo provavelmente viu no
     treinamento; os vetores carregam o arredondamento do \emph{bfloat16}. Não sabemos se as
     três regiões aparecem nos mesmos blocos em outros modelos.

@@ -86,8 +86,8 @@ vértice dele é a ocorrência sorteada. Ao todo são \nVertices{} vértices de 
 \paragraph{Anotação dos sentidos.}\label{sec:dados-sentidos} O tema é só um indicador do
 sentido: um artigo de Computação pode citar o Banco Central. Por isso, as 508 ocorrências das
 palavras-alvo foram classificadas pelo modelo de linguagem Claude Opus~5.5, sem revisão humana.
-Para cada palavra, foram definidos de três a sete rótulos de sentido (todos no
-Apêndice~\ref{ap:sentidos}); cada ocorrência recebeu um deles. Por exemplo, as ocorrências de \emph{órgão} foram classificadas como biológicas,
+Para cada palavra, foram definidos de três a sete rótulos de sentido; cada ocorrência recebeu
+um deles. Por exemplo, as ocorrências de \emph{órgão} foram classificadas como biológicas,
 institucionais ou referentes ao instrumento musical. Cada ocorrência foi lida com o trecho do
 parágrafo, sem o tema nem o título do artigo. Como o modelo
 analisado só vê o texto à esquerda, cada ocorrência recebeu também uma marca que diz se esse
@@ -242,7 +242,8 @@ com o Leiden~\cite{traag2019}, que maximiza a modularidade~\cite{newman2006} (10
 concordância média entre elas é a \emph{estabilidade}). A partição é comparada com rótulos dos
 vértices (tipo de token, tema, artigo, parágrafo, sentença, próximo token, token previsto pelo
 modelo e faixa de posição) pela informação mútua normalizada
-(NMI). Como o NMI cresce com o número de classes mesmo sem relação nenhuma~\cite{vinh2010}, e
+(NMI), só nos vértices do núcleo: as comunidades vêm da rede inteira, mas só o núcleo tem
+parágrafos inteiros; nos outros estratos, cada parágrafo tem um único vértice. Como o NMI cresce com o número de classes mesmo sem relação nenhuma~\cite{vinh2010}, e
 os rótulos vão de 4 a 2.780 classes, cada NMI é descontado de uma \textbf{linha de base}, o NMI
 médio com o rótulo embaralhado 20 vezes; a medida lida é \textbf{NMI $-$ base}.
 

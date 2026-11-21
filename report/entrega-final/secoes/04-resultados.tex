@@ -39,11 +39,15 @@ pares de vértices ao acaso sobe de 0,03 na camada lexical para 0,39 no bloco 18
 bloco 36. A reciprocidade sobe de 0,49 para 0,61 no bloco 18 e cai para 0,44 no 36, porque
 muitos vértices escolhem um \emph{hub} que não os escolhe de volta.
 
-\paragraph{Uma ilha de primeiros tokens.} O segundo componente das redes \cod{L18} e \cod{L36}
-é formado pelo primeiro token de vários parágrafos (quase sempre ``O'' ou ``A''). No bloco 18,
-os vetores da posição 1 têm norma cerca de 50 vezes maior que a dos outros (mediana de 2.814
-contra 55), as \emph{ativações massivas}~\cite{sun2024}, e todos os seus vizinhos são outros
-vértices da posição 1. São 0,6\% dos vértices, e retirá-los quase não muda as métricas globais.
+\paragraph{Uma ilha de primeiros tokens.} Nas redes \cod{L18} e \cod{L36}, o segundo maior
+componente é um grupo separado do restante da rede, formado pelos primeiros tokens de vários
+parágrafos, quase sempre ``O'' ou ``A''. Esses tokens representam 0,6\% dos vértices. No bloco
+18, cada um deles tem como vizinhos apenas outros tokens que também ocupam a primeira posição
+de um parágrafo. Suas representações também se distinguem pelo tamanho: a mediana da norma
+dos vetores é 2.814, contra 55 nas demais posições, cerca de 50 vezes maior. Esse padrão de
+valores muito elevados é conhecido como \emph{ativações massivas}~\cite{sun2024}. Assim, a
+posição no início do parágrafo está associada tanto a representações de norma excepcionalmente
+alta quanto à formação de um grupo separado na rede.
 
 \paragraph{A rede do vocabulário.} É conexa (última coluna da
 Tabela~\ref{tab:metricas-globais}), mas tem \emph{hubs} extremos (grau de entrada máximo de 1.756, assimetria de 22,6): caracteres isolados
