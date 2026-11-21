@@ -2,45 +2,39 @@
 \section{Resumo do projeto e da entrega parcial}\label{sec:parcial}
 % ============================================================
 
-\paragraph{O projeto.} Um piloto num texto curto mostrou dois problemas que guiaram o desenho
-final: na rede lexical, as ocorrências de um token têm cosseno 1 entre si e \emph{empatam} na
-escolha dos vizinhos; e o \emph{tokenizer} quebra as palavras do português em pedaços sem
-significado próprio (``praca'' vira \tok{pra}${}+{}$\tok{ca}). Um
-\href{\viabilidade}{estudo de viabilidade} mostrou que parágrafos inteiros não repetem palavras
-de conteúdo o bastante para a P4, o que levou a uma amostra híbrida
-(Seção~\ref{sec:amostra}). O trabalho foi implementado como um \emph{pipeline} em Python, com
-uma etapa por módulo (corpus, amostra, extração dos vetores, k-NN, métricas, análise, lente e
-relatório), configurado por arquivos YAML.
+\paragraph{O projeto.} O trabalho foi implementado como um \emph{pipeline} em Python, com uma
+etapa por módulo (corpus, amostra, extração dos vetores, k-NN, métricas, análise e relatório),
+configurado por arquivos YAML.
 
 \paragraph{A entrega parcial.} A entrega parcial construiu as quatro redes de ocorrências
 (\cod{lex}, \cod{L01}, \cod{L18}, \cod{L36}; 13.606 vértices, $k=10$), publicou-as em GraphML
-(\cod{data/graphml/}) e fez a análise inicial das redes direcionadas e a visualização. Foram calculadas as métricas: número de vértices e arestas, grau médio, densidade, clusterização
-global e local (e a sua distribuição), distância média e diâmetro (exatos, por busca em
-largura), componentes e a distribuição dos seus tamanhos e a distribuição de graus. Os
-principais achados foram:
+(\cod{data/graphml/}) e fez a análise inicial das redes \textbf{direcionadas}, o objeto que o
+k-NN produz. Foram calculados o número de vértices e arcos, os graus de entrada e saída, a
+densidade, a clusterização dirigida (global e local, e a sua distribuição), as componentes
+fracas e fortes e a distribuição dos seus tamanhos e as distâncias dirigidas, exatas, por busca
+em largura. Como nenhuma rede é fortemente conexa, a distância média e o diâmetro são
+infinitos; foram reportados a fração de pares com caminho e substitutos finitos (média sobre os
+pares com caminho, valores na maior componente forte e eficiência global). Os principais
+achados foram:
 \begin{itemize}
-    \item \textbf{Clusterização}: alta nas redes \cod{lex} e \cod{L01} (0,53 a 0,62) e cerca
-    da metade nas redes \cod{L18} e \cod{L36} (0,23 a 0,37), sempre duas ordens de grandeza
-    acima da densidade ($\approx10^{-3}$).
-    \item \textbf{Componentes e distâncias}: as redes \cod{lex} e \cod{L01} têm 44 e 40
-    componentes, muitos deles formados pelas ocorrências de um único token frequente; as redes
-    \cod{L18} e \cod{L36} têm 2. A distância média cai de 7,6 e 7,1 para 5,1 e 5,3, e o
-    diâmetro de 18 para 11.
+    \item \textbf{Clusterização}: alta nas redes \cod{lex} e \cod{L01} (0,44 a 0,53) e menor
+    nas redes \cod{L18} e \cod{L36} (0,23 a 0,33).
     \item \textbf{\emph{Hubs}}: o maior grau de entrada vai de 29 (\cod{lex}) a 247
     (\cod{L36}); no bloco 36, 5,4\% dos vértices não são escolhidos por ninguém.
-    \item \textbf{Rede direcionada}: há muito mais componentes fortes que fracas (1.059 contra
-    44 na rede lexical), porque os grupos de ocorrências de um token frequente só apontam para
-    dentro, e muitos pares não têm caminho dirigido (82\% em \cod{lex}, 20\% em \cod{L36}).
+    \item \textbf{Componentes}: há muito mais componentes fortes que fracas (1.059 contra 44
+    na rede lexical; 173 contra 2 no bloco 18). A maior componente forte reúne 19\% dos
+    vértices em \cod{lex} e 96\% em \cod{L18}.
+    \item \textbf{Distâncias}: os pares sem caminho dirigido são 82\% em \cod{lex}, 75\% em
+    \cod{L01}, 5\% em \cod{L18} e 20\% em \cod{L36}; entre os pares com caminho, a distância
+    média cai de 10,4 (\cod{lex}) para 7,0 (\cod{L18}) e volta a 10,0 em \cod{L36}.
     \item \textbf{Comparação arco a arco}: a fração de arcos entre ocorrências do mesmo token
     cai de 70\% (\cod{lex}) para 69\%, 43\% e 25\%; e cada rede guarda poucos arcos da
     anterior (Jaccard de 0,18 entre \cod{L01} e \cod{L18} e de 0,16 entre \cod{L18} e
     \cod{L36}).
-    \item \textbf{Visualização} (\emph{layout} UMAP): a fração de arestas entre ocorrências do
-    mesmo tema sobe de 20\% na rede lexical para 52\% no bloco 18 e cai para 44\% no bloco 36,
-    quando a rede passa a separar os tokens que terminam e os que não terminam uma palavra.
 \end{itemize}
 A síntese da entrega parcial foi que a passagem \cod{lex}/\cod{L01} $\to$
-\cod{L18}/\cod{L36} já aparece nas métricas globais como uma reorganização, que o bloco 1
-quase não muda a rede lexical e que a mudança continua entre os blocos 18 e 36. Ficaram para a
-fase final as medidas vértice a vértice (com o desconto do ruído dos empates), as comunidades
-e as perguntas P2 a P4.
+\cod{L18}/\cod{L36} já aparece nas métricas globais como uma reorganização (clusterização
+menor, componente forte gigante, \emph{hubs} no bloco 36), que o bloco 1 quase não muda a rede
+lexical e que, arco a arco, a mudança continua entre os blocos 18 e 36. Ficaram para a fase
+final as medidas vértice a vértice (com o desconto do ruído dos empates), as comunidades e as
+perguntas P2 a P4.

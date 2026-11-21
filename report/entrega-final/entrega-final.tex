@@ -245,7 +245,7 @@ parágrafos da Wikipédia em português, e cada vértice se liga aos 10 de vetor
 Os mesmos vértices recebem quatro vetores do Qwen3-4B-Base (o \emph{embedding} de entrada e as
 saídas dos blocos 1, 18 e 36), o que dá quatro redes comparáveis vértice a vértice. A entrega
 parcial mostrou, pelas métricas globais, que o bloco 1 quase não muda a rede lexical e que
-depois a clusterização cai, as distâncias encurtam e surgem \emph{hubs}. A fase final mediu a
+depois a clusterização cai, surge uma componente forte gigante e aparecem \emph{hubs}. A fase final mediu a
 reorganização vértice a vértice e por comunidades, nos 36 blocos. A fração de vizinhos do mesmo
 token cai de 0,70 para 0,25, ainda muito acima do acaso; nos blocos do meio, as comunidades
 seguem mais o artigo e o tema de origem do que o token, e nos últimos, o próximo token; e
