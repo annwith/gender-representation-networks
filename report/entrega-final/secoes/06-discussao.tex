@@ -3,15 +3,16 @@
 % ============================================================
 
 \paragraph{Três regiões do modelo.} Juntas, as medidas descrevem o Qwen3-4B-Base em três
-regiões. Nos primeiros blocos (até o 5, aproximadamente), o vetor de uma ocorrência ainda é o
-seu token: a rede do bloco 1 é a rede lexical com os empates desfeitos, e a linha mais próxima
-em $E$ é a do próprio token. Nos blocos do meio (de 6 a 22), o vetor deixa de se parecer com o
-próprio token e ainda não se parece com o próximo; é aí que as comunidades seguem o artigo, o
-parágrafo e o tema, e que os sentidos de uma palavra ambígua mais se afastam. No último terço,
-o vetor se aproxima do token que vem depois, as comunidades passam a segui-lo, a anisotropia
-cresce e surgem \emph{hubs} fortes. A passagem entre as duas últimas regiões é abrupta: nos
-blocos 22 a 25, a troca de vizinhos entre blocos, a concordância com o contexto e a distância
-ao próximo token mudam juntas. A divisão é coerente com a ``lente de
+regiões. Nos primeiros blocos (até o 3 ou 4), o vetor de uma ocorrência ainda é o seu token: a
+rede do bloco 1 é a rede lexical com os empates desfeitos, e a linha mais próxima em $E$ é a do
+próprio token (90\% das ocorrências no bloco 1, 32\% no 4). Nos blocos do meio (até o 22), o
+vetor deixa de se parecer com o próprio token e ainda não se parece com o próximo; é aí que as
+comunidades seguem o artigo, o parágrafo e o tema, e que os sentidos de uma palavra ambígua
+mais se afastam. Nos blocos 22 a 24, a troca de vizinhos aumenta, a concordância com o contexto
+cai e o próximo token fica mais perto do vetor que o próprio token; daí em diante, a anisotropia
+cresce e surgem \emph{hubs} fortes. As comunidades, porém, voltam a seguir o artigo nos blocos
+25 a 30 e só seguem mais o próximo token a partir do 32; no 36, ele empata com o próprio token
+(0,19). A divisão é coerente com a ``lente de
 \emph{logits}''~\cite{nostalgebraist2020}, em que as previsões só se formam nas camadas finais.
 
 \paragraph{O que as redes mostram além das médias.} A autossimilaridade, a medida clássica de
@@ -21,7 +22,7 @@ contextual'' que o do meio. As redes mostram que a troca de vizinhos continua at
 bloco, que as comunidades mudam de natureza (do texto para o próximo token) e que a separação
 das palavras ambíguas cresce até o fim; a subida da autossimilaridade acompanha a anisotropia.
 Mostram também que a identidade do token é persistente: a linha do token em $E$ deixa de ser a
-mais próxima já no bloco 5, mas as ocorrências continuam vizinhas muito depois, numa direção que
+mais próxima na maioria das ocorrências já no bloco 4, mas as ocorrências continuam vizinhas muito depois, numa direção que
 não é mais o \emph{embedding} de entrada. E a fragmentação do português pesa: continuações de
 palavra perdem a identidade logo, inícios de palavra a mantêm.
 
@@ -47,6 +48,6 @@ acompanhar a reorganização das representações de um Transformer vértice a v
 escalas, e o objetivo geral e as quatro perguntas foram respondidos. No Qwen3-4B-Base e em
 texto enciclopédico em português, a reorganização é grande, não monótona e dependente do tipo
 de token: a identidade lexical cede espaço aos poucos sem desaparecer, o contexto do texto
-domina o meio do modelo, o próximo token domina o fim, e as palavras ambíguas separam as
+domina o meio do modelo, no fim o próximo token ganha tanto peso quanto o próprio token, e as palavras ambíguas separam as
 ocorrências pelo sentido. Do lado da entrada, a rede do vocabulário é organizada por significado
 entre línguas, e não por escrita.
