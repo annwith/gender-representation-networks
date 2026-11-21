@@ -23,7 +23,7 @@ efeito da construção: uma ocorrência de um tipo frequente tem os 10 vizinhos 
 ocorrências do mesmo tipo, que também se escolhem entre si e formam grupos densos, às vezes
 isolados. Nos blocos 18 e 36, as vizinhanças misturam tokens diferentes, os triângulos ficam mais raros,
 os grupos se fundem e surgem atalhos. O número de comunidades cai de 186 para 58 e 44, e a
-modularidade de 0,95 para 0,77: as comunidades ficam maiores e menos separadas.
+modularidade de 0,95 para 0,76 e 0,77: as comunidades ficam maiores e menos separadas.
 
 \figuraopcionallado{graus_camadas}
     {Distribuição do grau de entrada nas redes direcionadas: fração dos vértices com grau de
@@ -166,7 +166,7 @@ passa de 0,04: as comunidades não são um artefato da posição.
 
 A Figura~\ref{fig:p3-nmi-camadas} mostra as mesmas medidas nos 36 blocos. A concordância com o
 contexto acelera a partir do bloco 9, tem máximos nos blocos 12 e 13 (artigo 0,27, parágrafo
-0,26, tema 0,22) e 19, cai bruscamente nos blocos 22 a 24 (o tema vai a 0,08), volta no 25 e
+0,26, tema 0,21) e 19, cai bruscamente nos blocos 22 a 24 (o tema vai a 0,08), volta no 25 e
 diminui até o 36. A concordância com o próximo token cresce a partir do bloco 21 e chega a 0,19
 no bloco 34. A queda dos blocos 22 a 24 coincide com a do Jaccard entre blocos consecutivos e
 com o bloco em que o próximo token passa a ficar mais perto do vetor do que o próprio token
@@ -188,7 +188,7 @@ sentido anotado.
 \figuratodas{p4_separacao}
     {Separação das ocorrências de um mesmo tipo nos 36 blocos (médias por grupo, tipos com pelo
     menos 10 ocorrências). O painel do NMI desconta a linha de base (o NMI esperado ao acaso),
-    que difere entre os grupos (no bloco 36: 0,09 nos alvos, 0,13 nos controles, 0,26 nas
+    que difere entre os grupos (no bloco 36: 0,08 nos alvos, 0,13 nos controles, 0,26 nas
     multitema e 0,19 nas funcionais).}
     {fig:p4-separacao}
 
@@ -198,7 +198,7 @@ blocos 10 a 15 e volta a cerca de 0,78 no bloco 36. Ela não distingue palavras 
 estáveis. A diferença \textbf{intra $-$ entre temas}
 separa os grupos: nos alvos, ela tem o máximo nos blocos 11 e 12 (0,12) e vale 0,09 no bloco 18
 e 0,05 no 36; nos controles, não passa de 0,02. O \textbf{NMI $-$ base entre comunidade e tema}
-sobe do bloco 18 para o 36 nos três grupos, mas em escalas diferentes: de 0,23 para 0,33 nos
+sobe do bloco 18 para o 36 nos três grupos, mas em escalas diferentes: de 0,22 para 0,33 nos
 alvos, e de 0,02 para 0,04 nos controles e nas palavras multitema. No bloco 36, as ocorrências de um alvo se espalham por 3,3 comunidades efetivas, e as
 de um controle por 2,7.
 
